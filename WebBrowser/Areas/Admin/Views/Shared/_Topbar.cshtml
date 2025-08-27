@@ -1,0 +1,37 @@
+﻿<nav class="navbar navbar-expand-lg border-bottom px-3" id="topbar">
+    <!-- Toggle mở sidebar (mobile) -->
+    <button class="btn btn-outline-secondary d-lg-none me-2" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <a class="navbar-brand fw-semibold" asp-area="Admin" asp-controller="Home" asp-action="Index">
+        <i class="bi bi-film me-2"></i>Movie Admin
+    </a>
+
+    <form class="d-none d-md-flex ms-3" method="get" asp-area="Admin" asp-controller="Home" asp-action="Search">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input name="q" class="form-control" placeholder="Tìm nhanh phim, series, người...">
+        </div>
+    </form>
+
+    <div class="ms-auto d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#offcanvasFilters">
+            <i class="bi bi-funnel"></i><span class="d-none d-sm-inline ms-1">Bộ lọc</span>
+        </button>
+        <button class="btn btn-outline-secondary position-relative" id="btnNotifications">
+            <i class="bi bi-bell"></i>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">3</span>
+        </button>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="bi bi-person-circle me-1"></i>Admin
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Home" asp-action="Profile"><i class="bi bi-gear me-2"></i>Cài đặt</a></li>
+                <li><hr class="dropdown-divider" /></li>
+                <li><a class="dropdown-item" href="#"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>

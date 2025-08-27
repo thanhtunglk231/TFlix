@@ -1,0 +1,589 @@
+﻿@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Quản lý Movie · Admin";
+
+    // Movie CRUD
+    var urlGetAll = Url.Action("GetAll", "Movie", new { area = "Admin" });
+    var urlAdd = Url.Action("AddMovie", "Movie", new { area = "Admin" });
+    var urlUpdate = Url.Action("UpdateMovie", "Movie", new { area = "Admin" });
+    var urlDelete = Url.Action("Delete", "Movie", new { area = "Admin" });
+
+    // MovieAsset CRUD
+    var urlAssetGetAll = Url.Action("GetById", "MovieAsset", new { area = "Admin" });
+    var urlAssetAdd = Url.Action("Add", "MovieAsset", new { area = "Admin" });
+    var urlAssetDel = Url.Action("Delete", "MovieAsset", new { area = "Admin" });
+}
+
+<style>
+    /* Loading + Toast */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        z-index: 1100;
+        background: rgba(0,0,0,.25);
+        backdrop-filter: blur(1px)
+    }
+
+        .loading-overlay .spinner-wrap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            background: rgba(0,0,0,.35);
+            padding: 16px 18px;
+            border-radius: 10px
+        }
+
+    .spinner {
+        width: 52px;
+        height: 52px;
+        border: 5px solid #eee;
+        border-top: 5px solid #27d3c3;
+        border-radius: 50%;
+        animation: spin 1s linear infinite
+    }
+    @@keyframes spin {
+        from
+
+    {
+        transform: rotate(0)
+    }
+
+    to {
+        transform: rotate(360deg)
+    }
+
+    }
+
+    .toastx {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        min-width: 280px;
+        z-index: 1200;
+        background: #333;
+        color: #fff;
+        border-radius: 10px;
+        padding: 12px 16px;
+        display: none;
+        box-shadow: 0 8px 24px rgba(0,0,0,.25)
+    }
+
+        .toastx.success {
+            background: #28a745
+        }
+
+        .toastx.error {
+            background: #dc3545
+        }
+
+    /* Table pills */
+    .chip {
+        display: inline-block;
+        padding: .15rem .5rem;
+        border-radius: 1rem;
+        font-size: .775rem;
+        background: var(--bs-secondary-bg);
+        color: var(--bs-body-color)
+    }
+
+    /* Asset UI */
+    .asset-thumb {
+        width: 90px;
+        height: 56px;
+        object-fit: cover;
+        border-radius: 6px;
+        background: #111;
+        display: block
+    }
+
+        .asset-thumb.video {
+            background: #000
+        }
+
+    .asset-url-cell {
+        max-width: 420px
+    }
+
+    .asset-url-clip {
+        display: inline-block;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        color: #9fb1bd;
+        text-decoration: none
+    }
+
+        .asset-url-clip:hover {
+            color: #fff;
+            text-decoration: underline
+        }
+
+    .asset-thumb-wrap {
+        display: flex;
+        align-items: center;
+        gap: .75rem
+    }
+
+    #assetPanel .table td, #assetPanel .table th {
+        vertical-align: middle
+    }
+</style>
+
+<div class="loading-overlay" id="__loadingOverlay"><div class="spinner-wrap"><div class="spinner"></div></div></div>
+<div class="toastx" id="__toastMessage"></div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="m-0"><i class="bi bi-film me-2"></i>Quản lý Movie</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" id="btnRefresh"><i class="bi bi-arrow-clockwise me-1"></i>Nạp lại</button>
+        <button class="btn btn-primary" id="btnAdd"><i class="bi bi-plus-circle me-1"></i>Thêm movie</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="row g-2 mb-3">
+            <div class="col-md-4"><input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề..."></div>
+            <div class="col-md-3">
+                <select id="slStatus" class="form-select">
+                    <option value="">Trạng thái (Tất cả)</option>
+                    <option value="RELEASED">RELEASED</option>
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="ARCHIVED">ARCHIVED</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="slPremium" class="form-select">
+                    <option value="">Premium (Tất cả)</option>
+                    <option value="Y">Có</option>
+                    <option value="N">Không</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select id="pageSize" class="form-select">
+                    <option value="10">10 / trang</option>
+                    <option value="20" selected>20 / trang</option>
+                    <option value="50">50 / trang</option>
+                    <option value="100">100 / trang</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="movieTable" class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:90px;">ID</th>
+                        <th>Tiêu đề</th>
+                        <th class="text-nowrap">Release Date</th>
+                        <th class="text-nowrap">Duration (min)</th>
+                        <th>Status</th>
+                        <th>Premium</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="pagerWrap" class="mt-2"></div>
+    </div>
+</div>
+
+<!-- Modal Movie + Asset -->
+<div class="modal fade" id="movieModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><span id="movieModalTitle">Thêm movie</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="movieForm" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="MovieId" />
+
+                    <div class="col-md-8"><label class="form-label">Tiêu đề *</label><input class="form-control" id="Title" required /></div>
+                    <div class="col-md-4"><label class="form-label">Original Title</label><input class="form-control" id="OriginalTitle" /></div>
+                    <div class="col-md-12"><label class="form-label">Overview</label><textarea class="form-control" id="Overview" rows="3"></textarea></div>
+
+                    <div class="col-md-4"><label class="form-label">Release Date</label><input type="date" class="form-control" id="ReleaseDate" /></div>
+                    <div class="col-md-4"><label class="form-label">Duration (min)</label><input class="form-control" id="DurationMin" placeholder="120" /></div>
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="Status">
+                            <option value="">--</option>
+                            <option value="RELEASED">RELEASED</option>
+                            <option value="DRAFT">DRAFT</option>
+                            <option value="ARCHIVED">ARCHIVED</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Premium</label>
+                        <select class="form-select" id="IsPremium"><option value="N">Không</option><option value="Y">Có</option></select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">Poster URL</label><input class="form-control" id="PosterUrl" placeholder="https://..." /></div>
+
+                    <div class="col-12">
+                        <button class="btn btn-outline-info w-100" type="button" data-bs-toggle="collapse" data-bs-target="#assetPanel" aria-expanded="false">
+                            <i class="bi bi-image me-1"></i> Thêm tài nguyên (MovieAsset)
+                        </button>
+                        <div class="form-text">Cần có MovieId (lưu Movie trước) để quản lý tài nguyên.</div>
+                    </div>
+                </form>
+
+                <!-- Asset panel -->
+                <div class="collapse mt-3" id="assetPanel">
+                    <div class="border rounded p-3">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-2"><label class="form-label">MovieId</label><input class="form-control" id="Asset_MovieId" readonly /></div>
+                            <div class="col-md-3">
+                                <label class="form-label">Loại</label>
+                                <select class="form-select" id="Asset_Type">
+                                    <option value="THUMB">THUMB</option>
+                                    <option value="POSTER">POSTER</option>
+                                    <option value="BACKDROP">BACKDROP</option>
+                                    <option value="TRAILER">TRAILER</option>
+                                    <option value="SUB">SUB</option>
+                                    <option value="OTHER">OTHER</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3"><label class="form-label">SortOrder</label><input class="form-control" id="Asset_Sort" value="0" /></div>
+                            <div class="col-md-4">
+                                <label class="form-label">Tệp (ảnh/video)</label>
+                                <input type="file" class="form-control" id="Asset_File" />
+                                <div class="form-text">Sửa meta có thể không chọn file.</div>
+                            </div>
+                            <input type="hidden" id="Asset_Id" />
+                            <input type="hidden" id="Asset_Url" />
+                            <div class="col-12 d-flex gap-2">
+                                <button class="btn btn-primary" id="btnAssetSave"><i class="bi bi-save me-1"></i> Lưu tài nguyên</button>
+                                <button class="btn btn-outline-secondary" id="btnAssetReset"><i class="bi bi-x-circle me-1"></i> Reset</button>
+                            </div>
+                        </div>
+
+                        <hr class="my-3" />
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0" id="assetTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:90px;">AssetId</th>
+                                        <th style="width:110px;">Type</th>
+                                        <th>Preview / URL</th>
+                                        <th style="width:90px;">Sort</th>
+                                        <th class="text-end" style="width:140px;">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- /Asset panel -->
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal preview asset -->
+<div class="modal fade" id="assetPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-0">
+                <h6 class="modal-title">Xem trước tài nguyên</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body d-flex justify-content-center">
+                <img id="previewImg" src="" alt="" class="img-fluid d-none" style="max-height:78vh;">
+                <video id="previewVideo" class="d-none" style="max-height:78vh;" controls></video>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        (function(){
+          // Endpoints
+          const urls = {
+            movie: { getAll:'@urlGetAll', add:'@urlAdd', update:'@urlUpdate', delete:'@urlDelete' },
+            asset: { getAll:'@urlAssetGetAll', add:'@urlAssetAdd', delete:'@urlAssetDel' }
+          };
+
+          // Elements/State
+          const $overlay=$("#__loadingOverlay"), $toast=$("#__toastMessage");
+          const $tbody=$("#movieTable tbody"), $pager=$("#pagerWrap");
+          const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('movieModal'));
+          const $assetTbody=$("#assetTable tbody");
+          const prevModal=bootstrap.Modal.getOrCreateInstance(document.getElementById('assetPreviewModal'));
+          const imgPrev=document.getElementById('previewImg'); const vidPrev=document.getElementById('previewVideo');
+
+          let cache=[], filtered=[], page=1, assetCache=[];
+
+          // Helpers
+          const showLoading=()=> $overlay.fadeIn(80);
+          const hideLoading=()=> $overlay.fadeOut(120);
+          function showToast(msg, ok=true, ms=2600){ $toast.text(msg||'').removeClass('success error').addClass(ok?'success':'error').fadeIn(120); setTimeout(()=> $toast.fadeOut(150), ms); }
+          function pickList(res){ const d=res?.data??res?.Data; if(!d) return []; if(Array.isArray(d)) return d; if(Array.isArray(d.table)) return d.table; if(Array.isArray(d.Table)) return d.Table; return []; }
+          const toDate10=v=> v? new Date(v).toISOString().substring(0,10) : '';
+          const toIntOrNull=s=> (s===null||s===undefined||s==='')?null:(Number.isFinite(+s)?Math.trunc(+s):null);
+          const gv=(o,...k)=>{for(const x of k){if(o?.[x]!==undefined&&o?.[x]!==null)return o[x]}};
+          const date0=d=> d? (d+'T00:00:00') : null;
+          const isImg=u=> /\.(png|jpe?g|gif|webp|svg)$/i.test(u||'');
+          const isVid=u=> /\.(mp4|webm|ogg|mov|m4v)$/i.test(u||'');
+          function openPreview(url){ imgPrev.classList.add('d-none'); vidPrev.classList.add('d-none'); vidPrev.pause(); if(isVid(url)){ vidPrev.src=url; vidPrev.classList.remove('d-none'); } else { imgPrev.src=url; imgPrev.classList.remove('d-none'); } prevModal.show(); }
+
+          // Pagination
+                 function paginate(list,page,size){
+          const total=list.length;
+          const last=Math.max(1,Math.ceil(total/size));
+          page=Math.min(Math.max(1,page),last);
+          const s=(page-1)*size;
+          return { page,size,total,last,items:list.slice(s,s+size) };
+        }
+
+          function renderPager(state){
+            const {page,last,total}=state, btn=(l,t,dis)=>`<li class="page-item ${dis?'disabled':''}"><a class="page-link" href="#" data-page="${t}">${l}</a></li>`;
+            $pager.html(`<div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div class="small text-secondary">Tổng: <b>${total}</b> • Trang <b>${page}</b>/<b>${last}</b></div>
+              <ul class="pagination m-0">${btn('«',1,page<=1)}${btn('‹',page-1,page<=1)}${btn(page,page,true)}${btn('›',page+1,page>=last)}${btn('»',last,page>=last)}</ul>
+            </div>`);
+            $pager.find('a.page-link').on('click',e=>{e.preventDefault();const p=+e.target.dataset.page;if(Number.isFinite(p)){page=p;renderTablePage();}});
+          }
+
+          // Filter + render movie table
+          function applyFilter(){
+            const q=($('#txtSearch').val()||'').trim().toLowerCase();
+            const st=($('#slStatus').val()||'').trim();
+            const pm=($('#slPremium').val()||'').trim();
+            filtered=cache.filter(m=>{
+              const title=(m.title??m.Title??'').toLowerCase();
+              const status=(m.status??m.Status??'');
+              const ip=(m.iS_PREMIUM??m.IsPremium??'N'); const yn=(typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N');
+              return (!q||title.includes(q)) && (!st||status===st) && (!pm||yn===pm);
+            });
+          }
+          function renderTablePage(){
+            const size=+($('#pageSize').val()||20);
+            const st=paginate(filtered,page,size);
+            console.log(st.item);
+            const rows=st.items.map(m=>{
+              const id=m.movieId??m.MovieId, ti=m.title??m.Title??'', rel=toDate10(m.releasE_DATE??m.ReleaseDate);
+              const dur=m.duratioN_MIN??m.DurationMin??'', stt=m.status??m.Status??'';
+              const ip=m.iS_PREMIUM??m.IsPremium??'N', yn=(typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N'), ipTx=yn==='Y'?'Có':'Không';
+              return `<tr>
+                <td class="text-muted">${id??''}</td>
+                <td class="fw-semibold">${ti}</td>
+                <td>${rel||''}</td><td>${dur||''}</td>
+                <td><span class="chip">${stt}</span></td><td><span class="chip">${ipTx}</span></td>
+                <td class="text-end">
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-del" data-id="${id}"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('');
+            $tbody.html(rows || `<tr><td colspan="7" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
+            renderPager(st);
+          }
+
+          // Data
+          function reloadAll(){
+            showLoading();
+            $.get(urls.movie.getAll).done(res=>{
+              console.log('[DEBUG] Movie/GetAll:',res);
+              cache=pickList(res); applyFilter(); page=1; renderTablePage();
+              showToast('Đã tải danh sách movie', true);
+            }).fail(xhr=>{
+              console.error('[DEBUG] Movie/GetAll error:',xhr);
+              showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.', false);
+            }).always(hideLoading);
+          }
+
+          // Movie CRUD
+          function openAdd(){
+            $('#movieModalTitle').text('Thêm movie'); $('#movieForm')[0].reset(); $('#MovieId').val(''); $('#IsPremium').val('N');
+            // reset asset
+            resetAssetForm(); $('#assetPanel').removeClass('show');
+            $assetTbody.html(`<tr><td colspan="5" class="text-center text-secondary">Hãy lưu Movie trước để quản lý tài nguyên.</td></tr>`);
+            modal.show();
+          }
+                 function openEdit(id){
+          const m = cache.find(x => (x.movieId ?? x.MovieId) == id);  // hoặc +id để so sánh số
+          if(!m){ showToast('Không tìm thấy movie.', false); return; }
+
+          $('#movieModalTitle').text('Chỉnh sửa movie');
+
+          $('#MovieId').val(m.movieId ?? m.MovieId ?? '');
+          $('#Title').val(m.title ?? m.Title ?? '');
+          $('#OriginalTitle').val(m.originaL_TITLE ?? m.OriginalTitle ?? '');
+          $('#Overview').val(m.overview ?? m.Overview ?? '');
+          $('#ReleaseDate').val(toDate10(m.releasE_DATE ?? m.ReleaseDate));
+          $('#DurationMin').val(m.duratioN_MIN ?? m.DurationMin ?? '');
+          $('#Status').val(m.status ?? m.Status ?? '');
+
+          const ip = (m.iS_PREMIUM ?? m.IsPremium ?? 'N');
+          $('#IsPremium').val((typeof ip === 'string') ? ip.toUpperCase() : (ip ? 'Y' : 'N'));
+
+          $('#PosterUrl').val(m.posteR_URL ?? m.PosterUrl ?? '');
+
+          // load assets
+          $('#Asset_MovieId').val((m.movieId ?? m.MovieId) || '');
+          resetAssetForm();
+          ensureAssetCache().then(() => renderAssetRows(m.movieId ?? m.MovieId));
+
+          modal.show();
+        }
+
+          function saveMovie(){
+            const anti=$('input[name="__RequestVerificationToken"]').val();
+            const idStr=($('#MovieId').val()||'').trim(); const isEdit=!!idStr; const url=isEdit?urls.movie.update:urls.movie.add;
+            const title=($('#Title').val()||'').trim(); if(!title){showToast('Vui lòng nhập tiêu đề.',false);return;}
+            const payload=Object.assign(isEdit?{MovieId:+idStr}:{},{
+              Title:title,
+              OriginalTitle:($('#OriginalTitle').val()||'').trim()||null,
+              Overview:($('#Overview').val()||'').trim()||null,
+              ReleaseDate:date0($('#ReleaseDate').val()),
+              DurationMin:toIntOrNull(($('#DurationMin').val()||'').trim()),
+              Status:($('#Status').val()||'').trim()||'RELEASED',
+              IsPremium:($('#IsPremium').val()||'N').toUpperCase()==='Y',
+              PosterUrl:($('#PosterUrl').val()||'').trim()||null
+            });
+            showLoading();
+            $.ajax({url,type:'POST',contentType:'application/json; charset=utf-8',headers:anti?{"RequestVerificationToken":anti}:{},data:JSON.stringify(payload)})
+            .done(res=>{const ok=res&&(res.success===true||res.code==='200'); if(ok){showToast(isEdit?'Đã cập nhật':'Đã thêm mới',true); modal.hide(); reloadAll();} else showToast(res?.message||'Thao tác thất bại.',false);})
+            .fail(xhr=>showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+            .always(hideLoading);
+          }
+          function removeMovie(id){
+            if(!confirm(`Xóa movie #${id}?`)) return;
+            showLoading();
+            $.ajax({url:urls.movie.delete,type:'GET',data:{id}})
+            .done(res=>{const ok=res&&(res.success===true||res.code==='200'); if(ok){showToast('Đã xóa',true); reloadAll();} else showToast(res?.message||'Xóa thất bại.',false);})
+            .fail(xhr=>showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+            .always(hideLoading);
+          }
+
+          // Asset helpers
+          const currentMovieId=()=>{const s=($('#MovieId').val()||'').trim();return s?+s:null;}
+          function resetAssetForm(){ $('#Asset_Id').val(''); $('#Asset_File').val(''); $('#Asset_MovieId').val(currentMovieId()??''); $('#Asset_Type').val('THUMB'); $('#Asset_Sort').val(0); $('#Asset_Url').val(''); }
+          function fillAssetForm(a){ $('#Asset_Id').val(a?.AssetId??a?.asseT_ID??''); $('#Asset_MovieId').val(a?.MovieId??a?.movieId??currentMovieId()??''); $('#Asset_Type').val(a?.AssetType??a?.asseT_TYPE??'THUMB'); $('#Asset_Sort').val(a?.SortOrder??a?.sorT_ORDER??0); $('#Asset_Url').val(a?.Url??a?.url??''); $('#Asset_File').val(''); }
+                 function ensureAssetCache(movieId){
+          if(!movieId) return Promise.resolve([]);
+          return $.get(`${urls.asset.getAll}/${movieId}`).then(res=>{
+            console.log('[DEBUG] MovieAsset/GetById:', res);
+            assetCache = pickList(res);
+            return assetCache;
+          });
+        }
+
+          function renderAssetRows(movieId){
+            const rows=(assetCache||[]).filter(a=>String(a?.movieId??a?.MovieId??'')===String(movieId)).map(a=>{
+              const id=a?.AssetId??a?.asseT_ID, typ=a?.AssetType??a?.asseT_TYPE??'', url=(a?.Url??a?.url??'').trim(), srt=a?.SortOrder??a?.sorT_ORDER??0;
+              const thumb = isVid(url) ? `<video class="asset-thumb video" muted preload="metadata"><source src="${url}#t=0.1"></video>` :
+                             isImg(url) ? `<img src="${url}" class="asset-thumb" alt="thumb">` : `<div class="asset-thumb d-flex align-items-center justify-content-center">N/A</div>`;
+              return `<tr>
+                <td class="text-muted">${id??''}</td>
+                <td>${typ}</td>
+                <td>
+                  <div class="asset-thumb-wrap">
+                    <a href="javascript:void(0)" class="asset-open" data-url="${url}" title="Xem lớn">${thumb}</a>
+                    <div class="asset-url-cell"><a class="asset-url-clip asset-open" data-url="${url}" title="${url}">${url}</a></div>
+                  </div>
+                </td>
+                <td>${srt}</td>
+                <td class="text-end">
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-info asset-open" data-url="${url}" title="Xem lớn"><i class="bi bi-arrows-fullscreen"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary btn-asset-edit" data-id="${id}" title="Sửa"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-asset-del" data-id="${id}" title="Xóa"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('');
+            $assetTbody.html(rows || `<tr><td colspan="5" class="text-center text-secondary">Không có tài nguyên</td></tr>`);
+          }
+
+          // Asset save (Add / Replace)
+          function saveAsset(){
+            const movieId=toIntOrNull($('#Asset_MovieId').val()); if(!movieId){showToast('Thiếu MovieId (hãy lưu Movie trước).',false);return;}
+            const assetId=toIntOrNull($('#Asset_Id').val()); const type=($('#Asset_Type').val()||'').trim(); const sort=toIntOrNull($('#Asset_Sort').val())??0;
+            const oldUrl=($('#Asset_Url').val()||'').trim(); const file=$('#Asset_File')[0].files[0]||null;
+            const fd=new FormData(); if(file) fd.append('file',file);
+            // CONTROLLER CỦA BẠN ĐANG NHẬN EpisodeId -> giữ nguyên key này
+            fd.append('EpisodeId', movieId);
+            fd.append('AssetType', type); fd.append('SortOrder', sort);
+            if(assetId && oldUrl) fd.append('OldUrl', oldUrl);
+
+            const url = assetId ? `/Admin/MovieAsset/${assetId}/replace-file` : urls.asset.add;
+
+            showLoading();
+            $.ajax({ url, type:'POST', processData:false, contentType:false, data:fd })
+            .done(res=>{
+              console.log('[DEBUG] MovieAsset save resp:',res);
+              const ok=res&&(res.success===true||res.Success===true||res.code==='200');
+              if(ok){
+                showToast(assetId?'Đã cập nhật tài nguyên':'Đã thêm tài nguyên',true);
+                $.get(urls.asset.getAll).done(r2=>{ assetCache=pickList(r2); renderAssetRows(movieId); resetAssetForm(); });
+              }else showToast(res?.message||'Thao tác thất bại.',false);
+            }).fail(xhr=>{
+              console.error('[DEBUG] MovieAsset save error:',xhr);
+              showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi upload.',false);
+            }).always(hideLoading);
+          }
+          function deleteAsset(id){
+            if(!confirm(`Xóa tài nguyên #${id}?`)) return;
+            const movieId=currentMovieId();
+            showLoading();
+            $.ajax({ url:`/Admin/MovieAsset/${id}`, type:'DELETE' })
+            .done(res=>{
+              const ok=res&&(res.success===true||res.Success===true||res.code==='200');
+              if(ok){ assetCache = assetCache.filter(a=>String(a?.AssetId??a?.asseT_ID)!==String(id)); renderAssetRows(movieId); showToast('Đã xóa tài nguyên',true); }
+              else showToast(res?.message||'Xóa thất bại.',false);
+            }).fail(xhr=> showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+            .always(hideLoading);
+          }
+
+          // Events
+          $('#btnRefresh').on('click', reloadAll);
+          $('#btnAdd').on('click', openAdd);
+          $('#btnSave').on('click', saveMovie);
+          $('#txtSearch,#slStatus,#slPremium').on('input change', ()=>{ applyFilter(); page=1; renderTablePage(); });
+          $('#pageSize').on('change', ()=>{ page=1; renderTablePage(); });
+          $tbody.on('click','.btn-edit',e=> openEdit($(e.currentTarget).data('id')));
+          $tbody.on('click','.btn-del', e=> removeMovie($(e.currentTarget).data('id')));
+
+          // Asset panel events
+                 document.getElementById('assetPanel')?.addEventListener('shown.bs.collapse', function(){
+          const id=currentMovieId();
+          $('#Asset_MovieId').val(id||'');
+          if(id) ensureAssetCache(id).then(()=> renderAssetRows(id));
+        });
+
+          $('#btnAssetSave').on('click', saveAsset);
+          $('#btnAssetReset').on('click', resetAssetForm);
+          $assetTbody.on('click','.btn-asset-edit', function(){
+            const id=$(this).data('id'); const a=assetCache.find(x=>String(x?.AssetId??x?.asseT_ID)===String(id));
+            if(!a){showToast('Không tìm thấy tài nguyên.',false);return;}
+            fillAssetForm({ AssetId:a?.AssetId??a?.asseT_ID, MovieId:a?.MovieId??a?.movieId, AssetType:a?.AssetType??a?.asseT_TYPE, SortOrder:a?.SortOrder??a?.sorT_ORDER, Url:a?.Url??a?.url });
+          });
+          $assetTbody.on('click','.btn-asset-del', function(){ deleteAsset($(this).data('id')); });
+          $assetTbody.on('click','.asset-open', function(){ const url=$(this).data('url'); if(url) openPreview(url); });
+
+          // Init
+          reloadAll();
+        })();
+    </script>
+}

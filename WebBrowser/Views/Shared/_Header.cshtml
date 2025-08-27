@@ -1,0 +1,147 @@
+﻿@using Microsoft.AspNetCore.Http
+
+@{
+    // Lấy route hiện tại
+    var routeCtrl = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "");
+    var routeAct = (ViewContext.RouteData.Values["action"]?.ToString() ?? "");
+
+    Func<string, string, string> isActive = (c, a) =>
+    {
+        bool matchCtrl = string.Equals(routeCtrl, c, StringComparison.OrdinalIgnoreCase);
+        bool matchAct = string.IsNullOrEmpty(a) || string.Equals(routeAct, a, StringComparison.OrdinalIgnoreCase);
+        return (matchCtrl && matchAct) ? "active" : "";
+    };
+
+    // Lấy giá trị q từ query string
+    var q = Context?.Request?.Query["q"].ToString() ?? "";
+
+    var token = Context.Session.GetString("JWToken");
+    var isLoggedIn = !string.IsNullOrEmpty(token);
+    var userName = Context.Session.GetString("Username") ?? "Tài khoản";
+
+}
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top border-bottom border-black">
+    <div class="container">
+        <!-- Brand -->
+        <a class="navbar-brand d-flex align-items-center" asp-controller="Home" asp-action="Index">
+            <img class="brand-logo"
+                 src="https://khgcepyhcwfblvflclvp.supabase.co/storage/v1/object/public/images/TFlix/ChatGPT%20Image%20Aug%2020,%202025,%2006_24_22%20PM.png"
+                 alt="TFlix Logo" />
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                aria-controls="mainNav" aria-expanded="false" aria-label="Mở menu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNav">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link @isActive("Home", "Index")" asp-controller="Home" asp-action="Index">Trang chủ</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @isActive("Movies", "Index")" asp-controller="Movies" asp-action="Index">Kho phim</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @isActive("Series", "Index")" asp-controller="Series" asp-action="Index">Phim bộ</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @isActive("Single", "Index")" asp-controller="Single" asp-action="Index">Phim lẻ</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle @isActive("News", "Index")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Tin tức
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" asp-controller="News" asp-action="Index">Tất cả</a></li>
+                        <li><a class="dropdown-item" asp-controller="News" asp-action="Promotions">Khuyến mãi</a></li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li><a class="dropdown-item" asp-controller="Home" asp-action="About">Giới thiệu</a></li>
+                    </ul>
+                </li>
+            </ul>
+
+            <!-- Search -->
+            <form class="d-flex me-3" method="get" asp-controller="Movies" asp-action="Search" role="search">
+                <input class="form-control me-2" type="search" name="q" placeholder="Tìm phim, diễn viên…" value="@q" />
+                <button class="btn btn-outline-light" type="submit">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+
+            <!-- User area -->
+            @if (isLoggedIn)
+            {
+                <div class="dropdown">
+                    <a class="btn btn-primary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-1"></i> @userName
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
+                                <i class="bi bi-gear me-2"></i> Hồ sơ
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <form asp-controller="auth" asp-action="Logout" method="post" class="px-3">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-link dropdown-item text-danger p-0">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Đăng xuất
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <a class="btn btn-primary" asp-controller="Auth" asp-action="Index">
+                    <i class="bi bi-person-circle me-1"></i> Đăng nhập
+                </a>
+            }
+        </div>
+    </div>
+</nav>
+
+<style>
+    .navbar-brand .brand-logo {
+        max-height: 64px;
+        width: auto;
+        object-fit: contain;
+        display: block;
+    }
+
+    .nav-link {
+        position: relative;
+    }
+
+        .nav-link::after {
+            content: "";
+            position: absolute;
+            left: .75rem;
+            right: .75rem;
+            bottom: .25rem;
+            height: 2px;
+            background: #27d3c3;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform .25s;
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            transform: scaleX(1);
+        }
+
+    @@media (max-width: 991.98px) {
+        .navbar-brand .brand-logo {
+            max-height: 34px;
+        }
+
+        .navbar .dropdown-menu {
+            margin-top: .25rem;
+        }
+    }
+</style>

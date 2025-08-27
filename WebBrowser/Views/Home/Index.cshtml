@@ -1,0 +1,410 @@
+﻿@{
+    ViewData["Title"] = "Trang chủ";
+    var token = Context.Session.GetString("JWToken");
+    var isLoggedIn = !string.IsNullOrEmpty(token);
+}
+
+@section Styles {
+    <style>
+        :root {
+            --brand: #27d3c3;
+            --brand2: #19b3a5;
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 52vh;
+            border-radius: 18px;
+            overflow: hidden;
+            position: relative;
+            background: #0e1114 url('https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=1600&auto=format&fit=crop') center/cover no-repeat;
+        }
+
+            .hero::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(120deg,rgba(0,0,0,.75),rgba(0,0,0,.35) 55%,rgba(0,0,0,.75));
+            }
+
+            .hero .inner {
+                position: relative;
+                z-index: 2;
+                max-width: 720px
+            }
+
+        .badge-brand {
+            background: linear-gradient(135deg,var(--brand),var(--brand2));
+            box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset,0 6px 22px rgba(39,211,195,.25);
+        }
+
+        .hero-shine {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: .6;
+            transition: .25s;
+            background: radial-gradient(600px 200px at var(--x,60%) var(--y,50%), rgba(39,211,195,.12), transparent 60%);
+        }
+
+        .hero:hover .hero-shine {
+            opacity: 1
+        }
+
+        /* Cards */
+        .movie-card {
+            border: none;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #12161a;
+            box-shadow: 0 2px 16px rgba(0,0,0,.25);
+            transition: transform .28s, box-shadow .28s
+        }
+
+            .movie-card:hover {
+                transform: translateY(-6px);
+                box-shadow: 0 10px 30px rgba(0,0,0,.35)
+            }
+
+        .poster {
+            aspect-ratio: 16/9;
+            width: 100%;
+            object-fit: cover;
+            transition: transform .4s
+        }
+
+        .movie-card:hover .poster {
+            transform: scale(1.06)
+        }
+
+        .movie-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(to top,rgba(0,0,0,.65),transparent 45%);
+            opacity: 0;
+            transition: .25s
+        }
+
+        .movie-card:hover .movie-overlay {
+            opacity: 1
+        }
+
+        .play-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            color: #001014;
+            background: linear-gradient(135deg,var(--brand),#39f);
+            box-shadow: 0 10px 30px rgba(39,211,195,.45);
+            transform: translateY(10px);
+            opacity: 0;
+            transition: .25s
+        }
+
+        .movie-card:hover .play-btn {
+            transform: translateY(0);
+            opacity: 1
+        }
+
+        .movie-meta {
+            font-size: .875rem;
+            color: #9fb1bd
+        }
+
+        /* Section title */
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            margin: 2rem 0 1rem;
+            font-weight: 700
+        }
+
+            .section-title::after {
+                content: "";
+                height: 2px;
+                flex: 1;
+                background: linear-gradient(90deg,var(--brand),transparent)
+            }
+
+        /* Chips */
+        .chips-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .5rem .85rem;
+            border-radius: 14px;
+            background: #14181c;
+            border: 1px solid rgba(255,255,255,.06);
+            color: #dbe6ee;
+            text-decoration: none;
+            transition: transform .18s, border-color .18s, box-shadow .18s
+        }
+
+            .chip i {
+                color: var(--brand)
+            }
+
+            .chip:hover {
+                transform: translateY(-2px);
+                border-color: var(--brand);
+                box-shadow: 0 8px 22px rgba(39,211,195,.12);
+                color: #fff
+            }
+
+        .scrollbar-hidden::-webkit-scrollbar {
+            display: none
+        }
+    </style>
+}
+
+<div class="container my-4">
+
+    <!-- HERO -->
+    <div id="hero" class="hero p-4 p-md-5">
+        <div class="inner">
+            <span class="badge badge-brand mb-3">Phim đề xuất</span>
+            <h1 class="display-5 fw-bold">Duty After School – Học Kỳ Sinh Tử</h1>
+            <p class="lead text-secondary">Đăng ký ngay để xem trọn bộ cùng hàng ngàn phim bom tấn, series độc quyền và anime cực hot.</p>
+            <div class="d-flex gap-2">
+                <a href="#" class="btn btn-primary btn-lg"><i class="bi bi-play-fill me-1"></i>Xem ngay</a>
+                <a href="#" class="btn btn-outline-light btn-lg"><i class="bi bi-plus-circle me-1"></i>Thêm vào danh sách</a>
+            </div>
+        </div>
+        <div class="hero-shine"></div>
+    </div>
+
+    <!-- PHIM HOT -->
+    <section class="my-5">
+        <div class="section-title">Phim hot</div>
+        <div class="row g-3">
+            @* Item 1 *@
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                <div class="card movie-card position-relative">
+                    <img class="poster" src="https://picsum.photos/640/360?random=101" alt="Shattered Illusions" loading="lazy">
+                    <div class="movie-overlay">
+                        <a class="play-btn" href="#"><i class="bi bi-play-fill fs-3"></i></a>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title mb-1">Shattered Illusions</h6>
+                        <div class="movie-meta"><i class="bi bi-star-fill text-warning me-1"></i>8.5 • 2024 • Hành động</div>
+                    </div>
+                </div>
+            </div>
+            @* Item 2 *@
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                <div class="card movie-card position-relative">
+                    <img class="poster" src="https://picsum.photos/640/360?random=102" alt="Under Investigation" loading="lazy">
+                    <div class="movie-overlay">
+                        <a class="play-btn" href="#"><i class="bi bi-play-fill fs-3"></i></a>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title mb-1">Under Investigation</h6>
+                        <div class="movie-meta"><i class="bi bi-star-fill text-warning me-1"></i>8.2 • 2023 • Tâm lý</div>
+                    </div>
+                </div>
+            </div>
+            @* Item 3 *@
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                <div class="card movie-card position-relative">
+                    <img class="poster" src="https://picsum.photos/640/360?random=103" alt="The Last City" loading="lazy">
+                    <div class="movie-overlay">
+                        <a class="play-btn" href="#"><i class="bi bi-play-fill fs-3"></i></a>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title mb-1">The Last City</h6>
+                        <div class="movie-meta"><i class="bi bi-star-fill text-warning me-1"></i>7.9 • 2024 • Viễn tưởng</div>
+                    </div>
+                </div>
+            </div>
+            @* Item 4 *@
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                <div class="card movie-card position-relative">
+                    <img class="poster" src="https://picsum.photos/640/360?random=104" alt="City of Lights" loading="lazy">
+                    <div class="movie-overlay">
+                        <a class="play-btn" href="#"><i class="bi bi-play-fill fs-3"></i></a>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title mb-1">City of Lights</h6>
+                        <div class="movie-meta"><i class="bi bi-star-fill text-warning me-1"></i>8.1 • 2022 • Lãng mạn</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TOP 5 HÔM NAY -->
+    <section class="my-5">
+        <div class="section-title">Top 5 phim hôm nay</div>
+        <div class="d-flex gap-3 overflow-auto scrollbar-hidden pb-1">
+            @for (int i = 1; i <= 5; i++)
+            {
+                <div class="card movie-card" style="min-width:220px;">
+                    <img class="poster" src="https://picsum.photos/600/340?random=@(200 + i)" alt="Top @i" loading="lazy" />
+                    <div class="movie-overlay"><a class="play-btn" href="#"><i class="bi bi-play-fill fs-3"></i></a></div>
+                    <div class="card-body"><h6 class="card-title mb-0">Top @i</h6></div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <!-- KHÁM PHÁ -->
+    <section class="my-5">
+        <div class="section-title">Khám phá</div>
+        <div class="chips-wrap">
+            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="cinema"
+               data-bs-toggle="popover" data-bs-trigger="hover focus"
+               data-bs-content="Các phim chiếu rạp nổi bật tuần này">
+                <i class="bi bi-gift-fill"></i> Phim chiếu rạp
+            </a>
+            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="historical"
+               data-bs-toggle="popover" data-bs-trigger="hover focus"
+               data-bs-content="Những bộ phim cổ trang được yêu thích">
+                <i class="bi bi-brush-fill"></i> Phim cổ trang
+            </a>
+            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="action"
+               data-bs-toggle="popover" data-bs-trigger="hover focus"
+               data-bs-content="Hành động, rượt đuổi, kịch tính">
+                <i class="bi bi-lightning-charge-fill"></i> Phim hành động
+            </a>
+            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="scifi"
+               data-bs-toggle="popover" data-bs-trigger="hover focus"
+               data-bs-content="Thế giới viễn tưởng và khám phá">
+                <i class="bi bi-rocket-takeoff-fill"></i> Khoa học–Viễn tưởng
+            </a>
+            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="anime"
+               data-bs-toggle="popover" data-bs-trigger="hover focus"
+               data-bs-content="Anime hot nhất hôm nay">
+                <i class="bi bi-emoji-sunglasses-fill"></i> Anime
+            </a>
+        </div>
+    </section>
+
+    <!-- PHIM SẮP CHIẾU -->
+    <section class="my-5">
+        <div class="section-title">Phim sắp chiếu</div>
+        <div id="coming" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner rounded-4 overflow-hidden">
+                <div class="carousel-item active">
+                    <img src="https://picsum.photos/1200/420?random=301" class="d-block w-100" alt="">
+                    <div class="carousel-caption text-start">
+                        <span class="badge badge-brand">Sắp ra mắt</span>
+                        <h5 class="fw-bold">Moonfall</h5>
+                        <p class="small">Hành trình giải cứu Trái Đất trước thảm họa thiên thạch.</p>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <img src="https://picsum.photos/1200/420?random=302" class="d-block w-100" alt="">
+                </div>
+                <div class="carousel-item">
+                    <img src="https://picsum.photos/1200/420?random=303" class="d-block w-100" alt="">
+                </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#coming" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon"></span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#coming" data-bs-slide="next">
+                <span class="carousel-control-next-icon"></span>
+            </button>
+        </div>
+    </section>
+
+</div>
+
+<!-- NEW: Modal yêu cầu đăng nhập -->
+<div class="modal fade" id="loginRequiredModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border border-secondary">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-shield-lock-fill me-2 text-warning"></i>Cần đăng nhập
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                Bạn cần đăng nhập để xem nội dung phim này.
+            </div>
+            <div class="modal-footer border-0">
+                <a class="btn btn-primary" asp-controller="Auth" asp-action="Index">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập ngay
+                </a>
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Để sau</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        // NEW: trạng thái đăng nhập sinh ra từ Razor (boolean literal)
+        const isLoggedIn = @isLoggedIn.ToString().ToLower();
+
+        // Popovers cho chips (giữ nguyên)
+        document.querySelectorAll('[data-bs-toggle="popover"]')
+          .forEach(el => new bootstrap.Popover(el));
+
+        // Hiệu ứng light theo chuột ở hero (giữ nguyên)
+        const hero = document.getElementById('hero');
+        hero?.addEventListener('mousemove', (e)=>{
+          const r = hero.getBoundingClientRect();
+          hero.style.setProperty('--x', ((e.clientX - r.left)/r.width*100).toFixed(2)+'%');
+          hero.style.setProperty('--y', ((e.clientY - r.top)/r.height*100).toFixed(2)+'%');
+        });
+
+        // NEW: helper mở modal
+        function showLoginModal() {
+            const modalEl = document.getElementById('loginRequiredModal');
+            if (window.bootstrap && modalEl) {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            } else {
+                alert('Bạn cần đăng nhập để xem nội dung phim này.');
+            }
+        }
+
+        // NEW: gắn handler cho các phần tử "phát" trong thẻ phim
+        // - .play-btn: nút phát trong overlay
+        // - .poster: ảnh poster
+        // Bạn có thể mở rộng selector nếu có thêm anchor/link khác.
+        const clickableSelectors = [
+            '.movie-card .play-btn',
+            '.movie-card .poster'
+        ];
+
+        document.querySelectorAll(clickableSelectors.join(',')).forEach(el => {
+            el.addEventListener('click', (e) => {
+                // Nếu chưa đăng nhập thì chặn và hiện modal
+                if (!isLoggedIn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showLoginModal();
+                }
+                // Nếu đã đăng nhập, bạn để link href của nút/ảnh trỏ đến trang xem phim chi tiết
+            });
+        });
+
+        // (Tuỳ chọn) Nếu bạn muốn cả "card" cũng bị chặn khi click:
+        document.querySelectorAll('.movie-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (!isLoggedIn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showLoginModal();
+                }
+            });
+        });
+    </script>
+}
+

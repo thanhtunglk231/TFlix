@@ -1,0 +1,336 @@
+﻿@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Quản lý Genres · Admin";
+
+    // Genres CRUD (Controller khu vực Admin)
+    var urlGetAll = Url.Action("GetAll", "Genres", new { area = "Admin" });
+    var urlAdd = Url.Action("Add", "Genres", new { area = "Admin" });
+    var urlUpdate = Url.Action("Update", "Genres", new { area = "Admin" });
+    var urlDelete = Url.Action("Delete", "Genres", new { area = "Admin" });
+}
+
+<style>
+    /* Loading + Toast */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        z-index: 1100;
+        background: rgba(0,0,0,.25);
+        backdrop-filter: blur(1px)
+    }
+
+        .loading-overlay .spinner-wrap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            background: rgba(0,0,0,.35);
+            padding: 16px 18px;
+            border-radius: 10px
+        }
+
+    .spinner {
+        width: 52px;
+        height: 52px;
+        border: 5px solid #eee;
+        border-top: 5px solid #27d3c3;
+        border-radius: 50%;
+        animation: spin 1s linear infinite
+    }
+    @@keyframes spin {
+        from
+
+    {
+        transform: rotate(0)
+    }
+
+    to {
+        transform: rotate(360deg)
+    }
+
+    }
+
+    .toastx {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        min-width: 280px;
+        z-index: 1200;
+        background: #333;
+        color: #fff;
+        border-radius: 10px;
+        padding: 12px 16px;
+        display: none;
+        box-shadow: 0 8px 24px rgba(0,0,0,.25)
+    }
+
+        .toastx.success {
+            background: #28a745
+        }
+
+        .toastx.error {
+            background: #dc3545
+        }
+
+    .chip {
+        display: inline-block;
+        padding: .15rem .5rem;
+        border-radius: 1rem;
+        font-size: .775rem;
+        background: var(--bs-secondary-bg);
+        color: var(--bs-body-color)
+    }
+</style>
+
+<div class="loading-overlay" id="__loadingOverlay"><div class="spinner-wrap"><div class="spinner"></div></div></div>
+<div class="toastx" id="__toastMessage"></div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="m-0"><i class="bi bi-tags me-2"></i>Quản lý Genres</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" id="btnRefresh"><i class="bi bi-arrow-clockwise me-1"></i>Nạp lại</button>
+        <button class="btn btn-primary" id="btnAdd"><i class="bi bi-plus-circle me-1"></i>Thêm thể loại</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="row g-2 mb-3">
+            <div class="col-md-6"><input id="txtSearch" class="form-control" placeholder="Tìm theo tên thể loại..."></div>
+            <div class="col-md-3">
+                <select id="pageSize" class="form-select">
+                    <option value="10">10 / trang</option>
+                    <option value="20" selected>20 / trang</option>
+                    <option value="50">50 / trang</option>
+                    <option value="100">100 / trang</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="genreTable" class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:90px;">ID</th>
+                        <th>Tên thể loại</th>
+                        <th>Slug</th>
+                        <th class="text-nowrap" style="width:130px;">Số phim</th>
+                        <th class="text-nowrap" style="width:130px;">Số series</th>
+                        <th class="text-end" style="width:140px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="pagerWrap" class="mt-2"></div>
+    </div>
+</div>
+
+<!-- Modal Thêm/Sửa Genre -->
+<div class="modal fade" id="genreModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><span id="genreModalTitle">Thêm thể loại</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <form id="genreForm" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="GenreId" />
+
+                    <div class="col-12">
+                        <label class="form-label">Tên thể loại *</label>
+                        <input class="form-control" id="GenreName" required maxlength="100" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Slug (tuỳ chọn)</label>
+                        <input class="form-control" id="Slug" maxlength="120" placeholder="để trống để hệ thống tự tạo" />
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        (function(){
+          // Endpoints
+          const urls = { getAll:'@urlGetAll', add:'@urlAdd', update:'@urlUpdate', delete:'@urlDelete' };
+
+          // Elements/State
+          const $overlay=$("#__loadingOverlay"), $toast=$("#__toastMessage");
+          const $tbody=$("#genreTable tbody"), $pager=$("#pagerWrap");
+          const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('genreModal'));
+
+          let cache=[], filtered=[], page=1;
+
+          // Helpers
+          const showLoading=()=> $overlay.fadeIn(80);
+          const hideLoading=()=> $overlay.fadeOut(120);
+          function showToast(msg, ok=true, ms=2600){ $toast.text(msg||'').removeClass('success error').addClass(ok?'success':'error').fadeIn(120); setTimeout(()=> $toast.fadeOut(150), ms); }
+          function pickList(res){ const d=res?.data??res?.Data; if(!d) return []; if(Array.isArray(d)) return d; if(Array.isArray(d.table)) return d.table; if(Array.isArray(d.Table)) return d.Table; return []; }
+
+          function toNum(v){ const n=Number(v); return Number.isFinite(n)?n:null; }
+          function valOr(v, d){ return (v===undefined||v===null)?d:v; }
+
+          function paginate(list,page,size){
+            const total=list.length;
+            const last=Math.max(1, Math.ceil(total/size));
+            page=Math.min(Math.max(1,page),last);
+            const s=(page-1)*size;
+            return { page,size,total,last,items:list.slice(s, s+size) };
+          }
+
+          function renderPager(state){
+            const {page,last,total}=state;
+            const btn=(l,t,dis)=>`<li class="page-item ${dis?'disabled':''}"><a class="page-link" href="#" data-page="${t}">${l}</a></li>`;
+            $pager.html(`<div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div class="small text-secondary">Tổng: <b>${total}</b> • Trang <b>${page}</b>/<b>${last}</b></div>
+              <ul class="pagination m-0">
+                ${btn('«',1,page<=1)}${btn('‹',page-1,page<=1)}${btn(page,page,true)}${btn('›',page+1,page>=last)}${btn('»',last,page>=last)}
+              </ul>
+            </div>`);
+            $pager.find('a.page-link').on('click',e=>{
+              e.preventDefault();
+              const p=+e.target.dataset.page;
+              if(Number.isFinite(p)){ page=p; renderTablePage(); }
+            });
+          }
+
+          // Filter + render genres table
+          function applyFilter(){
+            const q=($('#txtSearch').val()||'').trim().toLowerCase();
+            filtered=cache.filter(g=>{
+              const name=(g.genre_name ?? g.genreName ?? g.GENRE_NAME ?? '').toString().toLowerCase();
+              const slug=(g.slug ?? g.SLUG ?? '').toString().toLowerCase();
+              return (!q || name.includes(q) || slug.includes(q));
+            });
+          }
+
+          function renderTablePage(){
+            const size=+($('#pageSize').val()||20);
+            const st=paginate(filtered, page, size);
+            const rows = st.items.map(g=>{
+              const id   = g.genre_id ?? g.GenreId ?? g.GENRE_ID ?? g.genreId;
+              const name = g.genre_name ?? g.genreName ?? g.GENRE_NAME ?? '';
+              const slug = g.slug ?? g.SLUG ?? '';
+              const mcnt = valOr(g.movie_count ?? g.MOVIE_COUNT, 0);
+              const scnt = valOr(g.series_count ?? g.SERIES_COUNT, 0);
+              return `<tr>
+                <td class="text-muted">${id??''}</td>
+                <td class="fw-semibold">${name}</td>
+                <td><span class="chip">${slug||''}</span></td>
+                <td>${mcnt}</td>
+                <td>${scnt}</td>
+                <td class="text-end">
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-del" data-id="${id}"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('');
+            $tbody.html(rows || `<tr><td colspan="6" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
+            renderPager(st);
+          }
+
+          // Data
+          function reloadAll(){
+            showLoading();
+            $.get(urls.getAll).done(res=>{
+              console.log('[DEBUG] Genres/GetAll:', res);
+              cache=pickList(res);
+              applyFilter(); page=1; renderTablePage();
+              showToast('Đã tải danh sách genres', true);
+            }).fail(xhr=>{
+              console.error('[DEBUG] Genres/GetAll error:', xhr);
+              showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.', false);
+            }).always(hideLoading);
+          }
+
+          // Modal helpers
+          function openAdd(){
+            $('#genreModalTitle').text('Thêm thể loại');
+            $('#genreForm')[0].reset();
+            $('#GenreId').val('');
+            modal.show();
+          }
+
+          function openEdit(id){
+            const g = cache.find(x => String(x.genre_id ?? x.GenreId ?? x.GENRE_ID ?? x.genreId) === String(id));
+            if(!g){ showToast('Không tìm thấy genre.', false); return; }
+            $('#genreModalTitle').text('Chỉnh sửa thể loại');
+            $('#GenreId').val(g.genre_id ?? g.GenreId ?? g.GENRE_ID ?? g.genreId ?? '');
+            $('#GenreName').val(g.genre_name ?? g.genreName ?? g.GENRE_NAME ?? '');
+            $('#Slug').val(g.slug ?? g.SLUG ?? '');
+            modal.show();
+          }
+
+          function saveGenre(){
+            const anti=$('input[name="__RequestVerificationToken"]').val();
+            const idStr = ($('#GenreId').val()||'').trim();
+            const isEdit = !!idStr;
+            const url = isEdit ? urls.update : urls.add;
+
+            const name = ($('#GenreName').val()||'').trim();
+            if(!name){ showToast('Vui lòng nhập tên thể loại.', false); return; }
+
+            const payload = isEdit
+              ? { GenreId: Number(idStr), genreName: name, slug: ($('#Slug').val()||'').trim() || null }
+              : { genreName: name, slug: ($('#Slug').val()||'').trim() || null };
+
+            showLoading();
+            $.ajax({
+              url, type:'POST',
+              contentType:'application/json; charset=utf-8',
+              headers: anti ? { "RequestVerificationToken": anti } : {},
+              data: JSON.stringify(payload)
+            })
+            .done(res=>{
+              const ok = res && (res.success===true || res.code==='200');
+              if(ok){ showToast(isEdit ? 'Đã cập nhật' : 'Đã thêm mới', true); modal.hide(); reloadAll(); }
+              else { showToast(res?.message || 'Thao tác thất bại.', false); }
+            })
+            .fail(xhr=> showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi kết nối.', false))
+            .always(hideLoading);
+          }
+
+          function removeGenre(id){
+            if(!confirm(`Xóa thể loại #${id}?`)) return;
+            showLoading();
+            // Controller Admin/Genres/Delete nhận id qua query (GET), giống Movie view
+            $.ajax({ url: urls.delete, type:'GET', data:{ id } })
+            .done(res=>{
+              const ok = res && (res.success===true || res.code==='200');
+              if(ok){ showToast('Đã xóa', true); reloadAll(); }
+              else  { showToast(res?.message || 'Xóa thất bại.', false); }
+            })
+            .fail(xhr=> showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi kết nối.', false))
+            .always(hideLoading);
+          }
+
+          // Events
+          $('#btnRefresh').on('click', reloadAll);
+          $('#btnAdd').on('click', openAdd);
+          $('#btnSave').on('click', saveGenre);
+          $('#txtSearch').on('input', ()=>{ applyFilter(); page=1; renderTablePage(); });
+          $('#pageSize').on('change', ()=>{ page=1; renderTablePage(); });
+          $tbody.on('click', '.btn-edit', e=> openEdit($(e.currentTarget).data('id')));
+          $tbody.on('click', '.btn-del',  e=> removeGenre($(e.currentTarget).data('id')));
+
+          // Init
+          reloadAll();
+        })();
+    </script>
+}

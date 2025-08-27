@@ -1,0 +1,150 @@
+﻿using CoreLib.Dtos.Episode;
+using CoreLib.Dtos.VideSoure;
+using CoreLib.Models;
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+using WebBrowser.Models;
+using WebBrowser.Models.Episode;
+using WebBrowser.Models.VideoSoure;
+using WebBrowser.Services.HttpSevice.Interfaces;
+using WebBrowser.Services.Interfaces;
+
+namespace WebBrowser.Services.Implements
+{
+    public class VideoSoureService : IVideoSoureService
+    {
+        private readonly IHttpService _httpService;
+        private readonly IHttpContextAccessor _http;
+        public VideoSoureService(IHttpService httpService, IHttpContextAccessor http)
+        {
+            _httpService = httpService;
+            _http = http;
+        }
+        public async Task<CResponseMessage> add_VideoSoure(IFormFile file, AddVideoSourceInputDto dto)
+        {
+            const string url = "/api/VideoSources/add";
+            using var form = new MultipartFormDataContent();
+
+            // 1) file
+            if (file != null && file.Length > 0)
+            {
+                var sc = new StreamContent(file.OpenReadStream());
+                sc.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                form.Add(sc, "File", file.FileName);   // TÊN "File" trùng AddVideoSourceForm.File
+            }
+
+            // 2) metadata -> FromForm (tên trùng model AddVideoSourceForm)
+            void Add(string name, object? v)
+            {
+                if (v == null) return;
+                form.Add(new StringContent(Convert.ToString(v)!), name);
+            }
+
+            // CHỌN ĐÚNG 1 ĐÍCH: hoặc MovieId hoặc EpisodeId
+            Add("MovieId", dto.MovieId);      // decimal?/int? tuỳ bạn
+            Add("EpisodeId", dto.EpisodeId);
+
+            Add("Provider", dto.Provider);
+            Add("ServerName", dto.ServerName);
+            Add("Quality", dto.Quality);
+            Add("Format", dto.Format);
+            Add("DrmType", dto.DrmType);
+            Add("DrmLicenseUrl", dto.DrmLicenseUrl);
+            Add("IsPrimary", dto.IsPrimary); // bool -> "True"/"False" OK
+            Add("Status", (dto.Status ?? "ACTIVE").Trim().ToUpperInvariant());
+
+            // 3) gọi API (KHÔNG kèm query string)
+            var resp = await _httpService.PostMultipartAsync<CResponseMessage>(url, form);
+            return resp!;
+        }
+
+
+
+
+        public async Task<CResponseMessage> uppdate_VideoSoure(decimal sourceId, IFormFile file, UpdateVideoSourceInputDto meta)
+        {
+            var url = $"/api/VideoSources/{sourceId}/replace-file";
+            Console.WriteLine("[VideoSoureService] -> update_VideoSoure ENTER url=" + url);
+
+            meta.SourceId = sourceId;
+
+            using var form = new MultipartFormDataContent();
+
+            if (file != null && file.Length > 0)
+            {
+                var sc = new StreamContent(file.OpenReadStream());
+                sc.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                form.Add(sc, "file", file.FileName);
+            }
+            else
+            {
+                Console.WriteLine("[VideoSoureService] Warning: update không có file mới.");
+            }
+
+            void Add(string name, object? v)
+            {
+                if (v == null) return;
+                form.Add(new StringContent(Convert.ToString(v)!), $"meta.{name}");
+            }
+
+            Add(nameof(meta.SourceId), meta.SourceId);
+            Add(nameof(meta.MovieId), meta.MovieId);
+            Add(nameof(meta.EpisodeId), meta.EpisodeId);
+            Add(nameof(meta.Provider), meta.Provider);
+            Add(nameof(meta.ServerName), meta.ServerName);
+            Add(nameof(meta.Quality), meta.Quality);
+            Add(nameof(meta.Format), meta.Format);
+            Add(nameof(meta.DrmType), meta.DrmType);
+            Add(nameof(meta.DrmLicenseUrl), meta.DrmLicenseUrl);
+            Add(nameof(meta.IsPrimary), meta.IsPrimary);
+            Add(nameof(meta.Status), meta.Status);
+            Add(nameof(meta.OldStreamUrl), meta.OldStreamUrl);
+
+            var resp = await _httpService.PutMultipartAsync<CResponseMessage>(url, form);
+            Console.WriteLine("[VideoSoureService] <- update_VideoSoure EXIT: " + JsonConvert.SerializeObject(resp));
+            return resp!;
+        }
+
+
+
+        //public async Task<CResponseMessage> delete_Episode(decimal id)
+        //{
+        //    const string url = "/api/Episode/delete";
+        //    Console.WriteLine($"[EpisodeService] -> delete_Episode ENTER url={url}, id={id}");
+
+        //    var resp = await _httpService.PostAsync<CResponseMessage>(url, new { id });
+
+        //    Console.WriteLine("[EpisodeService] <- delete_Episode EXIT: " + JsonConvert.SerializeObject(resp));
+        //    return resp!;
+        //}
+
+        public async Task<ApiResponse<SourceTableWrapper>> get_all()
+        {
+            const string url = "/api/VideoSources/getall";
+            Console.WriteLine("[SeriesService] -> get_all ENTER url=" + url);
+
+            var resp = await _httpService.GetAsync<ApiResponse<SourceTableWrapper>>(url);
+
+            Console.WriteLine("[EpisodeService] <- get_all EXIT: " + JsonConvert.SerializeObject(resp));
+            resp.success = resp.success || resp.code == "200";
+            return resp;
+        }
+
+        private static string ToQueryString(object? obj)
+        {
+            if (obj == null) return string.Empty;
+            var dict = new Dictionary<string, string?>();
+            foreach (var p in obj.GetType().GetProperties())
+            {
+                var val = p.GetValue(obj);
+                if (val == null) continue;
+                dict[p.Name] = val.ToString();
+            }
+            return dict.Count == 0 ? string.Empty
+                : "?" + string.Join("&", dict.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value!)}"));
+        }
+
+
+    }
+}

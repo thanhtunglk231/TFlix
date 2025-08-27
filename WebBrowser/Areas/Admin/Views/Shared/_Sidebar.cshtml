@@ -1,0 +1,136 @@
+﻿@{
+    var active = (Func<string, string, bool>)ViewData["isActive"] ?? ((_, __) => false);
+}
+<aside class="sidebar p-3 bg-body" id="sidebar" aria-hidden="true">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex align-items-center">
+            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji/assets/svg/1f39e.svg" width="28" height="28" class="me-2" alt="">
+            <span class="fw-semibold">Bảng điều khiển</span>
+        </div>
+        <!-- Nút đóng sidebar (mobile) -->
+        <button class="btn btn-sm btn-outline-secondary d-lg-none" id="sidebarClose" aria-label="Close sidebar" aria-controls="sidebar">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <small class="text-secondary text-uppercase">Tổng quan</small>
+    <nav class="nav flex-column mb-3">
+        <a class="nav-link @(active("Home", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="Home" asp-action="Index">
+            <i class="bi bi-speedometer2 me-2"></i>Dashboard
+        </a>
+        <a class="nav-link @(active("Home", "Reports") ? "active" : "")"
+           asp-area="Admin" asp-controller="Home" asp-action="Reports">
+            <i class="bi bi-graph-up-arrow me-2"></i>Báo cáo
+        </a>
+    </nav>
+
+    <small class="text-secondary text-uppercase">Nội dung</small>
+    <nav class="nav flex-column mb-3">
+        <a class="nav-link @(active("Movie", "index") ? "active" : "")"
+           asp-area="Admin" asp-controller="Movie" asp-action="index">
+            <i class="bi bi-file-earmark-play me-2"></i>Phim
+        </a>
+        <a class="nav-link @(active("Series", "Index") ? "active" : "")"
+           asp-area="Admin"
+           asp-controller="Series"
+           asp-action="Index">
+            <i class="bi bi-collection-play me-2"></i>Series
+        </a>
+
+        <a class="nav-link @(active("Season", "Index") ? "active" : "")"
+           asp-area="Admin"
+           asp-controller="Season"
+           asp-action="Index">
+            <i class="bi bi-collection-play me-2"></i>Season
+        </a>
+        <a class="nav-link @(active("Esopide", "Index") ? "active" : "")"
+           asp-area="Admin"
+           asp-controller="Esopide"
+           asp-action="Index">
+            <i class="bi bi-collection-play me-2"></i>Esopide
+        </a>
+
+        <a class="nav-link @(active("VideoSoure", "Index") ? "active" : "")"
+           asp-area="Admin"
+           asp-controller="VideoSoure"
+           asp-action="Index">
+            <i class="bi bi-collection-play me-2"></i>Video Soure
+        </a>
+        <a class="nav-link @(active("Genres", "Index") ? "active" : "")"
+           asp-area="Admin"
+           asp-controller="Genres"
+           asp-action="Index">
+            <i class="bi bi-collection-play me-2"></i>thể loại
+        </a>
+
+        
+    </nav>
+</aside>
+
+<!-- JS toggle cho sidebar -->
+<script>
+    (function () {
+      const sidebar  = document.getElementById('sidebar');
+      if (!sidebar || sidebar.dataset.tglInit === '1') return;   // tránh khởi tạo lặp
+      sidebar.dataset.tglInit = '1';
+
+      const btnOpen  = document.getElementById('sidebarToggle'); // ở Topbar
+      const btnClose = document.getElementById('sidebarClose');
+
+      // Tạo overlay nếu chưa có
+      let overlay = document.getElementById('sidebarOverlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'sidebarOverlay';
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.zIndex = '1049';           // nhỏ hơn sidebar (1050)
+        overlay.style.background = 'rgba(0,0,0,.35)';
+        overlay.style.display = 'none';
+        document.body.appendChild(overlay);
+      }
+
+      const openSidebar = () => {
+        sidebar.classList.add('show');
+        document.body.classList.add('sidebar-open');
+        overlay.style.display = 'block';
+        btnOpen?.setAttribute('aria-expanded', 'true');
+        sidebar.setAttribute('aria-hidden', 'false');
+      };
+
+      const closeSidebar = () => {
+        sidebar.classList.remove('show');
+        document.body.classList.remove('sidebar-open');
+        overlay.style.display = 'none';
+        btnOpen?.setAttribute('aria-expanded', 'false');
+        sidebar.setAttribute('aria-hidden', 'true');
+      };
+
+      // Mở từ topbar
+      btnOpen?.addEventListener('click', function (e) {
+        e.preventDefault();
+        openSidebar();
+      });
+
+      // Đóng từ nút trong sidebar
+      btnClose?.addEventListener('click', function (e) {
+        e.preventDefault();
+        closeSidebar();
+      });
+
+      // Click overlay → đóng
+      overlay.addEventListener('click', closeSidebar);
+
+      // ESC → đóng
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeSidebar();
+      });
+
+      // Trên mobile, click menu link → tự đóng
+      sidebar.addEventListener('click', function (e) {
+        const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+        if (isMobile && e.target.closest('.nav-link')) closeSidebar();
+      });
+    })();
+</script>

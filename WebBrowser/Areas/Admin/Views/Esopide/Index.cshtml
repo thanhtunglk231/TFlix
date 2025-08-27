@@ -1,0 +1,1098 @@
+﻿@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Quản lý Episode · Admin";
+
+    // Endpoint Episodes
+    var urlGetAllEp = Url.Action("GetAll", "Esopide", new { area = "Admin" });
+    var urlAddEp = Url.Action("AddEpisode", "Esopide", new { area = "Admin" });
+    var urlUpdEp = Url.Action("UpdateEpisode", "Esopide", new { area = "Admin" });
+    var urlDelEp = Url.Action("Delete", "Esopide", new { area = "Admin" });
+
+    // Dropdown nguồn Series/Season
+    var urlGetAllSeries = Url.Action("GetAll", "Series", new { area = "Admin" });
+    var urlGetAllSeason = Url.Action("GetAll", "Season", new { area = "Admin" });
+
+    // EpisodeAsset endpoints (MVC Admin Controller)
+    var urlAssetAdd = Url.Action("Add", "EpisodeAsset", new { area = "Admin" });
+    var urlAssetUpd = Url.Action("Update", "EpisodeAsset", new { area = "Admin" }); // POST multipart (id trong form)
+    var urlAssetDel = Url.Action("Delete", "EpisodeAsset", new { area = "Admin" }); // DELETE?id=&url=
+}
+
+<style>
+    /* Loading + Toast */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        z-index: 1100;
+        background: rgba(0,0,0,.25);
+        backdrop-filter: blur(1px)
+    }
+
+        .loading-overlay .spinner-wrap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            background: rgba(0,0,0,.35);
+            padding: 16px 18px;
+            border-radius: 10px
+        }
+
+    .spinner {
+        width: 52px;
+        height: 52px;
+        border: 5px solid #eee;
+        border-top: 5px solid #27d3c3;
+        border-radius: 50%;
+        animation: spin 1s linear infinite
+    }
+    @@keyframes spin {
+        from
+
+    {
+        transform: rotate(0)
+    }
+
+    to {
+        transform: rotate(360deg)
+    }
+
+    }
+
+    .toastx {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        min-width: 280px;
+        z-index: 1200;
+        background: #333;
+        color: #fff;
+        border-radius: 10px;
+        padding: 12px 16px;
+        display: none;
+        box-shadow: 0 8px 24px rgba(0,0,0,.25)
+    }
+
+    .asset-thumb {
+        width: 90px;
+        height: 56px;
+        object-fit: cover;
+        border-radius: 6px;
+        background: #111;
+        display: block;
+    }
+
+        .asset-thumb.video {
+            width: 90px;
+            height: 56px;
+            background: #000;
+            border-radius: 6px;
+        }
+
+    .asset-thumb-wrap {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .asset-url-small {
+        max-width: 420px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #9fb1bd;
+    }
+        .toastx.success {
+            background: #28a745
+        }
+
+        .toastx.error {
+            background: #dc3545
+        }
+
+    /* Asset panel */
+    #assetPanel .table td, #assetPanel .table th {
+        vertical-align: middle
+    }
+
+    #assetPanel .text-break {
+        word-break: break-word
+    }
+
+    /* Debug panel */
+    #debugWrap {
+        background: #0f172a;
+        color: #cbd5e1;
+        border-radius: 10px;
+        padding: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        display: none;
+    }
+
+        #debugWrap .key {
+            color: #60a5fa
+        }
+
+        #debugWrap pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 320px;
+            overflow: auto;
+            background: #0b1220;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+    /* URL clip + clickable */
+    .asset-url-cell {
+        max-width: 420px; /* chỉnh tùy ý */
+    }
+
+    .asset-url-clip {
+        display: inline-block;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        color: #9fb1bd;
+        text-decoration: none;
+    }
+
+        .asset-url-clip:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+
+</style>
+
+<div class="loading-overlay" id="__loadingOverlay">
+    <div class="spinner-wrap"><div class="spinner"></div></div>
+</div>
+<div class="toastx" id="__toastMessage"></div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="m-0"><i class="bi bi-collection-play me-2"></i>Quản lý Episode</h4>
+    <div class="d-flex gap-2 align-items-center">
+        <div class="form-check me-2">
+            <input class="form-check-input" type="checkbox" id="toggleDebug">
+            <label class="form-check-label" for="toggleDebug">Debug</label>
+        </div>
+        <button class="btn btn-outline-secondary" id="btnRefresh">
+            <i class="bi bi-arrow-clockwise me-1"></i>Nạp lại
+        </button>
+        <button class="btn btn-primary" id="btnAdd">
+            <i class="bi bi-plus-circle me-1"></i>Thêm episode
+        </button>
+    </div>
+</div>
+
+<div id="debugWrap" class="mb-3">
+    <div class="small mb-1">Debug Console</div>
+    <div class="row g-2">
+        <div class="col-md-6">
+            <div class="small"><span class="key">Last Request</span></div>
+            <pre id="dbgReq">{}</pre>
+        </div>
+        <div class="col-md-6">
+            <div class="small"><span class="key">Last Response</span></div>
+            <pre id="dbgRes">{}</pre>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="row g-2 mb-3">
+            <div class="col-md-3">
+                <input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề...">
+            </div>
+            <div class="col-md-3">
+                <select id="slSeriesFilter" class="form-select">
+                    <option value="">Lọc theo Series</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="slSeasonFilter" class="form-select">
+                    <option value="">Lọc theo Season</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <input id="txtEpNoFilter" class="form-control" placeholder="Lọc theo EpisodeNo...">
+                <select id="pageSize" class="form-select" style="max-width:140px">
+                    <option value="10">10/trang</option>
+                    <option value="20" selected>20/trang</option>
+                    <option value="50">50/trang</option>
+                    <option value="100">100/trang</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="episodeTable" class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:90px;">ID</th>
+                        <th style="width:110px;">Series</th>
+                        <th style="width:110px;">Season</th>
+                        <th style="width:110px;">EpisodeNo</th>
+                        <th>Tiêu đề</th>
+                        <th class="text-nowrap">Air Date</th>
+                        <th class="text-nowrap">Duration</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody><!-- render bằng JS --></tbody>
+            </table>
+        </div>
+
+        <div id="pagerWrap" class="mt-2"></div>
+    </div>
+</div>
+
+<!-- Modal thêm/sửa Episode + quản lý EpisodeAsset -->
+<div class="modal fade" id="episodeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><span id="episodeModalTitle">Thêm episode</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <form id="episodeForm" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="EpisodeId" />
+
+                    <div class="col-md-6">
+                        <label class="form-label">Series *</label>
+                        <select class="form-select" id="SeriesId" required>
+                            <option value="">-- Chọn Series --</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Season *</label>
+                        <select class="form-select" id="SeasonId" required>
+                            <option value="">-- Chọn Season --</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Episode No *</label>
+                        <input class="form-control" id="EpisodeNo" required />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Air Date</label>
+                        <input type="date" class="form-control" id="AirDate" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Duration (min)</label>
+                        <input class="form-control" id="DurationMin" placeholder="ví dụ: 45" />
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Tiêu đề</label>
+                        <input class="form-control" id="Title" />
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Overview</label>
+                        <textarea class="form-control" id="Overview" rows="3"></textarea>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Poster URL</label>
+                        <input class="form-control" id="PosterUrl" placeholder="https://..." />
+                    </div>
+
+                    <!-- NÚT MỞ PANEL TÀI NGUYÊN -->
+                    <div class="col-12">
+                        <button class="btn btn-outline-info w-100" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#assetPanel" aria-expanded="false">
+                            <i class="bi bi-image me-1"></i> Thêm/Quản lý tài nguyên (EpisodeAsset)
+                        </button>
+                        <div class="form-text">
+                            Quản lý ảnh/thumb/trailer… gắn với Episode. (Cần có EpisodeId)
+                        </div>
+                    </div>
+                </form>
+
+                <!-- PANEL QUẢN LÝ EPISODEASSET -->
+                <div class="collapse mt-3" id="assetPanel">
+                    <div class="border rounded p-3">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label">EpisodeId</label>
+                                <input class="form-control" id="Asset_EpisodeId" readonly />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Loại tài nguyên</label>
+                                <select class="form-select" id="Asset_Type">
+                                    <option value="THUMB">THUMB</option>
+                                    <option value="POSTER">STILL</option>
+                               
+                                    <option value="TRAILER">TRAILER</option>
+                                   
+                                   
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">URL (tự điền sau upload)</label>
+                                <input class="form-control" id="Asset_Url" placeholder="(server trả về)" />
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">SortOrder</label>
+                                <input class="form-control" id="Asset_Sort" value="0" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Tệp upload</label>
+                                <input type="file" class="form-control" id="Asset_File" accept="image/*,video/*" />
+                                <div class="form-text">Chọn tệp khi thêm mới, hoặc khi muốn thay file.</div>
+                            </div>
+
+                            <input type="hidden" id="Asset_Id" />
+
+                            <div class="col-12 d-flex gap-2">
+                                <button class="btn btn-primary" id="btnAssetSave">
+                                    <i class="bi bi-save me-1"></i> Lưu tài nguyên
+                                </button>
+                                <button class="btn btn-outline-secondary" id="btnAssetReset">
+                                    <i class="bi bi-x-circle me-1"></i> Reset form
+                                </button>
+                            </div>
+                        </div>
+
+                        <hr class="my-3" />
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0" id="assetTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:90px;">AssetId</th>
+                                        <th style="width:110px;">Type</th>
+                                        <th>Url</th>
+                                        <th style="width:110px;">Sort</th>
+                                        <th class="text-end" style="width:120px;">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody><!-- render bằng JS --></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- /PANEL QUẢN LÝ EPISODEASSET -->
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="assetPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-0">
+                <h6 class="modal-title">Xem trước tài nguyên</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body d-flex justify-content-center">
+                <img id="previewImg" src="" alt="" class="img-fluid d-none" style="max-height:78vh;">
+                <video id="previewVideo" class="d-none" style="max-height:78vh;" controls></video>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+    <script>
+        (function(){
+          // ======================= Config =======================
+          const urls = {
+            ep: {
+              getAll: '@urlGetAllEp',
+              add   : '@urlAddEp',
+              update: '@urlUpdEp',
+              delete: '@urlDelEp'
+            },
+            seriesGetAll: '@urlGetAllSeries',
+            seasonGetAll: '@urlGetAllSeason',
+            asset: {
+              // Get assets by EpisodeId via route: GET /Admin/EpisodeAsset/{id}
+              getById: (id) => '@Url.Content("~/Admin/EpisodeAsset/")' + id,
+              add   : '@urlAssetAdd',   // POST multipart
+              update: '@urlAssetUpd',   // POST multipart (id trong form)
+              delete: '@urlAssetDel'    // DELETE ?id=&url=
+            }
+          };
+
+          // ======================= Elements/State =======================
+          const $overlay = $("#__loadingOverlay");
+          const $toast   = $("#__toastMessage");
+          const $tbody   = $("#episodeTable tbody");
+          const $pager   = $("#pagerWrap");
+          const modalEl  = document.getElementById('episodeModal');
+          const modal    = bootstrap.Modal.getOrCreateInstance(modalEl);
+          const $assetTbody = $("#assetTable tbody");
+          const $dbgReq = $("#dbgReq"), $dbgRes = $("#dbgRes");
+
+          let cache = [];        // episodes
+          let filtered = [];
+          let seasonCache = [];
+          let assetCache = [];   // assets of current EpisodeId
+          let page = 1;
+
+          // ======================= Helpers =======================
+          function showLoading(){ $overlay.fadeIn(80); }
+          function hideLoading(){ $overlay.fadeOut(120); }
+          function showToast(msg, ok=true, ms=2600){
+            $toast.text(msg||"").removeClass("success error").addClass(ok?"success":"error").fadeIn(120);
+            setTimeout(()=> $toast.fadeOut(150), ms);
+          }
+          function pickList(res){
+            const data = res?.data ?? res?.Data ?? null;
+            if(!data) return [];
+            if(Array.isArray(data)) return data;
+            if(Array.isArray(data.table)) return data.table;
+            if(Array.isArray(data.Table)) return data.Table;
+            return [];
+          }
+          function toDateStr10(v){
+            if(!v) return "";
+            try{
+              const s = String(v);
+              if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+              const d = new Date(s); if(isNaN(d)) return "";
+              const mm = String(d.getMonth()+1).padStart(2,"0");
+              const dd = String(d.getDate()).padStart(2,"0");
+              return `${d.getFullYear()}-${mm}-${dd}`;
+            }catch{ return ""; }
+          }
+          function toIntOrNull(s){ if(s===null||s===undefined||s==="") return null; const n=Number(s); return Number.isFinite(n)? Math.trunc(n):null; }
+          function toInt(s){ const n = Number(s); return Number.isFinite(n)? Math.trunc(n): null; }
+          function dateLocalStart(d){ return d ? (d+"T00:00:00") : null; }
+          function idv(o,...keys){ for(const k of keys){ if(o?.[k]!==undefined && o?.[k]!==null) return o[k]; } return undefined; }
+
+                  function isImageUrl(u){ return /\.(png|jpe?g|gif|webp|svg)$/i.test(u||''); }
+        function isVideoUrl(u){ return /\.(mp4|webm|ogg|mov|m4v)$/i.test(u||''); }
+
+        function openPreview(url){
+          const imgEl   = document.getElementById('previewImg');
+          const vidEl   = document.getElementById('previewVideo');
+          imgEl.classList.add('d-none');
+          vidEl.classList.add('d-none');
+          vidEl.pause();
+
+          if(isVideoUrl(url)){
+            vidEl.src = url; vidEl.classList.remove('d-none');
+          } else {
+            imgEl.src = url; imgEl.classList.remove('d-none');
+          }
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('assetPreviewModal')).show();
+        }
+
+
+
+          // Debug helpers
+          function dbgReq(obj){ try{ $dbgReq.text(JSON.stringify(obj, null, 2)); }catch{ $dbgReq.text(String(obj)); } }
+          function dbgRes(obj){ try{ $dbgRes.text(JSON.stringify(obj, null, 2)); }catch{ $dbgRes.text(String(obj)); } }
+
+          // paginate
+          function paginate(list, page, size){
+            const total = list.length;
+            const last = Math.max(1, Math.ceil(total/size));
+            const p = Math.min(Math.max(1, page), last);
+            const start = (p-1)*size, end = start+size;
+            return { page:p, size, total, last, items:list.slice(start,end) };
+          }
+          function renderPager($wrap, state){
+            const { page, last, total } = state;
+            const dis = c => c ? "disabled" : "";
+            const btn = (label,target,disabled) => `<li class="page-item ${dis(disabled)}"><a class="page-link" href="#" data-page="${target}">${label}</a></li>`;
+            const html = `
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="small text-secondary">Tổng: <b>${total}</b> bản ghi • Trang <b>${page}</b>/<b>${last}</b></div>
+                <nav aria-label="pagination">
+                  <ul class="pagination m-0">
+                    ${btn("«",1, page<=1)}
+                    ${btn("‹",page-1, page<=1)}
+                    ${btn(page,page,true)}
+                    ${btn("›",page+1, page>=last)}
+                    ${btn("»",last, page>=last)}
+                  </ul>
+                </nav>
+              </div>`;
+            $wrap.html(html);
+            $wrap.find("a.page-link").on("click", function(e){
+              e.preventDefault();
+              const p = Number($(this).data("page"));
+              if(Number.isFinite(p)){ page = p; renderTablePage(); }
+            });
+          }
+
+          // ======================= Filters dropdown =======================
+          function populateFilterDropdowns(){
+            $.get(urls.seriesGetAll, function(res){
+              const list = pickList(res);
+              const $ddl = $('#slSeriesFilter');
+              $ddl.empty().append(`<option value="">Lọc theo Series</option>`);
+              list.forEach(s=>{
+                const id = idv(s,'serieS_ID','SeriesId','seriesId');
+                const title = s.title ?? s.Title ?? '';
+                if(id!=null) $ddl.append(`<option value="${id}">${title}</option>`);
+              });
+            });
+
+            $.get(urls.seasonGetAll, function(res){
+              seasonCache = pickList(res);
+              const $ddl = $('#slSeasonFilter');
+              $ddl.empty().append(`<option value="">Lọc theo Season</option>`);
+              seasonCache.forEach(sv=>{
+                const sid = idv(sv,'seasoN_ID','SeasonId','seasonId');
+                const sno = idv(sv,'seasoN_NO','SeasonNo','seasonNo');
+                const stitle = sv.title ?? sv.Title ?? '';
+                if(sid!=null){
+                  const label = (sno!=null?`S${sno} - `:"") + stitle;
+                  $ddl.append(`<option value="${sid}">${label}</option>`);
+                }
+              });
+            });
+          }
+
+          function loadSeriesDropdown($ddl, selectedId){
+            $.get(urls.seriesGetAll, function(res){
+              const list = pickList(res);
+              $ddl.empty().append(`<option value="">-- Chọn Series --</option>`);
+              list.forEach(s=>{
+                const id = idv(s,'serieS_ID','SeriesId','seriesId');
+                const title = s.title ?? s.Title ?? '';
+                if(id!=null) $ddl.append(`<option value="${id}">${title}</option>`);
+              });
+              if(selectedId) $ddl.val(selectedId);
+              $ddl.trigger('change');
+            });
+          }
+          function loadSeasonDropdown($ddl, selectedSeriesId, selectedSeasonId){
+            const fill = ()=>{
+              $ddl.empty().append(`<option value="">-- Chọn Season --</option>`);
+              let list = seasonCache;
+              if(selectedSeriesId){
+                list = list.filter(x => String(idv(x,'serieS_ID','SeriesId','seriesId')??'')===String(selectedSeriesId));
+              }
+              list.forEach(sv=>{
+                const sid = idv(sv,'seasoN_ID','SeasonId','seasonId');
+                const sno = idv(sv,'seasoN_NO','SeasonNo','seasonNo');
+                const title = sv.title ?? sv.Title ?? '';
+                if(sid!=null){
+                  const label = (sno!=null?`S${sno} - `:"")+title;
+                  $ddl.append(`<option value="${sid}">${label}</option>`);
+                }
+              });
+              if(selectedSeasonId) $ddl.val(selectedSeasonId);
+            };
+            if(seasonCache.length===0){
+              $.get(urls.seasonGetAll, function(res){ seasonCache = pickList(res); fill(); });
+            } else fill();
+          }
+
+          // ======================= Render table =======================
+          function applyFilter(){
+            const qTitle  = ($('#txtSearch').val()||'').trim().toLowerCase();
+            const fSeries = ($('#slSeriesFilter').val()||'').trim();
+            const fSeason = ($('#slSeasonFilter').val()||'').trim();
+            const fEpNo   = ($('#txtEpNoFilter').val()||'').trim();
+
+            filtered = cache.filter(ep=>{
+              const seriesId = idv(ep,'serieS_ID','SeriesId','seriesId');
+              const seasonId = idv(ep,'seasoN_ID','SeasonId','seasonId');
+              const epNo     = idv(ep,'episodE_NO','EpisodeNo','episodeNo');
+              const title    = (ep.seriesTitle ?? ep.Title ?? '').toLowerCase();
+
+              const okTitle  = !qTitle || title.includes(qTitle);
+              const okSeries = !fSeries || String(seriesId??'')===String(fSeries);
+              const okSeason = !fSeason || String(seasonId??'')===String(fSeason);
+              const okNo     = !fEpNo   || String(epNo??'').includes(fEpNo);
+              return okTitle && okSeries && okSeason && okNo;
+            });
+          }
+
+          function renderTablePage(){
+            const size = Number($('#pageSize').val()||20);
+            const state = paginate(filtered, page, size);
+
+            const rows = state.items.map(ep=>{
+              const id       = idv(ep,'episodE_ID','EpisodeId','episodeId');
+              const seriesId = idv(ep,'serieS_ID','SeriesId','seriesId');
+              const seasonId = idv(ep,'seasoN_ID','SeasonId','seasonId');
+              const epNo     = idv(ep,'episodE_NO','EpisodeNo','episodeNo');
+              const title    = ep.seriesTitle ?? ep.Title ?? '';
+              const air      = toDateStr10(ep.airDate ?? ep.AirDate ?? ep.aiR_DATE);
+              const dur      = toIntOrNull(ep.durationMin ?? ep.DuratioN_MIN ?? ep.duratioN_MIN);
+              return `<tr>
+                <td class="text-muted">${id ?? ''}</td>
+                <td>${seriesId ?? ''}</td>
+                <td>${seasonId ?? ''}</td>
+                <td>${epNo ?? ''}</td>
+                <td class="fw-semibold">${title}</td>
+                <td>${air || ''}</td>
+                <td>${dur ?? ''}</td>
+                <td class="text-end">
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger btn-del" data-id="${id}">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('');
+
+            $tbody.html(rows || `<tr><td colspan="8" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
+            renderPager($pager, state);
+          }
+
+          // ======================= Data =======================
+          function reloadAll(){
+            showLoading();
+            const req = { method:"GET", url: urls.ep.getAll };
+            console.debug("[DEBUG] reloadAll req:", req);
+            dbgReq(req);
+
+            $.ajax({
+              url: urls.ep.getAll, type:"GET",
+              success(res){
+                console.debug("[DEBUG] reloadAll res:", res);
+                dbgRes(res);
+
+                cache = pickList(res);
+                console.table(cache);
+                applyFilter(); page = 1; renderTablePage();
+                showToast("Đã tải danh sách episode", true);
+              },
+              error(xhr){
+                console.error("[DEBUG] reloadAll error:", xhr);
+                dbgRes({ error: xhr?.responseJSON || xhr?.responseText || xhr?.statusText });
+
+                const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+                showToast(text, false);
+              },
+              complete(){ hideLoading(); }
+            });
+          }
+
+          // ======================= CRUD Episode =======================
+          function openAdd(){
+            $('#episodeModalTitle').text('Thêm episode');
+            $('#episodeForm')[0].reset();
+            $('#EpisodeId').val('');
+            loadSeriesDropdown($('#SeriesId'), null);
+            loadSeasonDropdown($('#SeasonId'), null, null);
+
+            // Asset panel
+            resetAssetForm();
+            $assetTbody.html(`<tr><td colspan="5" class="text-center text-secondary">
+              Hãy lưu Episode trước để quản lý tài nguyên (chưa có EpisodeId).
+            </td></tr>`);
+            modal.show();
+          }
+
+          function openEdit(id){
+            const ep = cache.find(x => idv(x,'episodE_ID','EpisodeId','episodeId') == id);
+            if(!ep){ showToast("Không tìm thấy episode.", false); return; }
+
+            $('#episodeModalTitle').text('Chỉnh sửa episode');
+            $('#EpisodeId').val(idv(ep,'episodE_ID','EpisodeId','episodeId') ?? '');
+
+            const seriesId = idv(ep,'serieS_ID','SeriesId','seriesId');
+            const seasonId = idv(ep,'seasoN_ID','SeasonId','seasonId');
+            loadSeriesDropdown($('#SeriesId'), seriesId);
+            loadSeasonDropdown($('#SeasonId'), seriesId, seasonId);
+
+            $('#EpisodeNo').val(idv(ep,'episodE_NO','EpisodeNo','episodeNo') ?? '');
+            $('#Title').val(ep.title ?? ep.Title ?? '');
+            $('#Overview').val(ep.overview ?? ep.Overview ?? '');
+            $('#AirDate').val(toDateStr10(ep.aiR_DATE ?? ep.AirDate));
+            $('#DurationMin').val(toIntOrNull(ep.duratioN_MIN ?? ep.DurationMin) ?? '');
+            $('#PosterUrl').val(ep.posteR_URL ?? ep.PosterUrl ?? '');
+
+            // Asset panel: bind EpisodeId & load assets by id
+            const epId = idv(ep,'episodE_ID','EpisodeId','episodeId');
+            $('#Asset_EpisodeId').val(epId || '');
+            resetAssetForm();
+            reloadAssetsFor(epId);
+
+            modal.show();
+          }
+
+          function save(){
+            const anti = $('input[name="__RequestVerificationToken"]').val();
+            const id = ($('#EpisodeId').val()||'').trim();
+            const isEdit = !!id;
+            const url = isEdit ? urls.ep.update : urls.ep.add;
+
+            const seriesId = toIntOrNull($('#SeriesId').val());
+            const seasonId = toIntOrNull($('#SeasonId').val());
+            const epNo     = toIntOrNull(($('#EpisodeNo').val()||'').trim());
+            if(!seriesId){ showToast("Vui lòng chọn Series.", false); return; }
+            if(!seasonId){ showToast("Vui lòng chọn Season.", false); return; }
+            if(!epNo){     showToast("Vui lòng nhập Episode No (số).", false); return; }
+
+            const payload = {
+              EpisodeId  : isEdit ? Number(id) : undefined,
+              SeriesId   : seriesId,
+              SeasonId   : seasonId,
+              EpisodeNo  : epNo,
+              Title      : ($('#Title').val()||'').trim() || null,
+              Overview   : ($('#Overview').val()||'').trim() || null,
+              AirDate    : dateLocalStart($('#AirDate').val()),
+              DurationMin: toIntOrNull(($('#DurationMin').val()||'').trim()),
+              PosterUrl  : ($('#PosterUrl').val()||'').trim() || null
+            };
+
+            showLoading();
+            const req = { method:"POST", url, payload };
+            console.debug("[DEBUG] save Episode req:", req);
+            dbgReq(req);
+
+            $.ajax({
+              url, type:"POST",
+              contentType:"application/json; charset=utf-8",
+              headers: anti ? { "RequestVerificationToken": anti } : {},
+              data: JSON.stringify(payload),
+              success(res){
+                console.debug("[DEBUG] save Episode res:", res);
+                dbgRes(res);
+
+                const ok = res && (res.success === true || res.code === "200");
+                if(ok){
+                  showToast(isEdit?"Đã cập nhật":"Đã thêm mới", true);
+                  modal.hide();
+                  reloadAll();
+                } else {
+                  showToast(res?.message || "Thao tác thất bại.", false);
+                }
+              },
+              error(xhr){
+                console.error("[DEBUG] save Episode error:", xhr);
+                dbgRes({ error: xhr?.responseJSON || xhr?.responseText || xhr?.statusText });
+
+                const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+                showToast(text, false);
+              },
+              complete(){ hideLoading(); }
+            });
+          }
+
+          function removeItem(id){
+            if(!confirm(`Xóa episode #${id}?`)) return;
+            showLoading();
+
+            const req = { method:"GET", url: urls.ep.delete, query:{ id } };
+            console.debug("[DEBUG] delete Episode req:", req);
+            dbgReq(req);
+
+            $.ajax({
+              url: urls.ep.delete, type:"GET", data:{ id },
+              success(res){
+                console.debug("[DEBUG] delete Episode res:", res);
+                dbgRes(res);
+
+                const ok = res && (res.success === true || res.code === "200");
+                if(ok){ showToast("Đã xóa", true); reloadAll(); }
+                else  { showToast(res?.message || "Xóa thất bại.", false); }
+              },
+              error(xhr){
+                console.error("[DEBUG] delete Episode error:", xhr);
+                dbgRes({ error: xhr?.responseJSON || xhr?.responseText || xhr?.statusText });
+
+                const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+                showToast(text, false);
+              },
+              complete(){ hideLoading(); }
+            });
+          }
+
+          // ======================= EpisodeAsset =======================
+          function getCurrentEpisodeId(){
+            const id = ($('#EpisodeId').val()||'').trim();
+            return id ? Number(id) : null;
+          }
+          function fillAssetForm(a){
+            $('#Asset_Id').val(a?.AssetId ?? a?.asseT_ID ?? '');
+            $('#Asset_EpisodeId').val(a?.EpisodeId ?? a?.episodE_ID ?? getCurrentEpisodeId() ?? '');
+            $('#Asset_Type').val(a?.AssetType ?? a?.asseT_TYPE ?? 'THUMB');
+            $('#Asset_Url').val(a?.Url ?? a?.url ?? '');
+            $('#Asset_Sort').val(a?.SortOrder ?? a?.sorT_ORDER ?? 0);
+            $('#Asset_File').val('');
+          }
+          function resetAssetForm(){
+            $('#Asset_Id').val('');
+            $('#Asset_EpisodeId').val(getCurrentEpisodeId() ?? '');
+            $('#Asset_Type').val('THUMB');
+            $('#Asset_Url').val('');
+            $('#Asset_Sort').val(0);
+            $('#Asset_File').val('');
+          }
+
+          function reloadAssetsFor(epId){
+            if(!epId){
+              $assetTbody.html(`<tr><td colspan="5" class="text-center text-secondary">
+                Hãy lưu Episode trước để quản lý tài nguyên (chưa có EpisodeId).
+              </td></tr>`);
+              return;
+            }
+            const req = { method:"GET", url: urls.asset.getById(epId) };
+            console.debug("[DEBUG] reloadAssetsFor req:", req);
+            dbgReq(req);
+
+            $.get(urls.asset.getById(epId), function(res){
+              console.debug("[DEBUG] reloadAssetsFor res:", res);
+              dbgRes(res);
+
+              assetCache = pickList(res);     // list assets for this EpisodeId
+              console.table(assetCache);
+              renderAssetRows();
+            }).fail(function(xhr){
+              console.error("[DEBUG] reloadAssetsFor error:", xhr);
+              dbgRes({ error: xhr?.responseJSON || xhr?.responseText || xhr?.statusText });
+
+              const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi tải tài nguyên theo EpisodeId.";
+              showToast(text, false);
+            });
+          }
+
+                function renderAssetRows(){
+          const rows = (assetCache || []).map(a => {
+            const id  = a?.asseT_ID ?? a?.AssetId;
+            const typ = a?.asseT_TYPE ?? a?.AssetType ?? '';
+            const url = (a?.url ?? a?.Url ?? '').trim();
+            const srt = a?.sorT_ORDER ?? a?.SortOrder ?? 0;
+
+            // thumbnail
+            let thumbHtml = '';
+            if(isVideoUrl(url)){
+              thumbHtml = `
+                <video class="asset-thumb video" muted preload="metadata">
+                  <source src="${url}#t=0.1">
+                </video>`;
+            } else if(isImageUrl(url)) {
+              thumbHtml = `<img src="${url}" alt="thumb" class="asset-thumb">`;
+            } else {
+              thumbHtml = `<div class="asset-thumb d-flex align-items-center justify-content-center">N/A</div>`;
+            }
+
+            // nút xem lớn
+            const zoomBtn = `<button class="btn btn-sm btn-outline-info btn-asset-view" data-url="${url}" title="Xem lớn">
+                <i class="bi bi-arrows-fullscreen"></i>
+              </button>`;
+
+                   return `<tr>
+          <td class="text-muted">${id ?? ''}</td>
+          <td>${typ}</td>
+          <td>
+            <div class="asset-thumb-wrap">
+              <a href="javascript:void(0)" class="asset-open" data-url="${url}" title="Nhấp để xem lớn">
+                ${thumbHtml}
+              </a>
+              <div class="asset-url-cell">
+                <a class="asset-url-clip asset-open" data-url="${url}" title="${url}">
+                  ${url}
+                </a>
+              </div>
+            </div>
+          </td>
+          <td>${srt}</td>
+          <td class="text-end">
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-info btn-asset-view" data-url="${url}" title="Xem lớn">
+                <i class="bi bi-arrows-fullscreen"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary btn-asset-edit" data-id="${id}" title="Sửa">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger btn-asset-del" data-id="${id}" title="Xóa">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>`;
+          }).join('');
+          $assetTbody.html(rows || `<tr><td colspan="5" class="text-center text-secondary">Không có tài nguyên</td></tr>`);
+        }
+
+
+          // multipart add/update (upload file đúng chuẩn)
+          function saveAsset(){
+            const epId = toInt($('#Asset_EpisodeId').val());
+            if(!epId){ showToast("Thiếu EpisodeId (hãy lưu Episode trước).", false); return; }
+
+            const assetId  = toInt($('#Asset_Id').val()); // null/undefined => add
+            const file     = $('#Asset_File')[0]?.files?.[0] || null;
+            const type     = ($('#Asset_Type').val()||'').trim();
+            const sort     = toInt($('#Asset_Sort').val()) ?? 0;
+            const oldUrl   = ($('#Asset_Url').val()||'').trim();
+
+            const fd = new FormData();
+            if (file) fd.append('file', file);               // key 'file'
+            fd.append('EpisodeId', String(epId));
+            fd.append('AssetType', type);
+            fd.append('SortOrder', String(sort));
+
+            let reqUrl = '';
+            if (assetId) {
+              fd.append('id', String(assetId));             // MVC Update nhận [FromForm] id
+              if (oldUrl) fd.append('OldUrl', oldUrl);      // optional
+              reqUrl = urls.asset.update;
+            } else {
+              if (!file) { showToast("Vui lòng chọn tệp để upload.", false); return; }
+              reqUrl = urls.asset.add;
+            }
+
+            showLoading();
+            console.debug("[DEBUG] saveAsset req:", { url: reqUrl, method:"POST", formKeys: [...fd.keys()] });
+            dbgReq({ url: reqUrl, method:"POST", formKeys: [...fd.keys()] });
+
+            $.ajax({
+              url: reqUrl, type:'POST',
+              data: fd, processData: false, contentType: false
+            }).done(function(res){
+              console.debug("[DEBUG] saveAsset res:", res);
+              dbgRes(res);
+
+              const ok = res && (res.success === true || res.code === "200");
+              if(ok){
+                showToast(assetId ? "Đã cập nhật tài nguyên" : "Đã thêm tài nguyên", true);
+                if (res.publicUrl) $('#Asset_Url').val(res.publicUrl); // hiển thị url mới nếu có
+                reloadAssetsFor(epId);
+                // reset form (giữ EpisodeId & Url để user nhìn thấy đường dẫn mới)
+                $('#Asset_Id').val('');
+                $('#Asset_Type').val('THUMB');
+                $('#Asset_Sort').val(0);
+                $('#Asset_File').val('');
+              } else {
+                showToast(res?.message || "Thao tác thất bại.", false);
+              }
+            }).fail(function(xhr){
+              console.error("[DEBUG] saveAsset error:", xhr);
+              dbgRes({ error: xhr?.responseJSON || xhr?.responseText || xhr?.statusText });
+
+              const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+              showToast(text, false);
+            }).always(hideLoading);
+          }
+
+          function deleteAsset(id){
+            if(!confirm(`Xóa tài nguyên #${id}?`)) return;
+            const epId = getCurrentEpisodeId();
+            const a = assetCache.find(x => String(x?.asseT_ID ?? x?.AssetId) === String(id));
+            const oldUrl = a ? (a.url ?? a.Url ?? '') : '';
+
+            showLoading();
+            const req = { method:'DELETE', url: urls.asset.delete, query: { id, url: oldUrl } };
+            console.debug("[DEBUG] deleteAsset req:", req);
+            dbgReq(req);
+
+            $.ajax({
+              url: urls.asset.delete, type:'DELETE',
+              data: { id, url: oldUrl }
+            }).done(function(res){
+              console.debug("[DEBUG] deleteAsset res:", res);
+              dbgRes(res);
+
+              const ok = res && (res.success === true || res.code === "200");
+              if(ok){
+                // cập nhật nhanh local hoặc reload lại
+                assetCache = assetCache.filter(x => String(x?.asseT_ID ?? x?.AssetId) !== String(id));
+                renderAssetRows();
+                // reloadAssetsFor(epId); // nếu muốn chắc chắn đồng bộ
+                showToast("Đã xóa tài nguyên", true);
+              } else {
+                showToast(res?.message || "Xóa thất bại.", false);
+              }
+            }).fail(function(xhr){
+              console.error("[DEBUG] deleteAsset error:", xhr);
+              dbgRes({ error: xhr?.responseJSON || xhr?.responseText || xhr?.statusText });
+
+              const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+              showToast(text, false);
+            }).always(hideLoading);
+          }
+
+          // ======================= Events =======================
+          $('#toggleDebug').on('change', function(){
+            const on = $(this).is(':checked');
+            $('#debugWrap').toggle(on);
+          });
+
+          $('#btnRefresh').on('click', function(){ populateFilterDropdowns(); reloadAll(); });
+          $('#btnAdd').on('click', openAdd);
+          $('#btnSave').on('click', save);
+
+          $('#txtSearch, #txtEpNoFilter').on('input', function(){ applyFilter(); page=1; renderTablePage(); });
+          $('#slSeriesFilter').on('change', function(){
+            const sid = $(this).val();
+            const $fSeason = $('#slSeasonFilter');
+            $fSeason.empty().append(`<option value="">Lọc theo Season</option>`);
+            seasonCache
+              .filter(x => !sid || String(idv(x,'serieS_ID','SeriesId','seriesId')??'')===String(sid))
+              .forEach(sv=>{
+                const id = idv(sv,'seasoN_ID','SeasonId','seasonId');
+                const sno= idv(sv,'seasoN_NO','SeasonNo','seasonNo');
+                const st = sv.title ?? sv.Title ?? '';
+                if(id!=null){
+                  const label = (sno!=null?`S${sno} - `:"")+st;
+                  $fSeason.append(`<option value="${id}">${label}</option>`);
+                }
+              });
+            applyFilter(); page=1; renderTablePage();
+          });
+          $('#slSeasonFilter').on('change', function(){ applyFilter(); page=1; renderTablePage(); });
+          $('#pageSize').on('change', function(){ page=1; renderTablePage(); });
+
+          $tbody.on('click', '.btn-edit', function(){ openEdit($(this).data('id')); });
+          $tbody.on('click', '.btn-del', function(){ removeItem($(this).data('id')); });
+
+          // Khi chọn Series trong modal -> lọc Season theo Series
+          $('#SeriesId').on('change', function(){ const sid = $(this).val(); loadSeasonDropdown($('#SeasonId'), sid, null); });
+
+          // Asset panel events
+          document.getElementById('assetPanel')?.addEventListener('shown.bs.collapse', function(){
+            const epId = getCurrentEpisodeId();
+            $('#Asset_EpisodeId').val(epId || '');
+            reloadAssetsFor(epId);
+          });
+          $('#btnAssetSave').on('click', saveAsset);
+          $('#btnAssetReset').on('click', resetAssetForm);
+          $assetTbody.on('click', '.btn-asset-edit', function(){
+            const id = $(this).data('id');
+            const a = assetCache.find(x => String(x?.asseT_ID ?? x?.AssetId) === String(id));
+            if(!a){ showToast("Không tìm thấy tài nguyên.", false); return; }
+            fillAssetForm({
+              AssetId  : a?.AssetId ?? a?.asseT_ID,
+              EpisodeId: a?.EpisodeId ?? a?.episodE_ID,
+              AssetType: a?.AssetType ?? a?.asseT_TYPE,
+              Url      : a?.Url ?? a?.url,
+              SortOrder: a?.SortOrder ?? a?.sorT_ORDER
+            });
+          });
+          $assetTbody.on('click', '.btn-asset-del', function(){ deleteAsset($(this).data('id')); });
+                  // click thumbnail hoặc nút phóng to
+        $assetTbody.on('click', '.asset-open, .btn-asset-view', function(){
+          const url = $(this).data('url');
+          if(url) openPreview(url);
+        });
+
+          // ======================= Init =======================
+          populateFilterDropdowns();
+          reloadAll();
+        })();
+    </script>
+}

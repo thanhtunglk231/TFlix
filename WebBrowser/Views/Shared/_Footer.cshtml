@@ -1,0 +1,46 @@
+﻿@* Views/Shared/_Footer.cshtml *@
+<footer class="mt-5 border-top border-black">
+    <div class="container py-4">
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="me-2 rounded-3" style="width:34px;height:34px;display:inline-block;background:linear-gradient(135deg,#27d3c3,#39f);filter:drop-shadow(0 6px 16px rgba(39,211,195,.35));"></span>
+                    <span class="fw-bold fs-5">TFlix</span>
+                </div>
+                <p class="text-secondary small mb-1">Dịch vụ xem phim trực tuyến chất lượng cao.</p>
+                <div class="d-flex gap-2">
+                    <a class="text-secondary btn btn-outline-secondary btn-sm" href="#"><i class="bi bi-facebook"></i></a>
+                    <a class="text-secondary btn btn-outline-secondary btn-sm" href="#"><i class="bi bi-youtube"></i></a>
+                    <a class="text-secondary btn btn-outline-secondary btn-sm" href="#"><i class="bi bi-instagram"></i></a>
+                    <a class="text-secondary btn btn-outline-secondary btn-sm" href="#"><i class="bi bi-tiktok"></i></a>
+                </div>
+            </div>
+            <div class="col-6 col-lg-2">
+                <h6 class="fw-bold">Giới thiệu</h6>
+                <ul class="list-unstyled small text-secondary">
+                    <li>@Html.ActionLink("Về TFlix", "About", "Home")</li>
+                    <li>@Html.ActionLink("Chính sách bảo mật", "Privacy", "Home")</li>
+                    <li>@Html.ActionLink("Điều khoản", "Terms", "Home")</li>
+                </ul>
+            </div>
+            <div class="col-6 col-lg-2">
+                <h6 class="fw-bold">Hỗ trợ</h6>
+                <ul class="list-unstyled small text-secondary">
+                    <li>@Html.ActionLink("Trợ giúp", "Help", "Support")</li>
+                    <li>@Html.ActionLink("Liên hệ", "Contact", "Support")</li>
+                    <li>@Html.ActionLink("Góp ý", "Feedback", "Support")</li>
+                </ul>
+            </div>
+            <div class="col-lg-4">
+                <h6 class="fw-bold">Đăng ký nhận ưu đãi</h6>
+                @using (Html.BeginForm("Subscribe", "Newsletter", FormMethod.Post, new { @class = "input-group" }))
+                {
+                    @Html.TextBox("email", null, new { @class = "form-control", placeholder = "Email của bạn" })
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i></button>
+                }
+                <small class="text-secondary d-block mt-2">Nhận tin mới và mã giảm giá mỗi tuần.</small>
+            </div>
+        </div>
+        <div class="text-center text-secondary small mt-4">© @DateTime.Now.Year TFlix. All rights reserved.</div>
+    </div>
+</footer>

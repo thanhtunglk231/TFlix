@@ -1,0 +1,25 @@
+﻿@{
+    Layout = null;
+    var title = ViewBag.Title as string ?? "TFlix";
+}
+<!doctype html>
+<html lang="vi" data-bs-theme="dark">
+<head>
+    @await Html.PartialAsync("_Head")
+    <title>@title</title>
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+    @await Html.PartialAsync("_Header")
+
+    <main class="min-vh-100">
+        @RenderBody()
+    </main>
+
+    @await Html.PartialAsync("_Footer")
+
+    @RenderSection("ScriptsTop", required: false)
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

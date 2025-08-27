@@ -1,0 +1,457 @@
+﻿@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Quản lý Season · Admin";
+
+    var urlGetAll = Url.Action("GetAll", "Season", new { area = "Admin" });
+    var urlAdd = Url.Action("AddSeason", "Season", new { area = "Admin" });
+    var urlUpdate = Url.Action("UpdateSeason", "Season", new { area = "Admin" });
+    var urlDelete = Url.Action("Delete", "Season", new { area = "Admin" });
+    var urlSeriesGetAll = Url.Action("GetAll", "Series", new { area = "Admin" });
+}
+
+<style>
+    /* Loading + Toast */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        z-index: 1100;
+        background: rgba(0,0,0,.25);
+        backdrop-filter: blur(1px)
+    }
+
+        .loading-overlay .spinner-wrap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            background: rgba(0,0,0,.35);
+            padding: 16px 18px;
+            border-radius: 10px
+        }
+
+    .spinner {
+        width: 52px;
+        height: 52px;
+        border: 5px solid #eee;
+        border-top: 5px solid #27d3c3;
+        border-radius: 50%;
+        animation: spin 1s linear infinite
+    }
+    @@keyframes spin {
+        from
+
+    {
+        transform: rotate(0)
+    }
+
+    to {
+        transform: rotate(360deg)
+    }
+
+    }
+
+    .toastx {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        min-width: 280px;
+        z-index: 1200;
+        background: #333;
+        color: #fff;
+        border-radius: 10px;
+        padding: 12px 16px;
+        display: none;
+        box-shadow: 0 8px 24px rgba(0,0,0,.25)
+    }
+
+        .toastx.success {
+            background: #28a745
+        }
+
+        .toastx.error {
+            background: #dc3545
+        }
+</style>
+
+<div class="loading-overlay" id="__loadingOverlay">
+    <div class="spinner-wrap"><div class="spinner"></div></div>
+</div>
+<div class="toastx" id="__toastMessage"></div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="m-0"><i class="bi bi-collection-play me-2"></i>Quản lý Season</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" id="btnRefresh">
+            <i class="bi bi-arrow-clockwise me-1"></i>Nạp lại
+        </button>
+        <button class="btn btn-primary" id="btnAdd">
+            <i class="bi bi-plus-circle me-1"></i>Thêm season
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+
+        <div class="row g-2 mb-3">
+            <div class="col-md-3">
+                <input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề...">
+            </div>
+            <div class="col-md-3">
+                <input id="txtSeriesIdFilter" class="form-control" placeholder="Lọc theo SeriesId...">
+            </div>
+            <div class="col-md-3">
+                <input id="txtSeasonNoFilter" class="form-control" placeholder="Lọc theo SeasonNo...">
+            </div>
+            <div class="col-md-3">
+                <select id="pageSize" class="form-select">
+                    <option value="10">10 / trang</option>
+                    <option value="20" selected>20 / trang</option>
+                    <option value="50">50 / trang</option>
+                    <option value="100">100 / trang</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="seasonTable" class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:90px;">ID</th>
+                        <th style="width:110px;">SeriesId</th>
+                        <th style="width:110px;">SeasonNo</th>
+                        <th>Tiêu đề</th>
+                        <th class="text-nowrap">Air Date</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="pagerWrap" class="mt-2"></div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="seasonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><span id="seasonModalTitle">Thêm season</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <form id="seasonForm" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="SeasonId" />
+                    <div class="col-md-4">
+                        <label class="form-label">SeriesId *</label>
+                        <select class="form-select" id="SeriesId" required>
+                            <option value="">-- Chọn Series --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">SeasonNo *</label>
+                        <input class="form-control" id="SeasonNo" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Air Date</label>
+                        <input type="date" class="form-control" id="AirDate" />
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Tiêu đề</label>
+                        <input class="form-control" id="Title" />
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Overview</label>
+                        <textarea class="form-control" id="Overview" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+    <script>
+        (function () {
+            // ====== URLs ======
+            const urls = {
+                getAll: '@urlGetAll',
+                add: '@urlAdd',
+                update: '@urlUpdate',
+                delete: '@urlDelete',
+                seriesGetAll: '@urlSeriesGetAll'
+            };
+
+            // ====== Elements ======
+            const $overlay = $("#__loadingOverlay");
+            const $toast = $("#__toastMessage");
+            const $tbody = $("#seasonTable tbody");
+            const $pager = $("#pagerWrap");
+            const modalEl = document.getElementById('seasonModal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+            // ====== State ======
+            let cache = [];      // full list
+            let filtered = [];   // after filters
+            let page = 1;
+
+            // ====== Helpers ======
+            function showLoading(){ $overlay.fadeIn(80); }
+            function hideLoading(){ $overlay.fadeOut(120); }
+            function showToast(msg, ok=true, ms=2600){
+                $toast.text(msg||"").removeClass("success error").addClass(ok?"success":"error").fadeIn(120);
+                setTimeout(()=> $toast.fadeOut(150), ms);
+            }
+            function pickList(res){
+                const data = res?.data ?? res?.Data ?? null;
+                if(!data) return [];
+                if(Array.isArray(data)) return data;
+                if(Array.isArray(data.table)) return data.table;
+                if(Array.isArray(data.Table)) return data.Table;
+                return [];
+            }
+            function toDateStr10(v){
+                if(!v) return "";
+                try{
+                    const s = String(v);
+                    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+                    const d = new Date(s);
+                    if(isNaN(d)) return "";
+                    const mm = String(d.getMonth()+1).padStart(2,"0");
+                    const dd = String(d.getDate()).padStart(2,"0");
+                    return `${d.getFullYear()}-${mm}-${dd}`;
+                }catch{ return ""; }
+            }
+            function dateLocalStart(yyyyMMdd){ return yyyyMMdd ? (yyyyMMdd + "T00:00:00") : null; }
+            function toNumberOrNull(s){
+                if(s===null||s===undefined||s==="") return null;
+                const n = Number(s); return Number.isFinite(n)? n : null;
+            }
+            // paginate
+            function paginate(list, page, size){
+                const total = list.length;
+                const last = Math.max(1, Math.ceil(total/size));
+                const p = Math.min(Math.max(1,page), last);
+                const start = (p-1)*size, end = start+size;
+                return { page:p, size, total, last, items:list.slice(start,end) };
+            }
+            function renderPager($wrap, state, onGoPage){
+                const { page, last, total } = state;
+                const dis = c => c ? "disabled" : "";
+                const btn = (label, target, disabled) =>
+                    `<li class="page-item ${dis(disabled)}"><a class="page-link" href="#" data-page="${target}">${label}</a></li>`;
+                const html = `
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                  <div class="small text-secondary">Tổng: <b>${total}</b> bản ghi • Trang <b>${page}</b>/<b>${last}</b></div>
+                  <nav aria-label="pagination">
+                    <ul class="pagination m-0">
+                      ${btn("«", 1, page<=1)}
+                      ${btn("‹", page-1, page<=1)}
+                      ${btn(page, page, true)}
+                      ${btn("›", page+1, page>=last)}
+                      ${btn("»", last, page>=last)}
+                    </ul>
+                  </nav>
+                </div>`;
+                $wrap.html(html);
+                $wrap.find("a.page-link").on("click", function(e){
+                    e.preventDefault();
+                    const p = Number($(this).data("page"));
+                    if(Number.isFinite(p)){ page = p; renderTablePage(); }
+                });
+            }
+
+            // ====== Render ======
+            function applyFilter(){
+                const qTitle = ($('#txtSearch').val()||'').trim().toLowerCase();
+                const qSeries = ($('#txtSeriesIdFilter').val()||'').trim();
+                const qNo = ($('#txtSeasonNoFilter').val()||'').trim();
+
+                filtered = cache.filter(s=>{
+                    const seriesId = s.serieS_ID ?? s.SeriesId ?? s.seriesId;
+                    const seasonNo = s.seasoN_NO ?? s.SeasonNo ?? s.seasonNo;
+                    const title = (s.title ?? s.Title ?? '').toLowerCase();
+
+                    const okTitle = !qTitle || title.includes(qTitle);
+                    const okSeries = !qSeries || String(seriesId??'').includes(qSeries);
+                    const okNo = !qNo || String(seasonNo??'').includes(qNo);
+                    return okTitle && okSeries && okNo;
+                });
+            }
+            function renderTablePage(){
+                const size = Number($('#pageSize').val()||20);
+                const state = paginate(filtered, page, size);
+
+                const rows = state.items.map(s=>{
+                    const id = s.seasoN_ID ?? s.SeasonId ?? s.seasonId;
+                    const seriesId = s.serieS_ID ?? s.SeriesId ?? s.seriesId;
+                    const seasonNo = s.seasoN_NO ?? s.SeasonNo ?? s.seasonNo;
+                    const title = s.title ?? s.Title ?? '';
+                    const air = toDateStr10(s.airDate ?? s.AirDate ?? s.aiR_DATE);
+                    return `<tr>
+                        <td class="text-muted">${id??''}</td>
+                        <td>${seriesId??''}</td>
+                        <td>${seasonNo??''}</td>
+                        <td class="fw-semibold">${title}</td>
+                        <td>${air||''}</td>
+                        <td class="text-end">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger btn-del" data-id="${id}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+                $tbody.html(rows || `<tr><td colspan="6" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
+                renderPager($pager, state, (p)=>{ page=p; renderTablePage(); });
+            }
+
+            // ====== Data ======
+            function reloadAll(){
+                showLoading();
+                $.ajax({
+                    url: urls.getAll, type: "GET",
+                    success(res){
+                        cache = pickList(res);
+                        applyFilter();
+                        page = 1;
+                        renderTablePage();
+                        showToast("Đã tải danh sách season", true);
+                    },
+                    error(xhr){
+                        const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+                        showToast(text, false);
+                    },
+                    complete(){ hideLoading(); }
+                });
+            }
+            function loadSeriesOptions(selectedId){
+                showLoading();
+                $.get(urls.seriesGetAll, function(res){
+                    const list = pickList(res);
+                    const $ddl = $('#SeriesId');
+                    $ddl.empty().append(`<option value="">-- Chọn Series --</option>`);
+                    list.forEach(s=>{
+                        const id = s.serieS_ID ?? s.SeriesId ?? s.seriesId;
+                        const title = s.title ?? s.Title ?? '';
+                        $ddl.append(`<option value="${id}">${title}</option>`);
+                    });
+                    if(selectedId) $ddl.val(selectedId);
+                }).always(hideLoading);
+            }
+
+            // ====== CRUD ======
+            function openAdd(){
+                $('#seasonModalTitle').text('Thêm season');
+                $('#seasonForm')[0].reset();
+                $('#SeasonId').val('');
+                loadSeriesOptions();
+                modal.show();
+            }
+            function openEdit(id){
+                const s = cache.find(x => (x.seasoN_ID ?? x.SeasonId ?? x.seasonId) == id);
+                if(!s){ showToast("Không tìm thấy bản ghi.", false); return; }
+
+                $('#seasonModalTitle').text('Chỉnh sửa season');
+                loadSeriesOptions(s.serieS_ID ?? s.SeriesId ?? s.seriesId);
+                $('#SeasonId').val(s.seasoN_ID ?? s.SeasonId ?? s.seasonId ?? '');
+                $('#SeriesId').val(s.serieS_ID ?? s.SeriesId ?? s.seriesId ?? '');
+                $('#SeasonNo').val(s.seasoN_NO ?? s.SeasonNo ?? s.seasonNo ?? '');
+                $('#Title').val(s.title ?? s.Title ?? '');
+                $('#Overview').val(s.overview ?? s.Overview ?? '');
+                $('#AirDate').val(toDateStr10(s.aiR_DATE ?? s.AirDate));
+                modal.show();
+            }
+            function save(){
+                const anti = $('input[name="__RequestVerificationToken"]').val();
+                const id = ($('#SeasonId').val()||'').trim();
+                const isEdit = !!id;
+                const url = isEdit ? urls.update : urls.add;
+
+                const seriesId = toNumberOrNull(($('#SeriesId').val()||'').trim());
+                const seasonNo = toNumberOrNull(($('#SeasonNo').val()||'').trim());
+                if(!seriesId){ showToast("Vui lòng nhập SeriesId (số).", false); return; }
+                if(!seasonNo){ showToast("Vui lòng nhập SeasonNo (số).", false); return; }
+
+                const payload = {
+                    SeasonId: isEdit ? Number(id) : undefined,
+                    SeriesId: seriesId,
+                    SeasonNo: seasonNo,
+                    Title: ($('#Title').val()||'').trim() || null,
+                    Overview: ($('#Overview').val()||'').trim() || null,
+                    AirDate: dateLocalStart($('#AirDate').val())
+                };
+
+                showLoading();
+                $.ajax({
+                    url, type:"POST",
+                    contentType:"application/json; charset=utf-8",
+                    headers: anti ? { "RequestVerificationToken": anti } : {},
+                    data: JSON.stringify(payload),
+                    success(res){
+                        const ok = res && (res.success === true || res.code === "200");
+                        if(ok){
+                            showToast(isEdit ? "Đã cập nhật" : "Đã thêm mới", true);
+                            modal.hide();
+                            reloadAll();
+                        }else{
+                            showToast(res?.message || "Thao tác thất bại.", false);
+                        }
+                    },
+                    error(xhr){
+                        const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+                        showToast(text, false);
+                    },
+                    complete(){ hideLoading(); }
+                });
+            }
+            function removeItem(id){
+                if(!confirm(`Xóa season #${id}?`)) return;
+                showLoading();
+                $.ajax({
+                    url: urls.delete, type:"GET", data:{ id },
+                    success(res){
+                        const ok = res && (res.success === true || res.code === "200");
+                        if(ok){ showToast("Đã xóa", true); reloadAll(); }
+                        else   { showToast(res?.message || "Xóa thất bại.", false); }
+                    },
+                    error(xhr){
+                        const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+                        showToast(text, false);
+                    },
+                    complete(){ hideLoading(); }
+                });
+            }
+
+            // ====== Events ======
+            $('#btnRefresh').on('click', reloadAll);
+            $('#btnAdd').on('click', openAdd);
+            $('#btnSave').on('click', save);
+
+            $('#txtSearch, #txtSeriesIdFilter, #txtSeasonNoFilter').on('input', function(){
+                applyFilter(); page = 1; renderTablePage();
+            });
+            $('#pageSize').on('change', function(){
+                page = 1; renderTablePage();
+            });
+            $tbody.on('click', '.btn-edit', function(){ openEdit($(this).data('id')); });
+            $tbody.on('click', '.btn-del', function(){ removeItem($(this).data('id')); });
+
+            // ====== Init ======
+            reloadAll();
+        })();
+    </script>
+}
