@@ -9,7 +9,7 @@ using System;
 using System.Data;
 using System.Threading.Tasks;
 
-namespace DataServiceLib.Implements
+namespace DataServiceLib.Implements.Admin.Episodes
 {
     public class CEpisode : ICEpisode
     {
@@ -38,7 +38,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "400",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -65,7 +65,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "400",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -117,7 +117,7 @@ namespace DataServiceLib.Implements
                     Data = new { DataSet = dataset, EpisodeId = newId },
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -160,7 +160,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -185,7 +185,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)

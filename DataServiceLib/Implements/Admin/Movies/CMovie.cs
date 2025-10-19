@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DataServiceLib.Implements
+namespace DataServiceLib.Implements.Admin.Movies
 {
     public class CMovie : ICMovie
     {
@@ -55,7 +55,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "400",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -111,7 +111,7 @@ namespace DataServiceLib.Implements
                     Data = new { DataSet = dataset, MovieId = newId },
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -166,7 +166,7 @@ namespace DataServiceLib.Implements
                     Data = dataset, // có thể null vì SP này không mở cursor
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -211,7 +211,7 @@ namespace DataServiceLib.Implements
                     Data = dataset, // SP này không có cursor nên dataset có thể rỗng
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)

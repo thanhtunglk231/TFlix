@@ -6,7 +6,7 @@ using WebBrowser.Models.MovieAsset;
 using WebBrowser.Services.HttpSevice.Interfaces;
 using WebBrowser.Services.Interfaces;
 
-namespace WebBrowser.Services.Implements
+namespace WebBrowser.Services.Implements.Movies
 {
     public class MovieAssetService : IMovieAssetService
     {

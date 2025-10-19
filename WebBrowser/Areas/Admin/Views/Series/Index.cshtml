@@ -2,10 +2,18 @@
     Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Quản lý Series · Admin";
 
+    // Series CRUD
     var urlGetAll = Url.Action("getall", "Series", new { area = "Admin" });
     var urlAdd = Url.Action("addSeries", "Series", new { area = "Admin" });
     var urlUpdate = Url.Action("updateSeries", "Series", new { area = "Admin" });
     var urlDelete = Url.Action("delete", "Series", new { area = "Admin" });
+
+    // Genres (dropdown nguồn) + SeriesGenre (gán thể loại cho series)
+    var urlGenresGetAll = Url.Action("GetAll", "Genres", new { area = "Admin" });               // GET
+    var urlSGGetBySeries = Url.Action("GetByMovie", "SeriesGenre", new { area = "Admin" });      // GET ?id=<seriesId>
+    var urlSGAdd = Url.Action("Add", "SeriesGenre", new { area = "Admin" });             // POST {SeriesId, GenreId}
+    var urlSGDelete = Url.Action("Delete", "SeriesGenre", new { area = "Admin" });          // POST {SeriesId, GenreId}
+    var urlSGUpdate = Url.Action("Update", "SeriesGenre", new { area = "Admin" });          // (không dùng trực tiếp - ta delete+add)
 }
 
 <style>
@@ -37,17 +45,15 @@
         border-radius: 50%;
         animation: spin 1s linear infinite
     }
+
     @@keyframes spin {
-        from
+        from {
+            transform: rotate(0)
+        }
 
-    {
-        transform: rotate(0)
-    }
-
-    to {
-        transform: rotate(360deg)
-    }
-
+        to {
+            transform: rotate(360deg)
+        }
     }
 
     .toastx {
@@ -80,31 +86,35 @@
         background: var(--bs-secondary-bg);
         color: var(--bs-body-color)
     }
+    /* SeriesGenre chips */
+    .sg-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        margin: 0 .4rem .4rem 0
+    }
+
+        .sg-chip .btn {
+            --bs-btn-padding-y: .1rem;
+            --bs-btn-padding-x: .3rem
+        }
 </style>
 
-<div class="loading-overlay" id="__loadingOverlay">
-    <div class="spinner-wrap"><div class="spinner"></div></div>
-</div>
+<div class="loading-overlay" id="__loadingOverlay"><div class="spinner-wrap"><div class="spinner"></div></div></div>
 <div class="toastx" id="__toastMessage"></div>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h4 class="m-0"><i class="bi bi-collection-play me-2"></i>Quản lý Series</h4>
     <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary" id="btnRefresh">
-            <i class="bi bi-arrow-clockwise me-1"></i>Nạp lại
-        </button>
-        <button class="btn btn-primary" id="btnAdd">
-            <i class="bi bi-plus-circle me-1"></i>Thêm series
-        </button>
+        <button class="btn btn-outline-secondary" id="btnRefresh"><i class="bi bi-arrow-clockwise me-1"></i>Nạp lại</button>
+        <button class="btn btn-primary" id="btnAdd"><i class="bi bi-plus-circle me-1"></i>Thêm series</button>
     </div>
 </div>
 
 <div class="card">
     <div class="card-body">
         <div class="row g-2 mb-3">
-            <div class="col-md-4">
-                <input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề...">
-            </div>
+            <div class="col-md-4"><input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề..."></div>
             <div class="col-md-3">
                 <select id="slStatus" class="form-select">
                     <option value="">Trạng thái (Tất cả)</option>
@@ -134,7 +144,7 @@
             <table id="seriesTable" class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th style="width: 90px;">ID</th>
+                        <th style="width:90px;">ID</th>
                         <th>Tiêu đề</th>
                         <th class="text-nowrap">First Air</th>
                         <th class="text-nowrap">Last Air</th>
@@ -151,9 +161,9 @@
     </div>
 </div>
 
-<!-- Modal Add/Edit -->
+<!-- Modal Add/Edit + SeriesGenre panel -->
 <div class="modal fade" id="seriesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><span id="seriesModalTitle">Thêm series</span></h5>
@@ -215,8 +225,46 @@
                         <label class="form-label">Language</label>
                         <input class="form-control" id="LanguageCode" placeholder="en, vi..." />
                     </div>
+
+                    <!-- SeriesGenre (Thể loại của Series) -->
+                    <div class="col-12">
+                        <button class="btn btn-outline-info w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sgPanel" aria-expanded="false">
+                            <i class="bi bi-tags me-1"></i> Thể loại (SeriesGenre)
+                        </button>
+                        <div class="form-text">Cần có SeriesId (hãy lưu/đang sửa một series) để quản lý thể loại.</div>
+                    </div>
                 </form>
+
+                <div class="collapse mt-3" id="sgPanel">
+                    <div class="border rounded p-3">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label">Chọn thể loại</label>
+                                <select id="SG_Genre" class="form-select">
+                                    <option value="">Đang tải...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-primary w-100" id="btnSGAdd">
+                                    <i class="bi bi-plus-circle me-1"></i><span class="__text">Thêm thể loại</span>
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-secondary w-100 d-none" id="btnSGCancel">
+                                    <i class="bi bi-x-circle me-1"></i>Hủy sửa
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <div class="small text-secondary mb-1">Đang gán:</div>
+                            <div id="SG_Selected"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /SeriesGenre -->
             </div>
+
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
                 <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
@@ -229,272 +277,346 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
     <script>
         (function(){
-          // ===== URLs =====
+          // ================= URLs =================
           const urls = {
-            getAll: '@urlGetAll',
-            add:    '@urlAdd',
-            update: '@urlUpdate',
-            delete: '@urlDelete'
+            series: { getAll:'@urlGetAll', add:'@urlAdd', update:'@urlUpdate', delete:'@urlDelete' },
+            genres: { getAll:'@urlGenresGetAll' },
+            sg:     { getBy:'@urlSGGetBySeries', add:'@urlSGAdd', update:'@urlSGUpdate', delete:'@urlSGDelete' }
           };
 
-          // ===== Elements & State =====
-          const $overlay = $("#__loadingOverlay");
-          const $toast   = $("#__toastMessage");
-          const $tbody   = $('#seriesTable tbody');
-          const $pager   = $('#pagerWrap');
-          const modalEl  = document.getElementById('seriesModal');
-          const modal    = bootstrap.Modal.getOrCreateInstance(modalEl);
+          // ================= Elements & State =================
+          const $overlay=$("#__loadingOverlay"), $toast=$("#__toastMessage");
+          const $tbody=$("#seriesTable tbody"), $pager=$("#pagerWrap");
+          const modal=bootstrap.Modal.getOrCreateInstance(document.getElementById('seriesModal'));
 
-          let cache = [];     // full list
-          let filtered = [];  // after filter
-          let page = 1;
+          // SeriesGenre UI
+          const $sgGenre = $('#SG_Genre');
+          const $sgSelected = $('#SG_Selected');
+          const $btnSGAdd = $('#btnSGAdd');
+          const $btnSGCancel = $('#btnSGCancel');
+          let sgEditingGid = null; // genreId đang sửa
 
-          // ===== Helpers =====
-          function showLoading(){ $overlay.fadeIn(80); }
-          function hideLoading(){ $overlay.fadeOut(120); }
-          function showToast(msg, ok=true, ms=2600){
-            $toast.text(msg||"").removeClass("success error").addClass(ok?"success":"error").fadeIn(120);
-            setTimeout(()=> $toast.fadeOut(150), ms);
-          }
-          function pickList(res){
-            const data = res?.data ?? res?.Data ?? null;
-            if (!data) return [];
-            if (Array.isArray(data)) return data;
-            if (Array.isArray(data.table)) return data.table;
-            if (Array.isArray(data.Table)) return data.Table;
-            return [];
-          }
-          function toDateStr10(v){
-            if(!v) return '';
-            try{
-              const s = String(v);
-              if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
-              const d = new Date(s); if(isNaN(d)) return '';
-              const mm = String(d.getMonth()+1).padStart(2,'0');
-              const dd = String(d.getDate()).padStart(2,'0');
-              return `${d.getFullYear()}-${mm}-${dd}`;
-            }catch{ return ''; }
-          }
-          function dateLocalStart(d){ return d ? (d + "T00:00:00") : null; }
+          let cache=[], filtered=[], page=1;
+          let genresCache=[];              // tất cả thể loại (dropdown nguồn)
+          let seriesGenreCache=[];         // thể loại gán cho series hiện tại
 
-          // Pagination
-          function paginate(list, page, size){
-            const total = list.length;
-            const last = Math.max(1, Math.ceil(total/size));
-            const p = Math.min(Math.max(1, page), last);
-            const start = (p-1)*size, end = start + size;
-            return { page:p, size, total, last, items:list.slice(start,end) };
-          }
-          function renderPager($wrap, state){
-            const { page, last, total } = state;
-            const dis = c => c ? "disabled" : "";
-            const btn = (label,target,disabled)=>
-              `<li class="page-item ${dis(disabled)}"><a class="page-link" href="#" data-page="${target}">${label}</a></li>`;
-            const html = `
-              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div class="small text-secondary">Tổng: <b>${total}</b> bản ghi • Trang <b>${page}</b>/<b>${last}</b></div>
-                <nav aria-label="pagination">
-                  <ul class="pagination m-0">
-                    ${btn("«",1, page<=1)}
-                    ${btn("‹",page-1, page<=1)}
-                    ${btn(page,page,true)}
-                    ${btn("›",page+1, page>=last)}
-                    ${btn("»",last, page>=last)}
-                  </ul>
-                </nav>
-              </div>`;
-            $wrap.html(html);
-            $wrap.find("a.page-link").on("click", function(e){
-              e.preventDefault();
-              const p = Number($(this).data("page"));
-              if(Number.isFinite(p)){ page = p; renderTablePage(); }
-            });
+          // ================= Helpers =================
+          const showLoading=()=> $overlay.fadeIn(80);
+          const hideLoading=()=> $overlay.fadeOut(120);
+          function showToast(msg, ok=true, ms=2600){ $toast.text(msg||'').removeClass('success error').addClass(ok?'success':'error').fadeIn(120); setTimeout(()=> $toast.fadeOut(150), ms); }
+          function pickList(res){ const d=res?.data??res?.Data; if(!d) return []; if(Array.isArray(d)) return d; if(Array.isArray(d.table)) return d.table; if(Array.isArray(d.Table)) return d.Table; return []; }
+          function toDate10(v){ if(!v) return ''; try{ const s=String(v); if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10); const d=new Date(s); if(isNaN(d)) return ''; return d.toISOString().substring(0,10);}catch{return '';} }
+          const date0=d=> d? (d+'T00:00:00') : null;
+          const gv=(o,...keys)=>{for(const k of keys){ if(o?.[k]!==undefined && o?.[k]!==null) return o[k]; } return undefined; };
+
+          function paginate(list,page,size){ const total=list.length; const last=Math.max(1,Math.ceil(total/size)); page=Math.min(Math.max(1,page),last); const s=(page-1)*size; return {page,size,total,last,items:list.slice(s,s+size)}}
+          function renderPager(state){
+            const {page,last,total}=state;
+            const btn=(l,t,dis)=>`<li class="page-item ${dis?'disabled':''}"><a class="page-link" href="#" data-page="${t}">${l}</a></li>`;
+            $pager.html(`<div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div class="small text-secondary">Tổng: <b>${total}</b> • Trang <b>${page}</b>/<b>${last}</b></div>
+              <ul class="pagination m-0">${btn('«',1,page<=1)}${btn('‹',page-1,page<=1)}${btn(page,page,true)}${btn('›',page+1,page>=last)}${btn('»',last,page>=last)}</ul>
+            </div>`);
+            $pager.find('a.page-link').on('click',e=>{e.preventDefault();const p=+e.target.dataset.page;if(Number.isFinite(p)){page=p;renderTablePage();}});
           }
 
-          // ===== Filter + Render =====
+          // ================= Filter & Render =================
           function applyFilter(){
-            const q  = ($('#txtSearch').val()||'').trim().toLowerCase();
-            const st = ($('#slStatus').val()||'').trim();
-            const pm = ($('#slPremium').val()||'').trim();
-
-            filtered = cache.filter(s=>{
-              const title  = (s.title ?? s.Title ?? '').toLowerCase();
-              const status = (s.status ?? s.Status ?? '');
-              const ipRaw  = (s.iS_PREMIUM ?? s.IsPremium ?? 'N');
-              const ipYN   = (typeof ipRaw === 'string') ? ipRaw.toUpperCase() : (ipRaw ? 'Y' : 'N');
-
-              const okQ  = !q  || title.includes(q);
-              const okSt = !st || status === st;
-              const okPm = !pm || ipYN === pm;
-              return okQ && okSt && okPm;
+            const q=($('#txtSearch').val()||'').trim().toLowerCase();
+            const st=($('#slStatus').val()||'').trim();
+            const pm=($('#slPremium').val()||'').trim();
+            filtered=cache.filter(s=>{
+              const title=(s.title??s.Title??'').toLowerCase();
+              const status=(s.status??s.Status??'');
+              const ip=(s.iS_PREMIUM??s.IsPremium??'N'); const yn=(typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N');
+              return (!q||title.includes(q)) && (!st||status===st) && (!pm||yn===pm);
             });
           }
-
           function renderTablePage(){
-            const size = Number($('#pageSize').val()||20);
-            const state = paginate(filtered, page, size);
-
-            const rows = state.items.map(s=>{
-              const id  = s.serieS_ID ?? s.SeriesId ?? s.seriesId;
-              const ti  = s.title ?? s.Title ?? '';
-              const fa  = toDateStr10(s.firstAirDate ?? s.FirstAirDate ?? s.firsT_AIR_DATE);
-              const la  = toDateStr10(s.lastAirDate  ?? s.LastAirDate  ?? s.lasT_AIR_DATE);
-              const stt = s.status ?? s.Status ?? '';
-              const ip  = (s.iS_PREMIUM ?? s.IsPremium ?? 'N');
-              const ipYN= (typeof ip === 'string') ? ip.toUpperCase() : (ip ? 'Y' : 'N');
-              const ipTxt = (ipYN === 'Y') ? 'Có' : 'Không';
-
+            const size=+($('#pageSize').val()||20);
+            const st=paginate(filtered,page,size);
+            const rows=st.items.map(s=>{
+              const id=s.serieS_ID??s.SeriesId??s.seriesId;
+              const ti=s.title??s.Title??'';
+              const fa=toDate10(s.firstAirDate??s.FirstAirDate??s.firsT_AIR_DATE);
+              const la=toDate10(s.lastAirDate ??s.LastAirDate ??s.lasT_AIR_DATE);
+              const stt=s.status??s.Status??'';
+              const ip=s.iS_PREMIUM??s.IsPremium??'N'; const yn=(typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N'); const ipTx=(yn==='Y')?'Có':'Không';
               return `<tr>
-                <td class="text-muted">${id ?? ''}</td>
+                <td class="text-muted">${id??''}</td>
                 <td class="fw-semibold">${ti}</td>
-                <td>${fa || ''}</td>
-                <td>${la || ''}</td>
+                <td>${fa||''}</td>
+                <td>${la||''}</td>
                 <td><span class="chip">${stt}</span></td>
-                <td><span class="chip">${ipTxt}</span></td>
+                <td><span class="chip">${ipTx}</span></td>
                 <td class="text-end">
                   <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger btn-del" data-id="${id}">
-                      <i class="bi bi-trash"></i>
-                    </button>
+                    <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-del" data-id="${id}"><i class="bi bi-trash"></i></button>
                   </div>
                 </td>
               </tr>`;
             }).join('');
-
             $tbody.html(rows || `<tr><td colspan="7" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
-            renderPager($pager, state);
+            renderPager(st);
           }
+          function render(){ applyFilter(); page=1; renderTablePage(); }
 
-          function render(){ applyFilter(); page = 1; renderTablePage(); }
-
-          // ===== Data =====
+          // ================= Series data =================
           function reloadAll(){
             showLoading();
-            $.ajax({
-              url: urls.getAll, type:"GET",
-              success(res){
-                cache = pickList(res);
-                render();
-                showToast("Đã tải danh sách series", true);
-              },
-              error(xhr){
-                const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
-                showToast(text, false);
-              },
-              complete(){ hideLoading(); }
-            });
+            $.get(urls.series.getAll)
+              .done(res=>{ console.log('[DEBUG] Series/GetAll:',res); cache=pickList(res); render(); showToast('Đã tải danh sách series',true); })
+              .fail(xhr=>{ showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false); })
+              .always(hideLoading);
           }
 
-          // ===== CRUD =====
+          // ================= Series CRUD =================
           function openAdd(){
             $('#seriesModalTitle').text('Thêm series');
             $('#seriesForm')[0].reset();
             $('#SeriesId').val('');
-            $('#Status').val('');
-            $('#IsPremium').val('N');
+            $('#IsPremium').val('N'); $('#Status').val('');
+            // SG panel
+            sgEditingGid=null; $btnSGCancel.addClass('d-none'); $btnSGAdd.find('span.__text').text('Thêm thể loại');
+            $sgSelected.html('<span class="text-secondary">Hãy lưu Series trước để quản lý thể loại.</span>');
+            loadGenresOnce(); // load dropdown sớm
             modal.show();
           }
-
           function openEdit(id){
-            const s = cache.find(x => (x.serieS_ID ?? x.SeriesId ?? x.seriesId) == id);
-            if(!s){ showToast("Không tìm thấy series.", false); return; }
-
+            const s=cache.find(x => (x.serieS_ID??x.SeriesId??x.seriesId)==id);
+            if(!s){ showToast('Không tìm thấy series.',false); return; }
             $('#seriesModalTitle').text('Chỉnh sửa series');
-            $('#SeriesId').val(s.serieS_ID ?? s.SeriesId ?? s.seriesId ?? '');
-            $('#Title').val(s.title ?? s.Title ?? '');
-            $('#OriginalTitle').val(s.originaL_TITLE ?? s.OriginalTitle ?? '');
-            $('#Overview').val(s.overview ?? s.Overview ?? '');
-            $('#FirstAirDate').val(toDateStr10(s.firsT_AIR_DATE ?? s.FirstAirDate));
-            $('#LastAirDate').val(toDateStr10(s.lasT_AIR_DATE ?? s.LastAirDate));
-            $('#Status').val(s.status ?? s.Status ?? '');
-            const ip = (s.iS_PREMIUM ?? s.IsPremium ?? 'N');
-            $('#IsPremium').val( (typeof ip === 'string') ? ip.toUpperCase() : (ip ? 'Y' : 'N') );
-            $('#ImdbId').val(s.imdB_ID ?? s.ImdbId ?? '');
-            $('#TmdbId').val(s.tmdB_ID ?? s.TmdbId ?? '');
-            $('#CountryCode').val(s.countrY_CODE ?? s.CountryCode ?? '');
-            $('#LanguageCode').val(s.languagE_CODE ?? s.LanguageCode ?? '');
+            $('#SeriesId').val(s.serieS_ID??s.SeriesId??s.seriesId??'');
+            $('#Title').val(s.title??s.Title??'');
+            $('#OriginalTitle').val(s.originaL_TITLE??s.OriginalTitle??'');
+            $('#Overview').val(s.overview??s.Overview??'');
+            $('#FirstAirDate').val(toDate10(s.firsT_AIR_DATE??s.FirstAirDate));
+            $('#LastAirDate').val(toDate10(s.lasT_AIR_DATE??s.LastAirDate));
+            $('#Status').val(s.status??s.Status??'');
+            const ip=(s.iS_PREMIUM??s.IsPremium??'N'); $('#IsPremium').val((typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N'));
+            $('#ImdbId').val(s.imdB_ID??s.ImdbId??'');
+            $('#TmdbId').val(s.tmdB_ID??s.TmdbId??'');
+            $('#CountryCode').val(s.countrY_CODE??s.CountryCode??'');
+            $('#LanguageCode').val(s.languagE_CODE??s.LanguageCode??'');
+
+            // SG panel
+            sgEditingGid=null; $btnSGCancel.addClass('d-none'); $btnSGAdd.find('span.__text').text('Thêm thể loại');
+            loadGenresOnce().then(()=> loadSeriesGenres(currentSeriesId()));
             modal.show();
           }
+          function saveSeries(){
+            const anti=$('input[name="__RequestVerificationToken"]').val();
+            const idStr=($('#SeriesId').val()||'').trim();
+            const isEdit=!!idStr;
+            const url=isEdit?urls.series.update:urls.series.add;
 
-          function save(){
-            const anti = $('input[name="__RequestVerificationToken"]').val();
-            const id = ($('#SeriesId').val()||'').trim();
-            const isEdit = !!id;
-            const url = isEdit ? urls.update : urls.add;
+            const title=($('#Title').val()||'').trim(); if(!title){ showToast('Vui lòng nhập tiêu đề.',false); return; }
 
-            const title = ($('#Title').val()||'').trim();
-            if(!title){ showToast("Vui lòng nhập tiêu đề", false); return; }
-
-            const statusVal = $('#Status').val();
-            const isPremiumBool = ($('#IsPremium').val()||'N').toUpperCase()==='Y';
-
-            const payload = {
-              SeriesId:    isEdit ? Number(id) : undefined,
-              Title:       title,
-              OriginalTitle: ($('#OriginalTitle').val()||'').trim() || null,
-              Overview:      ($('#Overview').val()||'').trim() || null,
-              FirstAirDate:  dateLocalStart($('#FirstAirDate').val()),
-              LastAirDate:   dateLocalStart($('#LastAirDate').val()),
-              Status:        statusVal && statusVal.length ? statusVal : "ONGOING",
-              IsPremium:     isPremiumBool,
-              ImdbId:        ($('#ImdbId').val()||'').trim() || null,
-              TmdbId:        ($('#TmdbId').val()||'').trim() || null,
-              CountryCode:   ($('#CountryCode').val()||'').trim() || null,
-              LanguageCode:  ($('#LanguageCode').val()||'').trim() || null
-            };
+            const payload = Object.assign(isEdit?{SeriesId:+idStr}:{},{
+              Title:($('#Title').val()||'').trim(),
+              OriginalTitle:($('#OriginalTitle').val()||'').trim()||null,
+              Overview:($('#Overview').val()||'').trim()||null,
+              FirstAirDate:date0($('#FirstAirDate').val()),
+              LastAirDate:date0($('#LastAirDate').val()),
+              Status:($('#Status').val()||'').trim()||'ONGOING',
+              IsPremium:(($('#IsPremium').val()||'N').toUpperCase()==='Y'),
+              ImdbId:($('#ImdbId').val()||'').trim()||null,
+              TmdbId:($('#TmdbId').val()||'').trim()||null,
+              CountryCode:($('#CountryCode').val()||'').trim()||null,
+              LanguageCode:($('#LanguageCode').val()||'').trim()||null
+            });
 
             showLoading();
             $.ajax({
-              url, type:"POST",
-              contentType:"application/json; charset=utf-8",
-              headers: anti ? { "RequestVerificationToken": anti } : {},
-              data: JSON.stringify(payload),
-              success(res){
-                const ok = res && (res.success===true || res.code==="200");
-                if(ok){ showToast(isEdit?"Đã cập nhật":"Đã thêm mới", true); modal.hide(); reloadAll(); }
-                else  { showToast(res?.message || "Thao tác thất bại.", false); }
-              },
-              error(xhr){
-                const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
-                showToast(text, false);
-              },
-              complete(){ hideLoading(); }
-            });
+              url, type:'POST', contentType:'application/json; charset=utf-8',
+              headers: anti?{"RequestVerificationToken":anti}:{},
+              data: JSON.stringify(payload)
+            })
+            .done(res=>{
+              const ok=res&&(res.success===true||res.code==='200');
+              if(ok){ showToast(isEdit?'Đã cập nhật':'Đã thêm mới',true); modal.hide(); reloadAll(); }
+              else  { showToast(res?.message||'Thao tác thất bại.',false); }
+            })
+            .fail(xhr=> showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+            .always(hideLoading);
           }
-
-          function removeItem(id){
+          function removeSeries(id){
             if(!confirm(`Xóa series #${id}?`)) return;
             showLoading();
-            $.ajax({
-              url: urls.delete, type:"GET", data:{ id },
-              success(res){
-                const ok = res && (res.success===true || res.code==="200");
-                if(ok){ showToast("Đã xóa", true); reloadAll(); }
-                else  { showToast(res?.message || "Xóa thất bại.", false); }
-              },
-              error(xhr){
-                const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
-                showToast(text, false);
-              },
-              complete(){ hideLoading(); }
+            $.ajax({ url:urls.series.delete, type:'GET', data:{id} })
+            .done(res=>{
+              const ok=res&&(res.success===true||res.code==='200');
+              if(ok){ showToast('Đã xóa',true); reloadAll(); }
+              else  { showToast(res?.message||'Xóa thất bại.',false); }
+            })
+            .fail(xhr=> showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+            .always(hideLoading);
+          }
+
+          // ================= SeriesGenre =================
+          function currentSeriesId(){ const s=($('#SeriesId').val()||'').trim(); return s?+s:null; }
+
+                 function loadGenresOnce(){
+          if(genresCache.length) {
+            console.log("[DEBUG] Genres cache đã có sẵn:", genresCache);
+            return Promise.resolve();
+          }
+          return $.get(urls.genres.getAll).then(res=>{
+            console.log("[DEBUG] Genres/GetAll response:", res);
+
+            genresCache = pickList(res) || [];
+            console.log("[DEBUG] Sau pickList:", genresCache);
+
+            const opts = ['<option value="">-- Chọn thể loại --</option>'].concat(
+              genresCache.map(g=>{
+                const id = gv(g, 'genrE_ID','GenreId','genreId','id');
+                const name = gv(g, 'genrE_NAME','genreName','name','Title') || ('#'+id);
+                console.log(`[DEBUG] Genre item -> id=${id}, name=${name}`, g);
+                return `<option value="${id}">${name}</option>`;
+              })
+            ).join('');
+
+            $sgGenre.html(opts);
+            console.log("[DEBUG] Dropdown HTML:", opts);
+          }).catch(err=>{
+            console.error("[DEBUG] Lỗi loadGenresOnce:", err);
+            $sgGenre.html('<option value="">(Không tải được genres)</option>');
+          });
+        }
+
+          function loadSeriesGenres(seriesId){
+            if(!seriesId){ $sgSelected.html('<span class="text-secondary">Chưa có SeriesId.</span>'); return Promise.resolve(); }
+            return $.get(urls.sg.getBy, { id: seriesId }).then(res=>{
+              console.log('[DEBUG] SeriesGenre/GetByMovie:',res);
+              seriesGenreCache = pickList(res) || [];
+              renderSeriesGenreChips(seriesId);
+            }).catch(err=>{
+              console.error('[DEBUG] SeriesGenre/GetByMovie error:',err);
+              seriesGenreCache=[]; renderSeriesGenreChips(seriesId);
             });
           }
 
-          // ===== Events =====
+          function renderSeriesGenreChips(seriesId){
+            const chips = (seriesGenreCache||[]).map(g=>{
+              const gid = gv(g, 'genrE_ID','GenreId','genreId','id');
+              const gname = gv(g, 'genrE_NAME','GenreName','name') || ('#'+gid);
+              return `<span class="badge text-bg-secondary sg-chip" title="GenreId=${gid}">
+                        ${gname}
+                        <button class="btn btn-light btn-sm btn-sg-edit" data-gid="${gid}" title="Sửa"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-light btn-sm btn-sg-del" data-gid="${gid}" title="Gỡ"><i class="bi bi-x"></i></button>
+                      </span>`;
+            }).join('');
+            $sgSelected.html(chips || '<span class="text-secondary">Chưa có thể loại</span>');
+          }
+
+          function addSeriesGenre(){
+            const sid=currentSeriesId(); const gid=+($sgGenre.val()||0);
+            if(!sid){ showToast('Hãy lưu series trước.',false); return; }
+            if(!gid){ showToast('Chọn thể loại.',false); return; }
+            if(seriesGenreCache.some(x => (gv(x,'GenreId','GenreId','genreId')==gid))){ showToast('Thể loại đã tồn tại.',false); return; }
+
+            const anti=$('input[name="__RequestVerificationToken"]').val();
+            const payload={ SeriesId:sid, GenreId:gid };
+            showLoading();
+            $.ajax({ url:urls.sg.add, type:'POST', contentType:'application/json; charset=utf-8',
+                     headers: anti?{"RequestVerificationToken":anti}:{}, data:JSON.stringify(payload)})
+            .done(res=>{
+              const ok=res&&(res.success===true||res.code==='200');
+              if(ok){ showToast('Đã thêm thể loại',true); loadSeriesGenres(sid); }
+              else  { showToast(res?.message||'Không thêm được.',false); }
+            })
+            .fail(xhr=> showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+            .always(hideLoading);
+          }
+
+          function deleteSeriesGenre(gid){
+            const sid=currentSeriesId(); if(!sid||!gid) return;
+            const anti=$('input[name="__RequestVerificationToken"]').val();
+            const payload={ SeriesId:sid, GenreId:gid };
+            showLoading();
+            $.ajax({ url:urls.sg.delete, type:'POST', contentType:'application/json; charset=utf-8',
+                     headers: anti?{"RequestVerificationToken":anti}:{}, data:JSON.stringify(payload)})
+            .done(res=>{
+              const ok=res&&(res.success===true||res.code==='200');
+              if(ok){
+                seriesGenreCache = seriesGenreCache.filter(x=> gv(x,'genrE_ID','GenreId','genreId') != gid);
+                renderSeriesGenreChips(sid);
+                showToast('Đã gỡ thể loại',true);
+              }else showToast(res?.message||'Gỡ thất bại.',false);
+            })
+            .fail(xhr=> showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+            .always(hideLoading);
+          }
+
+          // “Sửa” = đổi từ sgEditingGid -> genre mới (thực hiện delete + add)
+          function startEditSeriesGenre(gid){
+            sgEditingGid = +gid;
+            $btnSGCancel.removeClass('d-none');
+            $btnSGAdd.find('span.__text').text('Cập nhật');
+            // set dropdown về gid hiện tại
+            $sgGenre.val(String(gid));
+          }
+          function cancelEditSeriesGenre(){
+            sgEditingGid = null;
+            $btnSGCancel.addClass('d-none');
+            $btnSGAdd.find('span.__text').text('Thêm thể loại');
+            $sgGenre.val('');
+          }
+          function updateSeriesGenre(){
+            const sid=currentSeriesId(); if(!sid){ showToast('Chưa có SeriesId.',false); return; }
+            const oldGid=sgEditingGid; const newGid=+($sgGenre.val()||0);
+            if(!newGid){ showToast('Chọn thể loại mới.',false); return; }
+            if(oldGid===newGid){ showToast('Không có thay đổi.',false); return; }
+
+            // Thực hiện delete + add để tương thích mọi DTO server
+            showLoading();
+            const anti=$('input[name="__RequestVerificationToken"]').val();
+            const delPayload={ SeriesId:sid, GenreId:oldGid };
+            $.ajax({ url:urls.sg.delete, type:'POST', contentType:'application/json; charset=utf-8',
+                     headers: anti?{"RequestVerificationToken":anti}:{}, data:JSON.stringify(delPayload)})
+            .done(_=>{
+              const addPayload={ SeriesId:sid, GenreId:newGid };
+              $.ajax({ url:urls.sg.add, type:'POST', contentType:'application/json; charset=utf-8',
+                       headers: anti?{"RequestVerificationToken":anti}:{}, data:JSON.stringify(addPayload)})
+               .done(res2=>{
+                 const ok=res2&&(res2.success===true||res2.code==='200');
+                 if(ok){ showToast('Đã cập nhật thể loại',true); cancelEditSeriesGenre(); loadSeriesGenres(sid); }
+                 else  { showToast(res2?.message||'Cập nhật thất bại.',false); }
+               })
+               .fail(xhr=> showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối khi thêm lại.',false))
+               .always(hideLoading);
+            })
+            .fail(xhr=> { hideLoading(); showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối khi xóa.',false); });
+          }
+
+          // ================= Events =================
           $('#btnRefresh').on('click', reloadAll);
           $('#btnAdd').on('click', openAdd);
-          $('#btnSave').on('click', save);
+          $('#btnSave').on('click', saveSeries);
 
-          $('#txtSearch, #slStatus, #slPremium').on('input change', function(){ render(); });
-          $('#pageSize').on('change', function(){ page=1; renderTablePage(); });
+          $('#txtSearch,#slStatus,#slPremium').on('input change', ()=>{ render(); });
+          $('#pageSize').on('change', ()=>{ page=1; renderTablePage(); });
 
-          $tbody.on('click', '.btn-edit', function(){ openEdit($(this).data('id')); });
-          $tbody.on('click', '.btn-del',  function(){ removeItem($(this).data('id')); });
+          $tbody.on('click','.btn-edit', e=> openEdit($(e.currentTarget).data('id')));
+          $tbody.on('click','.btn-del',  e=> removeSeries($(e.currentTarget).data('id')));
 
-          // First load
+          // SG panel events
+          document.getElementById('sgPanel')?.addEventListener('shown.bs.collapse', function(){
+            const sid = currentSeriesId();
+            // load dropdown + genres của series
+            loadGenresOnce().then(()=> { if(sid) loadSeriesGenres(sid); });
+          });
+
+          $btnSGAdd.on('click', function(){
+            if(sgEditingGid) updateSeriesGenre(); else addSeriesGenre();
+          });
+          $btnSGCancel.on('click', function(){ cancelEditSeriesGenre(); });
+
+          $sgSelected.on('click','.btn-sg-del', function(){ deleteSeriesGenre(+$(this).data('gid')); });
+          $sgSelected.on('click','.btn-sg-edit', function(){ startEditSeriesGenre(+$(this).data('gid')); });
+
+          // ================= Init =================
           reloadAll();
         })();
     </script>

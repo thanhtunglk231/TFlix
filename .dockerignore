@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo
+**/*.sqlite
+**/node_modules/
+Dockerfile*
+docker-compose*.yml

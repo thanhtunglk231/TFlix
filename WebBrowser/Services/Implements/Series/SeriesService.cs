@@ -6,7 +6,7 @@ using WebBrowser.Models.Series;
 using WebBrowser.Services.HttpSevice.Interfaces;
 using WebBrowser.Services.Interfaces;
 
-namespace WebBrowser.Services.Implements
+namespace WebBrowser.Services.Implements.Series
 {
     public class SeriesService : ISeriesService
     {

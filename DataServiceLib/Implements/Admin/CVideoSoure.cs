@@ -11,7 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DataServiceLib.Implements
+namespace DataServiceLib.Implements.Admin
 {
     public class CVideoSoure : ICVideoSoure
     {
@@ -47,7 +47,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "400",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -66,7 +66,7 @@ namespace DataServiceLib.Implements
         private static decimal? ReadNullableDecimal(object value)
         {
             if (value == null || value == DBNull.Value) return null;
-            if (value is OracleDecimal od) return od.IsNull ? (decimal?)null : od.Value;
+            if (value is OracleDecimal od) return od.IsNull ? null : od.Value;
             if (value is decimal d) return d;
             return Convert.ToDecimal(value);
         }
@@ -156,7 +156,7 @@ namespace DataServiceLib.Implements
                     },
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -209,7 +209,7 @@ namespace DataServiceLib.Implements
                     Data = ds, // SP update không mở cursor
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -242,7 +242,7 @@ namespace DataServiceLib.Implements
                     Data = ds, // SP delete không mở cursor
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)

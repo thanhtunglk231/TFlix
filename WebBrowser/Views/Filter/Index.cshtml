@@ -1,0 +1,287 @@
+﻿@{
+    ViewData["Title"] = "Lọc phim";
+    var apiUrl = Url.Action("FilterApi", "Movies");         // /Movies/FilterApi
+    var comingUrl = Url.Action("ComingApi", "Movies");       // /Movies/ComingApi
+    var trendUrl = Url.Action("TrendingApi", "Movies");     // /Movies/TrendingApi
+    var tagsUrl = Url.Action("TagsApi", "Movies");         // /Movies/TagsApi
+}
+
+@section Styles {
+    <style>
+        body {
+            background: #0e0f11;
+            color: #fff
+        }
+
+        .filter-bar select, .filter-bar button {
+            min-width: 132px
+        }
+
+        .movie-card {
+            position: relative;
+            border: 0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #1a1d20;
+            transition: .25s
+        }
+
+            .movie-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 30px rgba(0,0,0,.45)
+            }
+
+            .movie-card img {
+                width: 100%;
+                aspect-ratio: 2/3;
+                object-fit: cover
+            }
+
+        .movie-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: #27d3c3;
+            color: #001014;
+            font-size: .75rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px
+        }
+
+        .movie-meta {
+            color: #9fb1bd;
+            font-size: .85rem
+        }
+
+        .sidebar h5 {
+            font-weight: 700;
+            margin: 1rem 0;
+            border-left: 4px solid #27d3c3;
+            padding-left: .5rem
+        }
+
+        .trending-list li {
+            padding: .45rem 0;
+            border-bottom: 1px dashed rgba(255,255,255,.12);
+            font-size: .95rem
+        }
+
+        .badge-key {
+            background: #2a2d30;
+            color: #dbe6ee;
+            font-size: .85rem
+        }
+
+            .badge-key:hover {
+                background: #27d3c3;
+                color: #001014
+            }
+
+        .btn-teal {
+            background: #27d3c3;
+            color: #001014;
+            font-weight: 600
+        }
+
+        .page-link {
+            background: #1a1d20;
+            border-color: #2b2f33;
+            color: #dbe6ee
+        }
+
+        .page-item.active .page-link {
+            background: #27d3c3;
+            border-color: #27d3c3;
+            color: #001014
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg,#1c2024 25%,#23282d 37%,#1c2024 63%);
+            background-size: 400% 100%;
+            animation: s 1.2s ease-in-out infinite
+        }
+        @@keyframes s {
+            0%
+
+        {
+            background-position: 100% 50%
+        }
+
+        100% {
+            background-position: 0 50%
+        }
+
+        }
+    </style>
+}
+
+<div class="container my-4">
+    <div class="row">
+        <!-- LEFT -->
+        <div class="col-lg-9">
+            <!-- FILTER BAR -->
+            <div class="filter-bar d-flex flex-wrap gap-2 mb-3">
+                <select id="sort" class="form-select bg-dark text-light border-secondary">
+                    <option value="">Sắp xếp</option>
+                    <option value="new">Mới nhất</option>
+                    <option value="rating">Điểm cao</option>
+                    <option value="popular">Phổ biến</option>
+                </select>
+                <select id="genre" class="form-select bg-dark text-light border-secondary">
+                    <option value="">Thể loại</option>
+                    <option>Hành động</option>
+                    <option>Tình cảm</option>
+                    <option>Cổ trang</option>
+                    <option>Viễn tưởng</option>
+                </select>
+                <select id="country" class="form-select bg-dark text-light border-secondary">
+                    <option value="">Quốc gia</option>
+                    <option>Việt Nam</option>
+                    <option>Trung Quốc</option>
+                    <option>Hàn Quốc</option>
+                    <option>Mỹ</option>
+                </select>
+                <select id="year" class="form-select bg-dark text-light border-secondary">
+                    <option value="">Năm</option>
+                    @for (int y = DateTime.Now.Year; y >= 2000; y--)
+                    {
+                        <option>@y</option>
+                    }
+                </select>
+                <button id="btnFilter" class="btn btn-teal">
+                    <i class="bi bi-funnel-fill me-1"></i>Lọc phim
+                </button>
+            </div>
+
+            <!-- GRID -->
+            <div id="movieGrid" class="row g-3"></div>
+
+            <!-- PAGINATION -->
+            <nav class="mt-3">
+                <ul id="pager" class="pagination pagination-sm"></ul>
+            </nav>
+        </div>
+
+        <!-- RIGHT SIDEBAR -->
+        <div class="col-lg-3 mt-4 mt-lg-0 sidebar">
+            <h5>Phim sắp chiếu</h5>
+            <div id="comingWrap"></div>
+
+            <h5 class="mt-4">Trending</h5>
+            <ul id="trendWrap" class="trending-list list-unstyled"></ul>
+
+            <h5 class="mt-4">Từ khóa nổi bật</h5>
+            <div id="tagsWrap" class="d-flex flex-wrap gap-2"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        (() => {
+            const API   = { list: '@apiUrl', coming: '@comingUrl', trending: '@trendUrl', tags: '@tagsUrl' };
+            let page = 1, pageSize = 12;
+
+            // Helpers ----------------------------------------------------------
+            function qs() {
+                return {
+                    sort: $('#sort').val(), genre: $('#genre').val(),
+                    country: $('#country').val(), year: $('#year').val(),
+                    page, pageSize
+                };
+            }
+            function skeletonCards(n=12){
+                let html = '';
+                for(let i=0;i<n;i++){
+                    html += `<div class="col-6 col-md-4 col-lg-3">
+                                <div class="card movie-card">
+                                    <div class="skeleton" style="width:100%;aspect-ratio:2/3"></div>
+                                    <div class="card-body p-2">
+                                        <div class="skeleton" style="height:16px;width:80%"></div>
+                                    </div>
+                                </div>
+                            </div>`;
+                }
+                return html;
+            }
+            function renderGrid(data){
+                const $grid = $('#movieGrid').empty();
+                data.items.forEach(m => {
+                    const badge = m.badgeText ? `<span class="movie-badge">${m.badgeText}</span>` : '';
+                    $grid.append(`
+                        <div class="col-6 col-md-4 col-lg-3">
+                            <a href="${m.detailUrl ?? '#'}" class="text-decoration-none text-light">
+                                <div class="card movie-card">
+                                    ${badge}
+                                    <img src="${m.posterUrl}" alt="${m.title}" loading="lazy">
+                                    <div class="card-body p-2">
+                                        <h6 class="mb-1">${m.title}</h6>
+                                        <div class="movie-meta">${m.year ?? ''} ${m.genre ? '• ' + m.genre : ''}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    `);
+                });
+            }
+            function renderPager(total, page, pageSize){
+                const pages = Math.max(1, Math.ceil(total / pageSize));
+                const $p = $('#pager').empty();
+                function li(p, txt, active=false, disabled=false){
+                    $p.append(`<li class="page-item ${active?'active':''} ${disabled?'disabled':''}">
+                                 <a class="page-link" href="#" data-p="${p}">${txt}</a>
+                               </li>`);
+                }
+                li(Math.max(1,page-1), '&laquo;', false, page===1);
+                for(let i=1;i<=pages && i<=10;i++) li(i, i, i===page, false);
+                li(Math.min(pages,page+1), '&raquo;', false, page===pages);
+            }
+
+            // Loaders ----------------------------------------------------------
+            function loadMovies(){
+                $('#movieGrid').html(skeletonCards(pageSize));
+                $.getJSON(API.list, qs())
+                 .done(res => { renderGrid(res); renderPager(res.total, res.page, res.pageSize); })
+                 .fail(() => { $('#movieGrid').html('<div class="text-danger">Không tải được dữ liệu.</div>'); });
+            }
+            function loadComing(){
+                $.getJSON(API.coming).done(list=>{
+                    const $wrap = $('#comingWrap').empty();
+                    list.forEach(x=>{
+                        $wrap.append(`<div class="card bg-dark text-light mb-3">
+                            <img src="${x.image}" class="card-img-top" alt="">
+                            <div class="card-body"><h6 class="card-title mb-1">${x.title}</h6>
+                            <small class="text-muted">${x.year} • ${x.note ?? ''}</small></div></div>`);
+                    });
+                });
+            }
+            function loadTrending(){
+                $.getJSON(API.trending).done(list=>{
+                    const $ul = $('#trendWrap').empty();
+                    list.forEach((t,i)=> $ul.append(`<li>${i+1}. ${t}</li>`));
+                });
+            }
+            function loadTags(){
+                $.getJSON(API.tags).done(list=>{
+                    const $wrap = $('#tagsWrap').empty();
+                    list.forEach(tag=> $wrap.append(`<a href="#" class="badge badge-key">${tag}</a>`));
+                });
+            }
+
+            // Events -----------------------------------------------------------
+            $('#btnFilter, #sort, #genre, #country, #year').on('change click', function(){
+                page = 1; loadMovies();
+            });
+            $('#pager').on('click', '.page-link', function(e){
+                e.preventDefault();
+                const p = +$(this).data('p'); if(!p || p === page) return;
+                page = p; loadMovies();
+            });
+
+            // Init -------------------------------------------------------------
+            loadMovies(); loadComing(); loadTrending(); loadTags();
+        })();
+    </script>
+}

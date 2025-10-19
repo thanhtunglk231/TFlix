@@ -6,6 +6,8 @@ using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
+    [Area("Admin")]
+    [Route("Admin/[controller]")]
     public class MovieAssetController : Controller
     {
         private readonly IMovieAssetService _episodeAsset;

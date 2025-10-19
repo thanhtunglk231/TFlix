@@ -1,12 +1,12 @@
 ﻿@{
-    Layout = "/Views/Shared/_Layout.cshtml"; // dùng layout chung của Home
+    Layout = "/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Preview · Trang phim";
 
-    // trạng thái đăng nhập giống Home/Index
+    // Trạng thái đăng nhập (ví dụ đọc từ Session)
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
 
-    // demo data – khi gắn thật hãy bind từ ViewModel
+    // Demo data (fallback khi API chưa trả về)
     var poster = "https://image.tmdb.org/t/p/w500/4VlJYdVbLZ8uEytpNmBGG99nmCa.jpg";
     var title = "Tử Dạ Quy";
     var original = "Moonlit Reunion (2025)";
@@ -22,7 +22,6 @@
     var rating = 9.1;
     var description = @"Tử Dạ Quy kể về bên dưới Trường An có những bí ẩn huyền điều... Tất cả chỉ để giữ yên một phượng hoàng và thiên địa thái bình.";
     var tags = new[] { "cổ trang", "thần thoại", "tu tiên", "moonlit reunion" };
-    var latest = new[] { "Tập 20", "Tập 19", "Tập 18", "Tập 17", "Tập 16", "Tập 15" };
     var schedule = "2 tập mỗi tối trên Motchillvl.com";
 }
 
@@ -105,7 +104,6 @@
                 color: #fff
             }
 
-        /* episode pills */
         .pill {
             background: #14181c;
             color: #e6f0f7;
@@ -118,7 +116,6 @@
                 border-color: var(--brand)
             }
 
-        /* sidebar list */
         .slist .item {
             display: flex;
             gap: .6rem;
@@ -137,7 +134,6 @@
             object-fit: cover
         }
 
-        /* comments mock */
         .cmt-head {
             display: flex;
             align-items: center;
@@ -163,73 +159,91 @@
         <nav class="crumb small mb-3">
             <a asp-controller="Home" asp-action="Index">MỘT CHILL</a> /
             <a href="#">CỔ TRANG - THẦN THOẠI</a> /
-            <span class="text-secondary">@title</span>
+            <span class="text-secondary" id="bcTitle">@title</span>
         </nav>
 
         <div class="row g-4">
-            <!-- LEFT: poster + info -->
+            <!-- LEFT -->
             <div class="col-12 col-lg-8">
                 <div class="panel p-3">
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
-                            <img src="@poster" alt="@title" class="w-100 rounded-3" />
+                            <img id="poster" src="@poster" alt="@title" class="w-100 rounded-3" />
                             <div class="d-grid gap-2 mt-3">
                                 <a href="javascript:void(0)" class="btn btn-grad btn-lg btnWatch">
                                     <i class="bi bi-play-fill me-1"></i>Xem phim
                                 </a>
-                                <a href="#" class="btn btn-outline-light btn-lg"><i class="bi bi-download me-1"></i>Tải phim</a>
+                                <a href="#" class="btn btn-outline-light btn-lg">
+                                    <i class="bi bi-download me-1"></i>Tải phim
+                                </a>
                             </div>
                         </div>
                         <div class="col-12 col-md-8">
                             <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <h1 class="h4 mb-0">@title</h1>
-                                <span class="text-secondary">(@original)</span>
+                                <h1 id="title" class="h4 mb-0">@title</h1>
+                                <span id="original" class="text-secondary">(@original)</span>
                             </div>
-                            <div class="label mt-1">@year • @genres</div>
 
+                            <div id="yearGenres" class="label mt-1">@year • @genres</div>
+
+                            <!-- Meta -->
                             <dl class="row meta mt-3">
                                 <dt class="col-sm-4">Thời lượng</dt>
-                                <dd class="col-sm-8">@duration</dd>
+                                <dd id="duration" class="col-sm-8">@duration</dd>
+
                                 <dt class="col-sm-4">Số tập</dt>
-                                <dd class="col-sm-8">@episodeCount tập</dd>
+                                <dd id="episodeCount" class="col-sm-8">@episodeCount tập</dd>
+
                                 <dt class="col-sm-4">Tình trạng</dt>
-                                <dd class="col-sm-8">@status</dd>
+                                <dd id="status" class="col-sm-8">@status</dd>
+
                                 <dt class="col-sm-4">Ngôn ngữ</dt>
-                                <dd class="col-sm-8">@lang</dd>
+                                <dd id="lang" class="col-sm-8">@lang</dd>
+
                                 <dt class="col-sm-4">Quốc gia</dt>
-                                <dd class="col-sm-8">@country</dd>
+                                <dd id="country" class="col-sm-8">@country</dd>
+
                                 <dt class="col-sm-4">Thể loại</dt>
-                                <dd class="col-sm-8">@genres</dd>
+                                <dd id="genresText" class="col-sm-8">@genres</dd>
+
                                 <dt class="col-sm-4">Diễn viên</dt>
-                                <dd class="col-sm-8">@casts</dd>
+                                <dd id="casts" class="col-sm-8">@casts</dd>
+
                                 <dt class="col-sm-4">Đánh giá</dt>
-                                <dd class="col-sm-8"><span class="star"><i class="bi bi-star-fill"></i></span> <b>@rating</b> (điểm)</dd>
+                                <dd class="col-sm-8">
+                                    <span class="star"><i class="bi bi-star-fill"></i></span>
+                                    <b id="rating">@rating</b> (điểm)
+                                </dd>
                             </dl>
 
                             <div class="d-flex flex-wrap gap-2 mt-2">
-                                <button class="btn btn-outline-light btn-sm"><i class="bi bi-plus-circle me-1"></i>Thêm vào danh sách</button>
-                                <button class="btn btn-outline-light btn-sm"><i class="bi bi-flag me-1"></i>Báo lỗi</button>
+                                <button class="btn btn-outline-light btn-sm">
+                                    <i class="bi bi-plus-circle me-1"></i>Thêm vào danh sách
+                                </button>
+                                <button class="btn btn-outline-light btn-sm">
+                                    <i class="bi bi-flag me-1"></i>Báo lỗi
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- latest episodes -->
+                    <!-- Latest episodes -->
                     <div class="mt-3">
                         <div class="panel-h">TẬP MỚI NHẤT :</div>
-                        <div class="panel-b d-flex flex-wrap gap-2">
-                            @foreach (var e in latest)
-                            {
-                                <a href="javascript:void(0)" class="pill btnEp">@e</a>
-                            }
+                        <div id="latestWrap" class="panel-b d-flex flex-wrap gap-2">
+                            <!-- Fallback demo khi JS chưa chạy -->
+                            <a href="javascript:void(0)" class="pill btnEp">Tập 20</a>
+                            <a href="javascript:void(0)" class="pill btnEp">Tập 19</a>
+                            <a href="javascript:void(0)" class="pill btnEp">Tập 18</a>
                         </div>
                     </div>
 
-                    <!-- description -->
+                    <!-- Description -->
                     <div class="mt-3">
                         <div class="panel-h">NỘI DUNG PHIM</div>
                         <div class="panel-b">
-                            <p class="mb-2">@description</p>
-                            <ul class="mb-0">
+                            <p class="mb-2" id="description">@description</p>
+                            <ul class="mb-0" id="descLinks">
                                 <li><a href="javascript:void(0)" class="btnEp">- Tử Dạ Quy tập 20</a></li>
                                 <li><a href="javascript:void(0)" class="btnEp">- Tử Dạ Quy tập 21</a></li>
                                 <li><a href="javascript:void(0)" class="btnEp">- Tử Dạ Quy tập 22</a></li>
@@ -237,10 +251,10 @@
                         </div>
                     </div>
 
-                    <!-- tags -->
+                    <!-- Tags -->
                     <div class="mt-3">
                         <div class="panel-h">Tags</div>
-                        <div class="panel-b d-flex flex-wrap gap-2">
+                        <div class="panel-b d-flex flex-wrap gap-2" id="tagsWrap">
                             @foreach (var t in tags)
                             {
                                 <a href="#" class="chip"><i class="bi bi-hash"></i>@t</a>
@@ -248,9 +262,9 @@
                         </div>
                     </div>
 
-                    <!-- schedule + comments mock (giống bố cục ảnh) -->
+                    <!-- Schedule + comments (mock) -->
                     <div class="mt-3">
-                        <div class="panel-h">LỊCH CHIẾU: <span class="text-warning">@schedule</span></div>
+                        <div class="panel-h">LỊCH CHIẾU: <span class="text-warning" id="schedule">@schedule</span></div>
                         <div class="panel-b">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="fw-semibold">6 bình luận</div>
@@ -264,7 +278,6 @@
                                 </div>
                             </div>
 
-                            <!-- khung bình luận kiểu FB (mock) -->
                             <div class="mt-3">
                                 <textarea class="form-control mb-3" rows="3" placeholder="Bình luận..."></textarea>
 
@@ -287,7 +300,9 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-3 small label">Plugin bình luận kiểu Facebook (demo). Khi triển khai thật, nhúng FB Comments hoặc hệ thống của bạn.</div>
+                                <div class="mt-3 small label">
+                                    Plugin bình luận (demo). Khi triển khai thật, nhúng FB Comments hoặc hệ thống của bạn.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -295,7 +310,7 @@
                 </div>
             </div>
 
-            <!-- RIGHT: sidebar -->
+            <!-- RIGHT -->
             <div class="col-12 col-lg-4">
                 <div class="panel mb-3">
                     <div class="panel-h">PHIM SẮP CHIẾU</div>
@@ -303,7 +318,7 @@
                         @for (int i = 0; i < 3; i++)
                         {
                             <a class="item text-decoration-none text-light" href="#">
-                                <img class="thumb" src="https://picsum.photos/100/140?random=@(400 + i)" />
+                                <img class="thumb" src="https://picsum.photos/100/140?random=@(400 + i)" alt="thumb" />
                                 <div>
                                     <div class="fw-semibold">Lạc Trọng Ân Sao</div>
                                     <div class="small label">2025</div>
@@ -329,7 +344,7 @@
 
                 <div class="panel">
                     <div class="panel-h">TỪ KHOÁ NỔI BẬT</div>
-                    <div class="panel-b d-flex flex-wrap gap-2">
+                    <div class="panel-b d-flex flex-wrap gap-2" id="hotTags">
                         <a href="#" class="chip"><i class="bi bi-hash"></i> võ thuật</a>
                         <a href="#" class="chip"><i class="bi bi-hash"></i> huyền huyễn</a>
                         <a href="#" class="chip"><i class="bi bi-hash"></i> học đường</a>
@@ -343,7 +358,7 @@
     </div>
 </div>
 
-<!-- Modal yêu cầu đăng nhập giống Home/Index -->
+<!-- Modal yêu cầu đăng nhập -->
 <div class="modal fade" id="loginRequiredModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-dark text-light border border-secondary">
@@ -353,34 +368,184 @@
             </div>
             <div class="modal-body">Bạn cần đăng nhập để xem nội dung phim này.</div>
             <div class="modal-footer border-0">
-                <a class="btn btn-primary" asp-controller="Auth" asp-action="Index"><i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập ngay</a>
+                <a class="btn btn-primary" asp-controller="Auth" asp-action="Index">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập ngay
+                </a>
                 <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Để sau</button>
             </div>
         </div>
     </div>
 </div>
 
-@section Scripts {
-    <script>
-        const isLoggedIn = @isLoggedIn.ToString().ToLower();
+@@section Scripts {
+<script>
+    const isLoggedIn = @isLoggedIn.ToString().ToLower(); // true/false
 
-        // click "Xem phim" hoặc chọn tập -> nếu chưa login mở modal
-        function showLoginModal(){
-            const el = document.getElementById('loginRequiredModal');
+    function getMovieId() {
+        const p = new URLSearchParams(window.location.search);
+        return p.get('id') || p.get('movieId');
+    }
+
+    function setText(id, v) {
+        const el = document.getElementById(id);
+        if (!el || v === undefined || v === null) return;
+        el.textContent = v;
+    }
+
+    function setImg(id, url) {
+        const el = document.getElementById(id);
+        if (el && url) el.setAttribute('src', url);
+    }
+
+    function tryParseJson(str) {
+        if (typeof str !== 'string' || !str.trim()) return [];
+        try { return JSON.parse(str); } catch { return []; }
+    }
+
+    function ensureArray(x) {
+        return Array.isArray(x) ? x : (x ? [x] : []);
+    }
+
+    function normalizeDuration(m1, m2) {
+        const m = m1 ?? m2;
+        return m ? (m + ' phút') : '';
+    }
+
+    function normalizeEpisodeCount(c1, c2) {
+        const n = c1 ?? c2;
+        return n ? (n + ' tập') : '';
+    }
+
+    function renderLatest(items) {
+        const wrap = document.getElementById('latestWrap');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        (items || []).forEach(ep => {
+            const label = (typeof ep === 'string')
+                ? ep
+                : ('Tập ' + ((ep && (ep.episode_no ?? ep.no ?? ep.EpisodeNo)) || ''));
+            const a = document.createElement('a');
+            a.href = 'javascript:void(0)';
+            a.className = 'pill btnEp';
+            a.textContent = label;
+            wrap.appendChild(a);
+        });
+    }
+
+    function showLoginModal() {
+        const el = document.getElementById('loginRequiredModal');
+        if (!el) return;
+        // Bootstrap 5
+        if (window.bootstrap && bootstrap.Modal) {
             const m = bootstrap.Modal.getOrCreateInstance(el);
             m.show();
+        } else {
+            // fallback: hiển thị thô
+            el.style.display = 'block';
         }
+    }
 
-        document.querySelectorAll('.btnWatch,.btnEp').forEach(el=>{
-            el.addEventListener('click', (e)=>{
-                if(!isLoggedIn){
-                    e.preventDefault(); e.stopPropagation();
-                    showLoginModal();
-                    return;
+    // Bắt click xem phim (uỷ quyền)
+    document.addEventListener('click', function (e) {
+        const t = e.target;
+        if (!t) return;
+        const isBtn = t.classList.contains('btnWatch') || t.classList.contains('btnEp');
+        if (!isBtn) return;
+
+        if (!isLoggedIn) {
+            e.preventDefault();
+            e.stopPropagation();
+            showLoginModal();
+            return;
+        }
+        // TODO: điều hướng trang xem
+        // window.location = '@Url.Action("Watch", "Movies")' + '?id=' + getMovieId();
+    });
+
+    async function getPreviewMovie() {
+        const id = getMovieId();
+        if (!id) return;
+
+        const url = '@Url.Action("GetMovie", "Preview")' + '?id=' + encodeURIComponent(id);
+        try {
+            const r = await fetch(url, { cache: 'no-store' });
+            if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+            const res = await r.json();
+            console.log('GetMovie res:', res);
+
+            // Bắt nhiều biến thể ApiResponse
+            const data =
+                (res && res.data && res.data.item) ??
+                (res && res.data && res.data.movie) ??
+                (res && res.data && res.data.table && res.data.table[0]) ??
+                (res && res.data && res.data.Table && res.data.Table[0]) ??
+                (Array.isArray(res && res.data) ? res.data[0] : null) ??
+                res;
+
+            if (!data) { console.warn('Không có dữ liệu phim'); return; }
+
+            const title = data.title || data.Title || '';
+            const original = data.original_title || data.OriginalTitle || '';
+            const posterUrl = data.poster_url || data.poster || '';
+            const overview = data.overview || '';
+
+            const release = data.release_date || data.ReleaseDate;
+            const year = (release ? new Date(release).getFullYear() : (data.release_year || ''));
+
+            const genresArr = ensureArray(data.genres ?? data.genres_list ?? tryParseJson(data.genres_json));
+            const genresText = (genresArr || []).map(g => (g && (g.name || g.genre_name || g))).filter(Boolean).join(' · ');
+
+            const castArr = ensureArray(data.cast ?? tryParseJson(data.cast_json));
+            const castText = (castArr || []).map(p => (p && (p.name || p.full_name))).filter(Boolean).join(' · ');
+
+            let latest = ensureArray(data.latest_episodes);
+            if (!latest.length) {
+                const eps = ensureArray(data.episodes ?? tryParseJson(data.episodes_json));
+                latest = eps.slice(-6).reverse().map(e => 'Tập ' + (e.episode_no ?? e.no ?? e.EpisodeNo ?? ''));
+            }
+
+            setText('title', title);
+            setText('bcTitle', title);
+            setText('original', original ? '(' + original + ')' : '');
+            setText('yearGenres', [year, genresText].filter(Boolean).join(' • '));
+            setText('duration', normalizeDuration(data.duration_min, data.DurationMin));
+            setText('episodeCount', normalizeEpisodeCount(data.episode_count, data.EpisodeCount));
+            setText('status', data.status || '');
+            setText('lang', data.language_name || data.language_code || '');
+            setText('country', data.country_name || data.country_code || '');
+            setText('genresText', genresText);
+            setText('casts', castText);
+            setText('rating', (data.rating ?? data.avg_rating ?? '').toString());
+            setText('description', overview);
+            setImg('poster', posterUrl);
+
+            renderLatest(latest);
+
+            const tags = ensureArray(data.tags);
+            if (tags.length) {
+                const wrap = document.getElementById('tagsWrap');
+                if (wrap) {
+                    wrap.innerHTML = '';
+                    tags.forEach(t => {
+                        const a = document.createElement('a');
+                        a.href = '#';
+                        a.className = 'chip';
+                        const i = document.createElement('i');
+                        i.className = 'bi bi-hash';
+                        a.appendChild(i);
+                        a.appendChild(document.createTextNode(' ' + t));
+                        wrap.appendChild(a);
+                    });
                 }
-                // TODO: điều hướng tới trang Watch thật (Movies/Watch?id=...&ep=...)
-                // window.location = '@Url.Action("Watch", "Movies")?id=1&ep=20';
-            });
-        });
-    </script>
+            }
+        } catch (err) {
+            console.error('GetMovie error:', err);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        getPreviewMovie();
+    });
+</script>
 }
+

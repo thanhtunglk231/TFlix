@@ -23,26 +23,35 @@ namespace WebBrowser.Services.Implements
         public async Task<CResponseMessage> add_VideoSoure(IFormFile file, AddVideoSourceInputDto dto)
         {
             const string url = "/api/VideoSources/add";
+            Console.WriteLine("[VideoSoureService] -> add_VideoSoure ENTER url=" + url);
+
             using var form = new MultipartFormDataContent();
 
-            // 1) file
+            // ===== File debug =====
             if (file != null && file.Length > 0)
             {
+                Console.WriteLine($"[VideoSoureService] File upload: name={file.FileName}, size={file.Length}, contentType={file.ContentType}");
                 var sc = new StreamContent(file.OpenReadStream());
                 sc.Headers.ContentType =
                     new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
                 form.Add(sc, "File", file.FileName);   // TÊN "File" trùng AddVideoSourceForm.File
             }
+            else
+            {
+                Console.WriteLine("[VideoSoureService] Warning: không có file upload.");
+            }
 
-            // 2) metadata -> FromForm (tên trùng model AddVideoSourceForm)
+            // ===== Helper add kèm log =====
             void Add(string name, object? v)
             {
                 if (v == null) return;
+                Console.WriteLine($"[VideoSoureService] META {name} = {v}");
                 form.Add(new StringContent(Convert.ToString(v)!), name);
             }
 
+            // ===== Metadata =====
             // CHỌN ĐÚNG 1 ĐÍCH: hoặc MovieId hoặc EpisodeId
-            Add("MovieId", dto.MovieId);      // decimal?/int? tuỳ bạn
+            Add("MovieId", dto.MovieId);
             Add("EpisodeId", dto.EpisodeId);
 
             Add("Provider", dto.Provider);
@@ -51,11 +60,15 @@ namespace WebBrowser.Services.Implements
             Add("Format", dto.Format);
             Add("DrmType", dto.DrmType);
             Add("DrmLicenseUrl", dto.DrmLicenseUrl);
-            Add("IsPrimary", dto.IsPrimary); // bool -> "True"/"False" OK
+            Add("IsPrimary", dto.IsPrimary); // bool -> "True"/"False"
             Add("Status", (dto.Status ?? "ACTIVE").Trim().ToUpperInvariant());
 
-            // 3) gọi API (KHÔNG kèm query string)
+            Console.WriteLine("[VideoSoureService] Sending POST multipart request...");
+
             var resp = await _httpService.PostMultipartAsync<CResponseMessage>(url, form);
+
+            Console.WriteLine("[VideoSoureService] <- add_VideoSoure EXIT: " + JsonConvert.SerializeObject(resp));
+
             return resp!;
         }
 
@@ -71,8 +84,10 @@ namespace WebBrowser.Services.Implements
 
             using var form = new MultipartFormDataContent();
 
+            // ===== File debug =====
             if (file != null && file.Length > 0)
             {
+                Console.WriteLine($"[VideoSoureService] File upload: name={file.FileName}, size={file.Length}, contentType={file.ContentType}");
                 var sc = new StreamContent(file.OpenReadStream());
                 sc.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
                 form.Add(sc, "file", file.FileName);
@@ -82,12 +97,15 @@ namespace WebBrowser.Services.Implements
                 Console.WriteLine("[VideoSoureService] Warning: update không có file mới.");
             }
 
+            // ===== Helper add kèm log =====
             void Add(string name, object? v)
             {
                 if (v == null) return;
+                Console.WriteLine($"[VideoSoureService] META {name} = {v}");
                 form.Add(new StringContent(Convert.ToString(v)!), $"meta.{name}");
             }
 
+            // ===== Add metadata =====
             Add(nameof(meta.SourceId), meta.SourceId);
             Add(nameof(meta.MovieId), meta.MovieId);
             Add(nameof(meta.EpisodeId), meta.EpisodeId);
@@ -101,10 +119,15 @@ namespace WebBrowser.Services.Implements
             Add(nameof(meta.Status), meta.Status);
             Add(nameof(meta.OldStreamUrl), meta.OldStreamUrl);
 
+            Console.WriteLine("[VideoSoureService] Sending PUT request...");
+
             var resp = await _httpService.PutMultipartAsync<CResponseMessage>(url, form);
+
             Console.WriteLine("[VideoSoureService] <- update_VideoSoure EXIT: " + JsonConvert.SerializeObject(resp));
+
             return resp!;
         }
+
 
 
 

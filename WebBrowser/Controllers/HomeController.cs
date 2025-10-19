@@ -1,35 +1,24 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
-using WebBrowser.Models;
+using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly ILogger<HomeController> _logger;
+        private readonly IHomeService _homeService;
+        public HomeController(IHomeService homeService) => _homeService = homeService;
 
-        public HomeController(ILogger<HomeController> logger)
-        {
-            _logger = logger;
-        }
+        public IActionResult Index() => View();
 
-        public IActionResult Index()
+        // Ajax endpoint cho jQuery – KHÔNG nh?n limit
+        [HttpGet]
+        public async Task<IActionResult> MoviesLatest()
         {
-            return View();
-        }
-        public IActionResult Preview()
-        {
-            return View();
-        }
-        public IActionResult Privacy()
-        {
-            return View();
+            var result = await _homeService.get_Movie_Lastest_Item(); // ?? không tham s?
+            return Json(result);
         }
 
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
+        public IActionResult Preview() => View();
+        public IActionResult Privacy() => View();
     }
 }

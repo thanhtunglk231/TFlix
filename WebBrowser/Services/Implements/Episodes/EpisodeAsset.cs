@@ -6,7 +6,7 @@ using WebBrowser.Models.EpisodeAsset;
 using WebBrowser.Services.HttpSevice.Interfaces;
 using WebBrowser.Services.Interfaces;
 
-namespace WebBrowser.Services.Implements
+namespace WebBrowser.Services.Implements.Episodes
 {
     public class EpisodeAsset : IEpisodeAsset
     {
@@ -36,7 +36,7 @@ namespace WebBrowser.Services.Implements
             // Tên phải khớp EpisodeAssetAddForm
             if (dto.EpisodeId > 0) form.Add(new StringContent(dto.EpisodeId.ToString()), "EpisodeId");
             if (!string.IsNullOrWhiteSpace(dto.AssetType)) form.Add(new StringContent(dto.AssetType), "AssetType");
-            form.Add(new StringContent((dto.SortOrder).ToString()), "SortOrder");
+            form.Add(new StringContent(dto.SortOrder.ToString()), "SortOrder");
 
             var resp = await _httpService.PostMultipartAsync<CResponseMessage>(url, form);
             return resp!;
@@ -65,7 +65,7 @@ namespace WebBrowser.Services.Implements
             // Tên phải khớp EpisodeAssetReplaceForm
             if (updateDto.EpisodeId > 0) form.Add(new StringContent(updateDto.EpisodeId.ToString()), "EpisodeId");
             if (!string.IsNullOrWhiteSpace(updateDto.AssetType)) form.Add(new StringContent(updateDto.AssetType), "AssetType");
-            form.Add(new StringContent((updateDto.SortOrder).ToString()), "SortOrder");
+            form.Add(new StringContent(updateDto.SortOrder.ToString()), "SortOrder");
 
 
             // API là POST, không phải PUT

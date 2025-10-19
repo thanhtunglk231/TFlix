@@ -8,7 +8,7 @@ using WebBrowser.Models.Season;
 using WebBrowser.Services.HttpSevice.Interfaces;
 using WebBrowser.Services.Interfaces;
 
-namespace WebBrowser.Services.Implements
+namespace WebBrowser.Services.Implements.Movies
 {
     public class MovieService : IMovieService
     {

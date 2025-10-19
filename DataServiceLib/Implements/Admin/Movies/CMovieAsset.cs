@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DataServiceLib.Implements
+namespace DataServiceLib.Implements.Admin.Movies
 {
     public class CMovieAsset : ICMovieAsset
     {
@@ -67,7 +67,7 @@ namespace DataServiceLib.Implements
                 // Phòng trường hợp provider không gán được output (vẫn có dataset)
                 if (string.IsNullOrEmpty(code))
                 {
-                    code = (dataset != null && dataset.Tables.Count > 0 && dataset.Tables[0].Rows.Count > 0) ? "200" : "404";
+                    code = dataset != null && dataset.Tables.Count > 0 && dataset.Tables[0].Rows.Count > 0 ? "200" : "404";
                     msg = code == "200" ? "Lấy dữ liệu thành công" : "Không tìm thấy dữ liệu";
                 }
 
@@ -76,7 +76,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = code,
                     message = msg ?? "",
-                    Success = (code == "200")
+                    Success = code == "200"
                 };
             }
             catch (Exception ex)
@@ -101,7 +101,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "400",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -146,7 +146,7 @@ namespace DataServiceLib.Implements
                     Data = new { DataSet = dataset, AssetId = newAssetId },
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -183,7 +183,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -211,7 +211,7 @@ namespace DataServiceLib.Implements
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = (o_code.Value?.ToString() == "200")
+                    Success = o_code.Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)

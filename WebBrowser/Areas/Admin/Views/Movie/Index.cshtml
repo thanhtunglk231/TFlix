@@ -8,10 +8,18 @@
     var urlUpdate = Url.Action("UpdateMovie", "Movie", new { area = "Admin" });
     var urlDelete = Url.Action("Delete", "Movie", new { area = "Admin" });
 
-    // MovieAsset CRUD
-    var urlAssetGetAll = Url.Action("GetById", "MovieAsset", new { area = "Admin" });
+    // MovieAsset
     var urlAssetAdd = Url.Action("Add", "MovieAsset", new { area = "Admin" });
-    var urlAssetDel = Url.Action("Delete", "MovieAsset", new { area = "Admin" });
+    // route param dạng /Admin/MovieAsset/{id}
+    var urlAssetRoot = Url.Content("~/Admin/MovieAsset"); // dùng để GET by id và DELETE
+
+    // Genres (master dropdown)
+    var urlGenresGetAll = Url.Action("GetAll", "Genres", new { area = "Admin" });
+
+    // MovieGenre (mapping)
+    var urlMGGetByMovie = Url.Action("GetByMovie", "MovieGenre", new { area = "Admin" });
+    var urlMGAdd = Url.Action("Add", "MovieGenre", new { area = "Admin" });
+    var urlMGDelete = Url.Action("Delete", "MovieGenre", new { area = "Admin" });
 }
 
 <style>
@@ -43,17 +51,15 @@
         border-radius: 50%;
         animation: spin 1s linear infinite
     }
+
     @@keyframes spin {
-        from
+        from {
+            transform: rotate(0)
+        }
 
-    {
-        transform: rotate(0)
-    }
-
-    to {
-        transform: rotate(360deg)
-    }
-
+        to {
+            transform: rotate(360deg)
+        }
     }
 
     .toastx {
@@ -78,7 +84,6 @@
             background: #dc3545
         }
 
-    /* Table pills */
     .chip {
         display: inline-block;
         padding: .15rem .5rem;
@@ -151,7 +156,7 @@
             <div class="col-md-3">
                 <select id="slStatus" class="form-select">
                     <option value="">Trạng thái (Tất cả)</option>
-                    <option value="RELEASED">RELEASED</option>
+                    <option value="PUBLISHED">PUBLISHED</option>
                     <option value="DRAFT">DRAFT</option>
                     <option value="ARCHIVED">ARCHIVED</option>
                 </select>
@@ -194,7 +199,7 @@
     </div>
 </div>
 
-<!-- Modal Movie + Asset -->
+<!-- Modal Movie + Asset + Genre -->
 <div class="modal fade" id="movieModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -202,17 +207,33 @@
                 <h5 class="modal-title"><span id="movieModalTitle">Thêm movie</span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+
             <div class="modal-body">
                 <form id="movieForm" class="row g-3">
                     @Html.AntiForgeryToken()
                     <input type="hidden" id="MovieId" />
 
-                    <div class="col-md-8"><label class="form-label">Tiêu đề *</label><input class="form-control" id="Title" required /></div>
-                    <div class="col-md-4"><label class="form-label">Original Title</label><input class="form-control" id="OriginalTitle" /></div>
-                    <div class="col-md-12"><label class="form-label">Overview</label><textarea class="form-control" id="Overview" rows="3"></textarea></div>
+                    <div class="col-md-8">
+                        <label class="form-label">Tiêu đề *</label>
+                        <input class="form-control" id="Title" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Original Title</label>
+                        <input class="form-control" id="OriginalTitle" />
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Overview</label>
+                        <textarea class="form-control" id="Overview" rows="3"></textarea>
+                    </div>
 
-                    <div class="col-md-4"><label class="form-label">Release Date</label><input type="date" class="form-control" id="ReleaseDate" /></div>
-                    <div class="col-md-4"><label class="form-label">Duration (min)</label><input class="form-control" id="DurationMin" placeholder="120" /></div>
+                    <div class="col-md-4">
+                        <label class="form-label">Release Date</label>
+                        <input type="date" class="form-control" id="ReleaseDate" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Duration (min)</label>
+                        <input class="form-control" id="DurationMin" placeholder="120" />
+                    </div>
                     <div class="col-md-4">
                         <label class="form-label">Status</label>
                         <select class="form-select" id="Status">
@@ -225,13 +246,19 @@
 
                     <div class="col-md-4">
                         <label class="form-label">Premium</label>
-                        <select class="form-select" id="IsPremium"><option value="N">Không</option><option value="Y">Có</option></select>
+                        <select class="form-select" id="IsPremium">
+                            <option value="N">Không</option>
+                            <option value="Y">Có</option>
+                        </select>
                     </div>
-                    <div class="col-md-4"><label class="form-label">Poster URL</label><input class="form-control" id="PosterUrl" placeholder="https://..." /></div>
+                    <div class="col-md-4">
+                        <label class="form-label">Poster URL</label>
+                        <input class="form-control" id="PosterUrl" placeholder="https://..." />
+                    </div>
 
                     <div class="col-12">
                         <button class="btn btn-outline-info w-100" type="button" data-bs-toggle="collapse" data-bs-target="#assetPanel" aria-expanded="false">
-                            <i class="bi bi-image me-1"></i> Thêm tài nguyên (MovieAsset)
+                            <i class="bi bi-image me-1"></i> Tài nguyên (MovieAsset)
                         </button>
                         <div class="form-text">Cần có MovieId (lưu Movie trước) để quản lý tài nguyên.</div>
                     </div>
@@ -241,7 +268,10 @@
                 <div class="collapse mt-3" id="assetPanel">
                     <div class="border rounded p-3">
                         <div class="row g-3 align-items-end">
-                            <div class="col-md-2"><label class="form-label">MovieId</label><input class="form-control" id="Asset_MovieId" readonly /></div>
+                            <div class="col-md-2">
+                                <label class="form-label">MovieId</label>
+                                <input class="form-control" id="Asset_MovieId" readonly />
+                            </div>
                             <div class="col-md-3">
                                 <label class="form-label">Loại</label>
                                 <select class="form-select" id="Asset_Type">
@@ -253,14 +283,19 @@
                                     <option value="OTHER">OTHER</option>
                                 </select>
                             </div>
-                            <div class="col-md-3"><label class="form-label">SortOrder</label><input class="form-control" id="Asset_Sort" value="0" /></div>
+                            <div class="col-md-3">
+                                <label class="form-label">SortOrder</label>
+                                <input class="form-control" id="Asset_Sort" value="0" />
+                            </div>
                             <div class="col-md-4">
                                 <label class="form-label">Tệp (ảnh/video)</label>
                                 <input type="file" class="form-control" id="Asset_File" />
                                 <div class="form-text">Sửa meta có thể không chọn file.</div>
                             </div>
+
                             <input type="hidden" id="Asset_Id" />
                             <input type="hidden" id="Asset_Url" />
+
                             <div class="col-12 d-flex gap-2">
                                 <button class="btn btn-primary" id="btnAssetSave"><i class="bi bi-save me-1"></i> Lưu tài nguyên</button>
                                 <button class="btn btn-outline-secondary" id="btnAssetReset"><i class="bi bi-x-circle me-1"></i> Reset</button>
@@ -285,6 +320,50 @@
                     </div>
                 </div>
                 <!-- /Asset panel -->
+                <!-- Genre panel -->
+                <div class="mt-3" id="genrePanel">
+                    <div class="border rounded p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="m-0"><i class="bi bi-tags me-2"></i>Thể loại (MovieGenre)</h6>
+                            <small class="text-secondary">Chọn thể loại từ dropdown, sau đó Thêm/Xóa</small>
+                        </div>
+
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label">MovieId</label>
+                                <input class="form-control" id="Genre_MovieId" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chọn thể loại</label>
+                                <select class="form-select" id="Genre_Select">
+                                    <option value="">-- Chọn thể loại --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-flex gap-2">
+                                <button class="btn btn-primary w-100" id="btnGenreAdd"><i class="bi bi-plus-circle me-1"></i>Thêm</button>
+                                <button class="btn btn-outline-secondary w-100" id="btnGenreReset"><i class="bi bi-x-circle me-1"></i>Reset</button>
+                            </div>
+                        </div>
+
+                        <hr class="my-3" />
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0" id="genreTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:120px;">MovieGenreId</th>
+                                        <th style="width:120px;">GenreId</th>
+                                        <th>Tên thể loại</th>
+                                        <th class="text-end" style="width:120px;">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+                <!-- /Genre panel -->
+
             </div>
 
             <div class="modal-footer">
@@ -315,54 +394,63 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
         (function(){
-          // Endpoints
+          // ======================= Endpoints =======================
           const urls = {
-            movie: { getAll:'@urlGetAll', add:'@urlAdd', update:'@urlUpdate', delete:'@urlDelete' },
-            asset: { getAll:'@urlAssetGetAll', add:'@urlAssetAdd', delete:'@urlAssetDel' }
+            movie:   { getAll:'@urlGetAll', add:'@urlAdd', update:'@urlUpdate', delete:'@urlDelete' },
+            asset:   { root:'@urlAssetRoot', add:'@urlAssetAdd' },  // GET/DELETE dùng /{id}
+            genresMaster: { getAll:'@urlGenresGetAll' },
+            genre:   { byMovie:'@urlMGGetByMovie', add:'@urlMGAdd', delete:'@urlMGDelete' }
           };
 
-          // Elements/State
+          // ======================= Elements/State =======================
           const $overlay=$("#__loadingOverlay"), $toast=$("#__toastMessage");
           const $tbody=$("#movieTable tbody"), $pager=$("#pagerWrap");
           const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('movieModal'));
           const $assetTbody=$("#assetTable tbody");
           const prevModal=bootstrap.Modal.getOrCreateInstance(document.getElementById('assetPreviewModal'));
-          const imgPrev=document.getElementById('previewImg'); const vidPrev=document.getElementById('previewVideo');
+          const imgPrev=document.getElementById('previewImg'), vidPrev=document.getElementById('previewVideo');
 
           let cache=[], filtered=[], page=1, assetCache=[];
+          let genreMaster=[], genreCache=[];
 
-          // Helpers
+          // ======================= Helpers =======================
           const showLoading=()=> $overlay.fadeIn(80);
           const hideLoading=()=> $overlay.fadeOut(120);
           function showToast(msg, ok=true, ms=2600){ $toast.text(msg||'').removeClass('success error').addClass(ok?'success':'error').fadeIn(120); setTimeout(()=> $toast.fadeOut(150), ms); }
-          function pickList(res){ const d=res?.data??res?.Data; if(!d) return []; if(Array.isArray(d)) return d; if(Array.isArray(d.table)) return d.table; if(Array.isArray(d.Table)) return d.Table; return []; }
-          const toDate10=v=> v? new Date(v).toISOString().substring(0,10) : '';
+          function pickList(res){
+            const d=res?.data??res?.Data;
+            if(!d) { if(Array.isArray(res)) return res; return []; }
+            if(Array.isArray(d)) return d; if(Array.isArray(d.table)) return d.table; if(Array.isArray(d.Table)) return d.Table; return [];
+          }
+          const toDate10=v=>{ if(!v) return ''; try{ const s=String(v); if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10); const d=new Date(s); if(!isNaN(d)) return d.toISOString().substring(0,10);}catch{} return ''; };
           const toIntOrNull=s=> (s===null||s===undefined||s==='')?null:(Number.isFinite(+s)?Math.trunc(+s):null);
-          const gv=(o,...k)=>{for(const x of k){if(o?.[x]!==undefined&&o?.[x]!==null)return o[x]}};
           const date0=d=> d? (d+'T00:00:00') : null;
           const isImg=u=> /\.(png|jpe?g|gif|webp|svg)$/i.test(u||'');
           const isVid=u=> /\.(mp4|webm|ogg|mov|m4v)$/i.test(u||'');
-          function openPreview(url){ imgPrev.classList.add('d-none'); vidPrev.classList.add('d-none'); vidPrev.pause(); if(isVid(url)){ vidPrev.src=url; vidPrev.classList.remove('d-none'); } else { imgPrev.src=url; imgPrev.classList.remove('d-none'); } prevModal.show(); }
+          function openPreview(url){
+            imgPrev.classList.add('d-none'); vidPrev.classList.add('d-none'); vidPrev.pause();
+            if(isVid(url)){ vidPrev.src=url; vidPrev.classList.remove('d-none'); }
+            else { imgPrev.src=url; imgPrev.classList.remove('d-none'); }
+            prevModal.show();
+          }
 
-          // Pagination
-                 function paginate(list,page,size){
-          const total=list.length;
-          const last=Math.max(1,Math.ceil(total/size));
-          page=Math.min(Math.max(1,page),last);
-          const s=(page-1)*size;
-          return { page,size,total,last,items:list.slice(s,s+size) };
-        }
-
+          // ======================= Pagination =======================
+          function paginate(list,page,size){
+            const total=list.length; const last=Math.max(1,Math.ceil(total/size));
+            page=Math.min(Math.max(1,page),last); const s=(page-1)*size;
+            return { page,size,total,last,items:list.slice(s,s+size) };
+          }
           function renderPager(state){
             const {page,last,total}=state, btn=(l,t,dis)=>`<li class="page-item ${dis?'disabled':''}"><a class="page-link" href="#" data-page="${t}">${l}</a></li>`;
             $pager.html(`<div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
               <div class="small text-secondary">Tổng: <b>${total}</b> • Trang <b>${page}</b>/<b>${last}</b></div>
               <ul class="pagination m-0">${btn('«',1,page<=1)}${btn('‹',page-1,page<=1)}${btn(page,page,true)}${btn('›',page+1,page>=last)}${btn('»',last,page>=last)}</ul>
             </div>`);
-            $pager.find('a.page-link').on('click',e=>{e.preventDefault();const p=+e.target.dataset.page;if(Number.isFinite(p)){page=p;renderTablePage();}});
+            $pager.find('a.page-link').on('click',e=>{e.preventDefault();
+                const p=+e.target.dataset.page;if(Number.isFinite(p)){page=p;renderTablePage();}});
           }
 
-          // Filter + render movie table
+          // ======================= Filter + Render Movie =======================
           function applyFilter(){
             const q=($('#txtSearch').val()||'').trim().toLowerCase();
             const st=($('#slStatus').val()||'').trim();
@@ -370,17 +458,20 @@
             filtered=cache.filter(m=>{
               const title=(m.title??m.Title??'').toLowerCase();
               const status=(m.status??m.Status??'');
-              const ip=(m.iS_PREMIUM??m.IsPremium??'N'); const yn=(typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N');
+              const ip=(m.iS_PREMIUM??m.IsPremium??'N');
+              const yn=(typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N');
               return (!q||title.includes(q)) && (!st||status===st) && (!pm||yn===pm);
             });
           }
           function renderTablePage(){
             const size=+($('#pageSize').val()||20);
             const st=paginate(filtered,page,size);
-            console.log(st.item);
             const rows=st.items.map(m=>{
-              const id=m.movieId??m.MovieId, ti=m.title??m.Title??'', rel=toDate10(m.releasE_DATE??m.ReleaseDate);
-              const dur=m.duratioN_MIN??m.DurationMin??'', stt=m.status??m.Status??'';
+              const id=m.movieId??m.MovieId??m.moviE_ID;
+              const ti=m.title??m.Title??'';
+              const rel=toDate10(m.releaseDate??m.ReleaseDate);
+              const dur=m.durationMin??m.DurationMin??'';
+              const stt=m.status??m.Status??'';
               const ip=m.iS_PREMIUM??m.IsPremium??'N', yn=(typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N'), ipTx=yn==='Y'?'Có':'Không';
               return `<tr>
                 <td class="text-muted">${id??''}</td>
@@ -399,7 +490,7 @@
             renderPager(st);
           }
 
-          // Data
+          // ======================= Movie CRUD =======================
           function reloadAll(){
             showLoading();
             $.get(urls.movie.getAll).done(res=>{
@@ -412,40 +503,50 @@
             }).always(hideLoading);
           }
 
-          // Movie CRUD
           function openAdd(){
-            $('#movieModalTitle').text('Thêm movie'); $('#movieForm')[0].reset(); $('#MovieId').val(''); $('#IsPremium').val('N');
-            // reset asset
+            $('#movieModalTitle').text('Thêm movie');
+            $('#movieForm')[0].reset();
+            $('#MovieId').val(''); $('#IsPremium').val('N');
+
+            // Asset
             resetAssetForm(); $('#assetPanel').removeClass('show');
             $assetTbody.html(`<tr><td colspan="5" class="text-center text-secondary">Hãy lưu Movie trước để quản lý tài nguyên.</td></tr>`);
+
+            // Genre
+            resetGenreForm(); renderGenreRows();
+
             modal.show();
           }
-                 function openEdit(id){
-          const m = cache.find(x => (x.movieId ?? x.MovieId) == id);  // hoặc +id để so sánh số
-          if(!m){ showToast('Không tìm thấy movie.', false); return; }
 
-          $('#movieModalTitle').text('Chỉnh sửa movie');
+          function openEdit(id){
+            const m = cache.find(x => (x.movieId ?? x.MovieId ?? x.moviE_ID) == id);
+            if(!m){ showToast('Không tìm thấy movie.', false); return; }
 
-          $('#MovieId').val(m.movieId ?? m.MovieId ?? '');
-          $('#Title').val(m.title ?? m.Title ?? '');
-          $('#OriginalTitle').val(m.originaL_TITLE ?? m.OriginalTitle ?? '');
-          $('#Overview').val(m.overview ?? m.Overview ?? '');
-          $('#ReleaseDate').val(toDate10(m.releasE_DATE ?? m.ReleaseDate));
-          $('#DurationMin').val(m.duratioN_MIN ?? m.DurationMin ?? '');
-          $('#Status').val(m.status ?? m.Status ?? '');
+            $('#movieModalTitle').text('Chỉnh sửa movie');
+            const movieId = (m.movieId ?? m.MovieId ?? m.moviE_ID) ?? '';
 
-          const ip = (m.iS_PREMIUM ?? m.IsPremium ?? 'N');
-          $('#IsPremium').val((typeof ip === 'string') ? ip.toUpperCase() : (ip ? 'Y' : 'N'));
+            $('#MovieId').val(movieId);
+            $('#Title').val(m.title ?? m.Title ?? '');
+            $('#OriginalTitle').val(m.originaL_TITLE ?? m.OriginalTitle ?? '');
+            $('#Overview').val(m.overview ?? m.Overview ?? '');
+            $('#ReleaseDate').val(toDate10(m.releasE_DATE ?? m.ReleaseDate));
+            $('#DurationMin').val(m.duratioN_MIN ?? m.DurationMin ?? '');
+            $('#Status').val(m.status ?? m.Status ?? '');
+            const ip=(m.iS_PREMIUM??m.IsPremium??'N'); $('#IsPremium').val((typeof ip==='string')?ip.toUpperCase():(ip?'Y':'N'));
+            $('#PosterUrl').val(m.posteR_URL ?? m.PosterUrl ?? '');
 
-          $('#PosterUrl').val(m.posteR_URL ?? m.PosterUrl ?? '');
+            // Asset
+            $('#Asset_MovieId').val(movieId || '');
+            resetAssetForm();
+            ensureAssetCache(movieId).then(()=> renderAssetRows(movieId));
 
-          // load assets
-          $('#Asset_MovieId').val((m.movieId ?? m.MovieId) || '');
-          resetAssetForm();
-          ensureAssetCache().then(() => renderAssetRows(m.movieId ?? m.MovieId));
+            // Genre
+            $('#Genre_MovieId').val(movieId || '');
+            resetGenreForm();
+            loadGenreMaster().then(()=> loadGenresFor(movieId));
 
-          modal.show();
-        }
+            modal.show();
+          }
 
           function saveMovie(){
             const anti=$('input[name="__RequestVerificationToken"]').val();
@@ -463,50 +564,54 @@
             });
             showLoading();
             $.ajax({url,type:'POST',contentType:'application/json; charset=utf-8',headers:anti?{"RequestVerificationToken":anti}:{},data:JSON.stringify(payload)})
-            .done(res=>{const ok=res&&(res.success===true||res.code==='200'); if(ok){showToast(isEdit?'Đã cập nhật':'Đã thêm mới',true); modal.hide(); reloadAll();} else showToast(res?.message||'Thao tác thất bại.',false);})
-            .fail(xhr=>showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
-            .always(hideLoading);
+              .done(res=>{const ok=res&&(res.success===true||res.code==='200'); if(ok){showToast(isEdit?'Đã cập nhật':'Đã thêm mới',true); modal.hide(); reloadAll();} else showToast(res?.message||'Thao tác thất bại.',false);})
+              .fail(xhr=>showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+              .always(hideLoading);
           }
+
           function removeMovie(id){
             if(!confirm(`Xóa movie #${id}?`)) return;
             showLoading();
             $.ajax({url:urls.movie.delete,type:'GET',data:{id}})
-            .done(res=>{const ok=res&&(res.success===true||res.code==='200'); if(ok){showToast('Đã xóa',true); reloadAll();} else showToast(res?.message||'Xóa thất bại.',false);})
-            .fail(xhr=>showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
-            .always(hideLoading);
+              .done(res=>{const ok=res&&(res.success===true||res.code==='200'); if(ok){showToast('Đã xóa',true); reloadAll();} else showToast(res?.message||'Xóa thất bại.',false);})
+              .fail(xhr=>showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+              .always(hideLoading);
           }
 
-          // Asset helpers
+          // ======================= Asset =======================
           const currentMovieId=()=>{const s=($('#MovieId').val()||'').trim();return s?+s:null;}
           function resetAssetForm(){ $('#Asset_Id').val(''); $('#Asset_File').val(''); $('#Asset_MovieId').val(currentMovieId()??''); $('#Asset_Type').val('THUMB'); $('#Asset_Sort').val(0); $('#Asset_Url').val(''); }
           function fillAssetForm(a){ $('#Asset_Id').val(a?.AssetId??a?.asseT_ID??''); $('#Asset_MovieId').val(a?.MovieId??a?.movieId??currentMovieId()??''); $('#Asset_Type').val(a?.AssetType??a?.asseT_TYPE??'THUMB'); $('#Asset_Sort').val(a?.SortOrder??a?.sorT_ORDER??0); $('#Asset_Url').val(a?.Url??a?.url??''); $('#Asset_File').val(''); }
-                 function ensureAssetCache(movieId){
-          if(!movieId) return Promise.resolve([]);
-          return $.get(`${urls.asset.getAll}/${movieId}`).then(res=>{
-            console.log('[DEBUG] MovieAsset/GetById:', res);
-            assetCache = pickList(res);
-            return assetCache;
-          });
-        }
+
+          function ensureAssetCache(movieId){
+            if(!movieId) { assetCache=[]; return Promise.resolve(assetCache); }
+            return $.get(`${urls.asset.root}/${movieId}`).then(res=>{
+              console.log('[DEBUG] MovieAsset/GetById:',res);
+              assetCache = pickList(res);
+              return assetCache;
+            });
+          }
 
           function renderAssetRows(movieId){
             const rows=(assetCache||[]).filter(a=>String(a?.movieId??a?.MovieId??'')===String(movieId)).map(a=>{
-              const id=a?.AssetId??a?.asseT_ID, typ=a?.AssetType??a?.asseT_TYPE??'', url=(a?.Url??a?.url??'').trim(), srt=a?.SortOrder??a?.sorT_ORDER??0;
+              const id=a?.assetId??a?.asseT_ID, typ=a?.assetType??a?.asseT_TYPE??'', url=(a?.Url??a?.url??'').trim(), srt=a?.sortOrder??a?.sorT_ORDER??0;
               const thumb = isVid(url) ? `<video class="asset-thumb video" muted preload="metadata"><source src="${url}#t=0.1"></video>` :
-                             isImg(url) ? `<img src="${url}" class="asset-thumb" alt="thumb">` : `<div class="asset-thumb d-flex align-items-center justify-content-center">N/A</div>`;
+                            isImg(url) ? `<img src="${url}" class="asset-thumb" alt="thumb">` :
+                                          `<div class="asset-thumb d-flex align-items-center justify-content-center">N/A</div>`;
+              const safeUrl = url || '';
               return `<tr>
                 <td class="text-muted">${id??''}</td>
                 <td>${typ}</td>
                 <td>
                   <div class="asset-thumb-wrap">
-                    <a href="javascript:void(0)" class="asset-open" data-url="${url}" title="Xem lớn">${thumb}</a>
-                    <div class="asset-url-cell"><a class="asset-url-clip asset-open" data-url="${url}" title="${url}">${url}</a></div>
+                    <a href="javascript:void(0)" class="asset-open" data-url="${safeUrl}" title="Xem lớn">${thumb}</a>
+                    <div class="asset-url-cell"><a class="asset-url-clip asset-open" data-url="${safeUrl}" title="${safeUrl}">${safeUrl}</a></div>
                   </div>
                 </td>
                 <td>${srt}</td>
                 <td class="text-end">
                   <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-info asset-open" data-url="${url}" title="Xem lớn"><i class="bi bi-arrows-fullscreen"></i></button>
+                    <button class="btn btn-sm btn-outline-info asset-open" data-url="${safeUrl}" title="Xem lớn"><i class="bi bi-arrows-fullscreen"></i></button>
                     <button class="btn btn-sm btn-outline-secondary btn-asset-edit" data-id="${id}" title="Sửa"><i class="bi bi-pencil"></i></button>
                     <button class="btn btn-sm btn-outline-danger btn-asset-del" data-id="${id}" title="Xóa"><i class="bi bi-trash"></i></button>
                   </div>
@@ -516,74 +621,184 @@
             $assetTbody.html(rows || `<tr><td colspan="5" class="text-center text-secondary">Không có tài nguyên</td></tr>`);
           }
 
-          // Asset save (Add / Replace)
           function saveAsset(){
             const movieId=toIntOrNull($('#Asset_MovieId').val()); if(!movieId){showToast('Thiếu MovieId (hãy lưu Movie trước).',false);return;}
             const assetId=toIntOrNull($('#Asset_Id').val()); const type=($('#Asset_Type').val()||'').trim(); const sort=toIntOrNull($('#Asset_Sort').val())??0;
             const oldUrl=($('#Asset_Url').val()||'').trim(); const file=$('#Asset_File')[0].files[0]||null;
             const fd=new FormData(); if(file) fd.append('file',file);
-            // CONTROLLER CỦA BẠN ĐANG NHẬN EpisodeId -> giữ nguyên key này
+            // Service hiện nhận EpisodeId
             fd.append('EpisodeId', movieId);
             fd.append('AssetType', type); fd.append('SortOrder', sort);
             if(assetId && oldUrl) fd.append('OldUrl', oldUrl);
-
-            const url = assetId ? `/Admin/MovieAsset/${assetId}/replace-file` : urls.asset.add;
+            const postUrl = assetId ? `${urls.asset.root}/${assetId}/replace-file` : urls.asset.add;
 
             showLoading();
-            $.ajax({ url, type:'POST', processData:false, contentType:false, data:fd })
-            .done(res=>{
-              console.log('[DEBUG] MovieAsset save resp:',res);
-              const ok=res&&(res.success===true||res.Success===true||res.code==='200');
-              if(ok){
-                showToast(assetId?'Đã cập nhật tài nguyên':'Đã thêm tài nguyên',true);
-                $.get(urls.asset.getAll).done(r2=>{ assetCache=pickList(r2); renderAssetRows(movieId); resetAssetForm(); });
-              }else showToast(res?.message||'Thao tác thất bại.',false);
-            }).fail(xhr=>{
-              console.error('[DEBUG] MovieAsset save error:',xhr);
-              showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi upload.',false);
-            }).always(hideLoading);
+            $.ajax({ url: postUrl, type:'POST', processData:false, contentType:false, data:fd })
+              .done(res=>{
+                console.log('[DEBUG] MovieAsset save resp:',res);
+                const ok=res&&(res.success===true||res.Success===true||res.code==='200');
+                if(ok){
+                  showToast(assetId?'Đã cập nhật tài nguyên':'Đã thêm tài nguyên',true);
+                  ensureAssetCache(movieId).then(()=>{ renderAssetRows(movieId); resetAssetForm(); });
+                }else showToast(res?.message||'Thao tác thất bại.',false);
+              }).fail(xhr=>{
+                console.error('[DEBUG] MovieAsset save error:',xhr);
+                showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi upload.',false);
+              }).always(hideLoading);
           }
+
           function deleteAsset(id){
             if(!confirm(`Xóa tài nguyên #${id}?`)) return;
             const movieId=currentMovieId();
             showLoading();
-            $.ajax({ url:`/Admin/MovieAsset/${id}`, type:'DELETE' })
-            .done(res=>{
-              const ok=res&&(res.success===true||res.Success===true||res.code==='200');
-              if(ok){ assetCache = assetCache.filter(a=>String(a?.AssetId??a?.asseT_ID)!==String(id)); renderAssetRows(movieId); showToast('Đã xóa tài nguyên',true); }
-              else showToast(res?.message||'Xóa thất bại.',false);
-            }).fail(xhr=> showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
-            .always(hideLoading);
+            $.ajax({ url:`${urls.asset.root}/${id}`, type:'DELETE' })
+              .done(res=>{
+                const ok=res&&(res.success===true||res.Success===true||res.code==='200');
+                if(ok){ ensureAssetCache(movieId).then(()=> renderAssetRows(movieId)); showToast('Đã xóa tài nguyên',true); }
+                else showToast(res?.message||'Xóa thất bại.',false);
+              }).fail(xhr=> showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.',false))
+              .always(hideLoading);
           }
 
-          // Events
+          // ======================= Genre (dropdown) =======================
+          function resetGenreForm(){
+            $('#Genre_MovieId').val( ($('#MovieId').val()||'').trim() );
+            $('#Genre_Select').val('');
+          }
+          function renderGenreMaster(){
+            const $sel = $('#Genre_Select');
+            const opts = ['<option value="">-- Chọn thể loại --</option>'].concat(
+              (genreMaster||[]).map(g=>{
+                const id  = g?.GenreId ?? g?.genreId ?? g?.Id ?? g?.id;
+                const nam = g?.Name ?? g?.name ?? g?.genreName ?? '';
+                return `<option value="${id}">${id} - ${nam}</option>`;
+              })
+            );
+            $sel.html(opts.join(''));
+          }
+          function loadGenreMaster(){
+            if(genreMaster.length) return Promise.resolve(genreMaster);
+            return $.get(urls.genresMaster.getAll).then(res=>{
+              console.log('[DEBUG] Genres/GetAll:', res);
+              genreMaster = pickList(res);
+              renderGenreMaster();
+              return genreMaster;
+            });
+          }
+          function renderGenreRows(){
+            const rows = (genreCache||[]).map(g=>{
+              const slug = g?.slug ?? g?.slug ?? g?.Id ?? g?.id ?? '';
+              const genreId      = g?.genreId ?? g?.genreId ?? '';
+              const genreName    = g?.genreName ?? g?.genreName ?? g?.Name ?? g?.name ?? '';
+              return `<tr>
+                <td class="text-muted">${slug}</td>
+                <td>${genreId}</td>
+                <td>${genreName||''}</td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-danger btn-genre-del" data-id="${slug}" data-genre="${genreId}">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>`;
+            }).join('');
+            $('#genreTable tbody').html(rows || `<tr><td colspan="4" class="text-center text-secondary">Chưa có thể loại</td></tr>`);
+          }
+          function loadGenresFor(movieId){
+            if(!movieId){
+              $('#genreTable tbody').html(`<tr><td colspan="4" class="text-center text-secondary">Hãy lưu Movie trước để quản lý thể loại.</td></tr>`);
+              return;
+            }
+            showLoading();
+            $.get(urls.genre.byMovie, { id: movieId })
+              .done(res=>{
+                console.log('[DEBUG] MovieGenre/GetByMovie:', res);
+                genreCache = pickList(res);
+                renderGenreRows();
+              })
+              .fail(xhr=>{
+                console.error('[DEBUG] MovieGenre/GetByMovie error:', xhr);
+                showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi tải thể loại.', false);
+              })
+              .always(hideLoading);
+          }
+          function addGenre(){
+            const movieId = +($('#Genre_MovieId').val()||'');
+            const genreId = ($('#Genre_Select').val()||'').trim();
+            if(!movieId){ showToast('Thiếu MovieId (hãy lưu Movie trước).', false); return; }
+            if(!genreId){ showToast('Hãy chọn thể loại.', false); return; }
+
+            const found = genreMaster.find(g => String(g?.GenreId ?? g?.Id ?? g?.id) === String(genreId));
+            const genreName = found ? (found?.Name ?? found?.GenreName ?? '') : null;
+
+            const payload = { MovieId: movieId, GenreId: genreId, GenreName: genreName };
+            showLoading();
+            $.ajax({ url: urls.genre.add, type:'POST', contentType:'application/json; charset=utf-8', data: JSON.stringify(payload) })
+              .done(res=>{
+                const ok = res && (res.success===true || res.Success===true || res.code==='200');
+                if(ok){ showToast('Đã thêm thể loại', true); loadGenresFor(movieId); resetGenreForm(); }
+                else  { showToast(res?.message || 'Thao tác thất bại.', false); }
+              })
+              .fail(xhr=>{
+                console.error('[DEBUG] MovieGenre/Add error:', xhr);
+                showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi lưu thể loại.', false);
+              })
+              .always(hideLoading);
+          }
+          function deleteGenre(movieGenreId, genreId){
+            const movieId = +($('#Genre_MovieId').val()||'');
+            if(!confirm('Xóa thể loại này?')) return;
+            const payload = { MovieGenreId: +movieGenreId, MovieId: movieId, GenreId: genreId || null };
+
+            showLoading();
+            $.ajax({ url: urls.genre.delete, type:'POST', contentType:'application/json; charset=utf-8', data: JSON.stringify(payload) })
+              .done(res=>{
+                const ok = res && (res.success===true || res.Success===true || res.code==='200');
+                if(ok){ showToast('Đã xóa thể loại', true); loadGenresFor(movieId); }
+                else  { showToast(res?.message || 'Xóa thất bại.', false); }
+              })
+              .fail(xhr=>{
+                console.error('[DEBUG] MovieGenre/Delete error:', xhr);
+                showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi xóa thể loại.', false);
+              })
+              .always(hideLoading);
+          }
+
+          // ======================= Events =======================
           $('#btnRefresh').on('click', reloadAll);
           $('#btnAdd').on('click', openAdd);
           $('#btnSave').on('click', saveMovie);
           $('#txtSearch,#slStatus,#slPremium').on('input change', ()=>{ applyFilter(); page=1; renderTablePage(); });
           $('#pageSize').on('change', ()=>{ page=1; renderTablePage(); });
+
           $tbody.on('click','.btn-edit',e=> openEdit($(e.currentTarget).data('id')));
-          $tbody.on('click','.btn-del', e=> removeMovie($(e.currentTarget).data('id')));
+          $tbody.on('click','.btn-del',  e=> removeMovie($(e.currentTarget).data('id')));
 
-          // Asset panel events
-                 document.getElementById('assetPanel')?.addEventListener('shown.bs.collapse', function(){
-          const id=currentMovieId();
-          $('#Asset_MovieId').val(id||'');
-          if(id) ensureAssetCache(id).then(()=> renderAssetRows(id));
-        });
-
+          // Asset events
+          document.getElementById('assetPanel')?.addEventListener('shown.bs.collapse', function(){
+            const id=currentMovieId();
+            $('#Asset_MovieId').val(id||'');
+            if(id) ensureAssetCache(id).then(()=> renderAssetRows(id));
+          });
           $('#btnAssetSave').on('click', saveAsset);
           $('#btnAssetReset').on('click', resetAssetForm);
           $assetTbody.on('click','.btn-asset-edit', function(){
-            const id=$(this).data('id'); const a=assetCache.find(x=>String(x?.AssetId??x?.asseT_ID)===String(id));
+            const id=$(this).data('id'); const a=assetCache.find(x=>String(x?.assetId??x?.asseT_ID)===String(id));
             if(!a){showToast('Không tìm thấy tài nguyên.',false);return;}
-            fillAssetForm({ AssetId:a?.AssetId??a?.asseT_ID, MovieId:a?.MovieId??a?.movieId, AssetType:a?.AssetType??a?.asseT_TYPE, SortOrder:a?.SortOrder??a?.sorT_ORDER, Url:a?.Url??a?.url });
+            fillAssetForm({ assetId:a?.AssetId??a?.asseT_ID, MovieId:a?.MovieId??a?.movieId, AssetType:a?.assetType??a?.asseT_TYPE, SortOrder:a?.sortOrder??a?.sorT_ORDER, Url:a?.Url??a?.url });
           });
           $assetTbody.on('click','.btn-asset-del', function(){ deleteAsset($(this).data('id')); });
           $assetTbody.on('click','.asset-open', function(){ const url=$(this).data('url'); if(url) openPreview(url); });
 
-          // Init
+          // Genre events
+          $('#btnGenreAdd').on('click', addGenre);
+          $('#btnGenreReset').on('click', resetGenreForm);
+          $('#genreTable tbody').on('click','.btn-genre-del', function(){
+            deleteGenre($(this).data('id'), $(this).data('genre'));
+          });
+
+          // ======================= Init =======================
           reloadAll();
+          loadGenreMaster(); // nạp sẵn dropdown thể loại
         })();
     </script>
 }

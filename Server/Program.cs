@@ -1,4 +1,8 @@
 using DataServiceLib.Implements;
+using DataServiceLib.Implements.Admin;
+using DataServiceLib.Implements.Admin.Episodes;
+using DataServiceLib.Implements.Admin.Movies;
+using DataServiceLib.Implements.Admin.Series;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -26,6 +30,10 @@ builder.Services.AddSingleton<ISupabaseService, SupabaseService>();
 builder.Services.AddScoped<ICEpisodeAssets, CEpisodeAssets>();
 builder.Services.AddScoped<ICMovieAsset, CMovieAsset>();
 builder.Services.AddScoped<ICGenres, CGenres>();
+builder.Services.AddScoped<ICMovieGenre, CMovieGenre>();
+builder.Services.AddScoped<ICSeriesGenres, CSeriesGenres>();
+builder.Services.AddScoped<IPreView, PreView>();
+builder.Services.AddScoped<ICHome, CHome>();
 // --------------------JWT Authentication Setup--------------------
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

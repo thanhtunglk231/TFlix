@@ -1,0 +1,6 @@
+services:
+  webbrowser:
+    image: ${DOCKER_REGISTRY-}webbrowser
+    build:
+      context: .
+      dockerfile: WebBrowser/Dockerfile

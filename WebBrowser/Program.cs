@@ -1,4 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using WebBrowser.Services.Implements;
+using WebBrowser.Services.Implements.Episodes;
+using WebBrowser.Services.Implements.Movies;
+using WebBrowser.Services.Implements.Series;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,23 +17,31 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IAuthService,
                            WebBrowser.Services.Implements.AuthService>();
 
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.ISeriesService,
-                           WebBrowser.Services.Implements.SeriesService>();
+                           SeriesService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.ISesonService,
                            WebBrowser.Services.Implements.SesonService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IMovieService,
-                           WebBrowser.Services.Implements.MovieService>();
+                           MovieService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IEpisode,
-                           WebBrowser.Services.Implements.Episode>();
+                           Episode>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IVideoSoureService,
                            WebBrowser.Services.Implements.VideoSoureService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IEpisodeAsset,
-                           WebBrowser.Services.Implements.EpisodeAsset>();
+                           EpisodeAsset>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IMovieAssetService,
-                           WebBrowser.Services.Implements.MovieAssetService>();
+                           MovieAssetService>();
 
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IGenresService,
                            WebBrowser.Services.Implements.GenresService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IMovieGenreService,
+                           MovieGenreService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.ISerireGenreService,
+                           SerireGenreService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IHomeService,
+                           HomeService>();
 
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPreviewService,
+                           PreviewService>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>
     {
