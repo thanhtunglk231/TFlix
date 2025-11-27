@@ -1,4 +1,5 @@
-﻿using CoreLib.Models;
+﻿using CoreLib.Dtos.Preview;
+using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Oracle.ManagedDataAccess.Client;
@@ -122,5 +123,87 @@ namespace DataServiceLib.Implements
                 };
             }
         }
+
+        public CResponseMessage GET_CONTENT_BY_ID(GETCONTENTByID movie)
+        {
+            try
+            {
+                Console.WriteLine("========== [SP_GET_CONTENT_BY_ID] CALL ==========");
+                Console.WriteLine($"Input movie.id   = {movie?.id}");
+                Console.WriteLine($"Input movie.kind = {movie?.kind}");
+                Console.WriteLine("=================================================");
+
+                var p_movie_id = new OracleParameter("p_id", OracleDbType.Int32)
+                { Value = movie.id };
+                var p_kind = new OracleParameter("p_kind", OracleDbType.Varchar2)
+                { Value = movie.kind };
+                var o_cursor = new OracleParameter("p_result", OracleDbType.RefCursor)
+                { Direction = ParameterDirection.Output };
+
+                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
+                { Direction = ParameterDirection.Output };
+
+                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
+                { Direction = ParameterDirection.Output };
+
+                var parameters = new OracleParameter[] { p_movie_id, p_kind, o_cursor, o_code, o_message };
+
+                // Debug parameters
+                Console.WriteLine(">>> Oracle Parameters Sent:");
+                foreach (var p in parameters)
+                {
+                    Console.WriteLine($" - {p.ParameterName} = {p.Value} ({p.OracleDbType})");
+                }
+
+                // Gọi SP
+                var dataset = _baseProvider.GetDatasetFromSP("SP_GET_CONTENT_BY_ID", parameters, _connectionString);
+
+                // Debug dataset return
+                if (dataset != null)
+                {
+                    Console.WriteLine($">>> Dataset Returned: Tables = {dataset.Tables.Count}");
+                    for (int i = 0; i < dataset.Tables.Count; i++)
+                    {
+                        var tbl = dataset.Tables[i];
+                        Console.WriteLine($"    Table[{i}] Name: {tbl.TableName} Rows: {tbl.Rows.Count} Cols: {tbl.Columns.Count}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine(">>> Dataset = NULL");
+                }
+
+                // Đọc output của SP
+                string outCode = o_code.Value?.ToString();
+                string outMessage = o_message.Value?.ToString();
+
+                Console.WriteLine(">>> SP Output:");
+                Console.WriteLine($" - o_code    = {outCode}");
+                Console.WriteLine($" - o_message = {outMessage}");
+                Console.WriteLine("=================================================");
+
+                return new CResponseMessage
+                {
+                    Data = dataset,
+                    code = outCode ?? "400",
+                    message = outMessage ?? "Không lấy được phản hồi",
+                    Success = outCode == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("=========== [SP_GET_CONTENT_BY_ID] EXCEPTION ===========");
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine("========================================================");
+
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
+            }
+        }
+
     }
 }

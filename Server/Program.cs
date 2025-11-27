@@ -19,7 +19,7 @@ builder.Services.AddEndpointsApiExplorer();
 
 
 builder.Services.AddScoped<ICBaseProvider, CBaseProvider>();
-
+builder.Services.AddScoped<ICFilm, CFilm>();
 builder.Services.AddScoped<ICAuth, CAuth>();
 builder.Services.AddScoped<ICMovie, CMovie>();
 builder.Services.AddScoped<ICEpisode, CEpisode>();

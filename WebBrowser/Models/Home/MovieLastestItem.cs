@@ -8,7 +8,8 @@ namespace WebBrowser.Models.Home
         [JsonProperty("moviE_ID")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int MovieId { get; set; }       // nếu API trả 44.0, có thể gắn FlexibleIntConverter
-
+        [JsonProperty("kind")]
+        public string Kind { get; set; }
         [JsonProperty("title")]
         public string? Title { get; set; }
 

@@ -339,24 +339,36 @@
         }
 
         // Event delegation cho click vào poster / play-btn (kể cả phần tử render động)
-        $(document).on('click', '.movie-card .play-btn, .movie-card .poster', function(e){
+              $(document).on('click', '.movie-card', function (e) {
+            const id   = this.dataset.id;
+            const kind = this.dataset.kind;
+
+            if (!id) return; // không có id thì bỏ qua
+
             if (!isLoggedIn) {
-                e.preventDefault(); e.stopPropagation();
+                e.preventDefault();
+                e.stopPropagation();
                 showLoginModal();
+                return; // QUAN TRỌNG: không redirect nữa
             }
+
+            const url = `/Preview/Details?id=${encodeURIComponent(id)}&kind=${encodeURIComponent(kind || 'MOVIE')}`;
+            window.location.href = url;
         });
+
 
         // ====== Movies latest (AJAX -> MVC Controller JSON) ======
         const urlMoviesLatest = '@Url.Action("MoviesLatest", "Home")';
-
         function renderMoviesLatest(list){
             const $wrap = $('#moviesLatestWrap');
             if(!list?.length){
                 $wrap.html('<div class="col-12 text-secondary">Chưa có dữ liệu.</div>');
                 return;
             }
+
             const html = list.map(x=>{
                 const id        = x.movieId ?? x.movie_id ?? x.MovieId;
+                const kind      = x.kind || 'MOVIE';
                 const title     = x.title ?? x.Title ?? 'No title';
                 const poster    = x.posterUrl ?? x.poster_url ?? x.PosterUrl ?? 'https://picsum.photos/640/360?blur=2';
                 const genres    = x.genres ?? x.Genres ?? '';
@@ -365,27 +377,31 @@
                 const prem      = x.isPremium ?? x.is_premium ?? x.IsPremium;
                 const badgePrem = (String(prem).toUpperCase()==='Y'||String(prem)==='true')
                                   ? '<span class="badge bg-warning text-dark ms-1">Premium</span>' : '';
+
                 return `
-                  <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-                    <div class="card movie-card position-relative">
-                      <img class="poster" src="${poster}" alt="${title}" loading="lazy">
-                      <div class="movie-overlay">
-                        <a class="play-btn" href="/Movies/Details/${id}">
-                          <i class="bi bi-play-fill fs-3"></i>
-                        </a>
-                      </div>
-                      <div class="card-body">
-                        <h6 class="card-title mb-1">${title} ${badgePrem}</h6>
-                        <div class="movie-meta">
-                          ${rlsYear ? (rlsYear + ' • ') : ''}${genres || 'Không rõ thể loại'}
-                          ${srcCount ? ` • ${srcCount} nguồn` : ''}
-                        </div>
+                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                  <div class="card movie-card position-relative"
+                       data-id="${id}" data-kind="${kind}">
+                    <img class="poster" src="${poster}" alt="${title}" loading="lazy">
+                    <div class="movie-overlay">
+                      <div class="play-btn">
+                        <i class="bi bi-play-fill fs-3"></i>
                       </div>
                     </div>
-                  </div>`;
+                    <div class="card-body">
+                      <h6 class="card-title mb-1">${title} ${badgePrem}</h6>
+                      <div class="movie-meta">
+                        ${rlsYear ? (rlsYear + ' • ') : ''}${genres || 'Không rõ thể loại'}
+                        ${srcCount ? ` • ${srcCount} nguồn` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
             }).join('');
+
             $wrap.html(html);
         }
+
 
                        function loadMoviesLatest(){
           $.get(urlMoviesLatest, function(res){

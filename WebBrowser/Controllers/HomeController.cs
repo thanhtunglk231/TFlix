@@ -18,6 +18,10 @@ namespace WebBrowser.Controllers
             return Json(result);
         }
 
+
+        //[HttpGet]
+        //public async Task<IActionResult>get
+
         public IActionResult Preview() => View();
         public IActionResult Privacy() => View();
     }
