@@ -9,5 +9,6 @@ namespace DataServiceLib.Interfaces
         Task<CResponseMessage> Delete_video_source(decimal sourceId);
         Task<CResponseMessage> Update_video_source(UpdateVideoSourceDto dto);
         CResponseMessage get_all();
+        CResponseMessage get_bu_id(int id);
     }
 }

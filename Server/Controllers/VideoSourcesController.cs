@@ -80,7 +80,16 @@ namespace Server.Controllers
             return Ok(result);
         }
 
-        // ----------------- REPLACE FILE (upload file mới + update URL) -----------------
+        [HttpGet("getbyid")]
+        public IActionResult Getid(int id)
+        {
+            var result = _videoSourceService.get_bu_id(id);
+            return Ok(result);
+        }
+
+
+
+
         [HttpPut("{sourceId:decimal}/replace-file")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ReplaceFile(

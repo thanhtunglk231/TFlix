@@ -62,6 +62,43 @@ namespace DataServiceLib.Implements.Admin
         }
 
 
+        public CResponseMessage get_bu_id(int id)
+        {
+            try
+            {
+                var o_cursor = new OracleParameter("p_id", OracleDbType.Int32)
+                { Direction = ParameterDirection.Output };
+                var p_result = new OracleParameter("p_result", OracleDbType.RefCursor)
+                { Direction = ParameterDirection.Output };
+                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
+                { Direction = ParameterDirection.Output };
+
+                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
+                { Direction = ParameterDirection.Output };
+
+                var parameters = new OracleParameter[] { o_cursor, p_result, o_code, o_message };
+
+                var dataset = _baseProvider.GetDatasetFromSP("sp_get_videosources_by_id ", parameters, _connectionString);
+
+                return new CResponseMessage
+                {
+                    Data = dataset,
+                    code = o_code.Value?.ToString() ?? "400",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
+            }
+        }
+
         // Helper: đọc OUT NUMBER an toàn
         private static decimal? ReadNullableDecimal(object value)
         {

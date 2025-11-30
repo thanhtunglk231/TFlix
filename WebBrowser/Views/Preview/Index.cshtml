@@ -9,11 +9,12 @@
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
 
+
     // ===== MAP TỪ MODEL =====
     var poster = Model?.PrimaryPosterUrl
                  ?? Model?.PrimaryThumbUrl
                  ?? "https://placehold.co/400x600?text=No+Poster";
-
+    
     var title = Model?.title ?? "Đang cập nhật";
     var original = Model?.OriginalTitle;
     var year = Model?.ReleaseOrAirDate?.Year;
@@ -402,9 +403,10 @@
         </div>
     </div>
 </div>
-
 @section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> 
     <script>
+        // Kiểm tra trạng thái đăng nhập
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
 
         function showLoginModal() {
@@ -417,7 +419,7 @@
             }
         }
 
-        // Chặn xem phim nếu chưa login
+        // Chặn truy cập nếu chưa đăng nhập khi nhấn vào nút "Xem phim"
         document.addEventListener('click', function (e) {
             const t = e.target;
             if (!t) return;
@@ -434,5 +436,23 @@
                 showLoginModal();
             }
         });
+
+        // Lấy id và kind từ URL
+        var url = new URL(window.location.href);
+        var para = new URLSearchParams(url.search);
+        var id = para.get('id');
+        var kind = para.get('kind');
+
+        // Điều hướng tới trang Film/Watch khi nhấn nút "Xem phim"
+        $(document).ready(function () {
+            $('.btnWatch').click(function () {
+                if (id && kind) {
+                    // Điều hướng tới trang Watch với các tham số id và kind
+                    console.log("Click xem phim");
+                    window.location.href = `/Film/Watch?id=${id}&kind=${kind}`;
+                }
+            });
+        });
     </script>
 }
+

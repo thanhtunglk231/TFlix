@@ -1,4 +1,6 @@
-﻿@using System.Web
+﻿@using WebBrowser.Models.Preview
+@model PreviewItem
+
 @{
     Layout = "/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Xem phim";
@@ -7,23 +9,27 @@
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
 
-    // ⛳️ Demo fallback – nếu Model chưa có, gán tạm dữ liệu mẫu để bạn preview UI.
-    // Khi gắn thật, thay Model bằng ViewModel của bạn (MovieTitle, EpisodeList, Sources...)
-    var movieTitle = ViewBag.MovieTitle as string ?? "Duty After School – Học Kỳ Sinh Tử";
-    var movieYear = ViewBag.MovieYear as int? ?? 2024;
-    var movieGenres = ViewBag.MovieGenres as string ?? "Hành động · Viễn tưởng · Hàn Quốc";
-    var rating = ViewBag.Rating as double? ?? 8.4;
-    var poster = ViewBag.Poster as string ?? "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=1600&auto=format&fit=crop";
-    var description = ViewBag.Description as string ?? "Một lớp học bình thường phải tham gia chiến đấu để sinh tồn. Căng thẳng, kịch tính, và cảm xúc…";
-    // Nguồn phát: mỗi item gồm (label + url). Ưu tiên nguồn m3u8 nếu có.
-    var sources = ViewBag.Sources as IEnumerable<(string label, string url)> ??
-        new List<(string, string)> {
-            ("CDN-1 • 1080p (HLS)", "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"),
-            ("CDN-2 • 720p (MP4)",  "https://khgcepyhcwfblvflclvp.supabase.co/storage/v1/object/public/images/products/53995d51-effd-4388-8f5d-7c9d397b4e3e.mp4")
-        };
+    // Lấy các giá trị từ Model (đã gắn Binding từ JSON)
+    var movieTitle = Model.OriginalTitle ?? "Duty After School – Học Kỳ Sinh Tử";
+    var movieYear = Model.ReleaseOrAirDate?.Year ?? 2024; // Lấy năm từ ReleaseOrAirDate
+    var movieGenres = Model.genres ?? "Hành động · Viễn tưởng · Hàn Quốc"; // genres từ Model
+    var rating = 0.0; // Không có rating trong JSON nhưng có thể thêm vào sau
+    var poster = Model.PrimaryPosterUrl ?? "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=1600&auto=format&fit=crop"; // Lấy Poster từ Model
+    var description = Model.OverviewText ?? "Một lớp học bình thường phải tham gia chiến đấu để sinh tồn. Căng thẳng, kịch tính, và cảm xúc…"; // Lấy mô tả từ Model
+
+    // Nguồn phát: mỗi item gồm (label + url)
+    var sources = new List<(string label, string url)>
+    {
+        ("CDN-1 • 1080p (HLS)", Model.PrimaryStreamUrl ?? "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"),
+        ("CDN-2 • 720p (MP4)",  "https://khgcepyhcwfblvflclvp.supabase.co/storage/v1/object/public/images/products/53995d51-effd-4388-8f5d-7c9d397b4e3e.mp4")
+    };
+
     var currentSource = sources.First().url;
+
+    // Danh sách tập (có thể lấy từ một API khác hoặc lấy từ ViewBag nếu có)
     var episodes = ViewBag.Episodes as IEnumerable<(int ep, string title)> ??
         Enumerable.Range(1, 12).Select(i => (i, $"Tập {i:00} - Nhiệm vụ #{100 + i}"));
+
     var currentEp = ViewBag.CurrentEpisode as int? ?? 1;
 
     // Tạo danh sách chất lượng demo
@@ -490,7 +496,7 @@
         const playerBox = document.getElementById('playerBox');
 
         // Persist progress per (movie,episode)
-        const movieKey = "movie:@(HttpUtility.JavaScriptStringEncode(movieTitle))";
+        const movieKey = "movie:" + @Json.Serialize(movieTitle);
         let currentEp = @currentEp;
 
         function fmt(sec){
@@ -643,33 +649,57 @@
             card?.click();
         });
 
-        // Sticky mini-player on scroll when not in PiP/fullscreen
+               // Sticky mini-player on scroll when not in PiP/fullscreen
         let miniEl;
-        function ensureMini(){
-            if (!miniEl) {
-                miniEl = document.createElement('div');
-                miniEl.className = 'mini hide';
-                miniEl.innerHTML = `<div class="player-wrap"><video id="mini" class="video-el" muted></video></div>`;
-                document.body.appendChild(miniEl);
-                const mv = miniEl.querySelector('#mini');
-                // Mirror main video via MediaStream (Chrome supports captureStream)
-                if (video.captureStream) {
+
+        function ensureMini() {
+            if (miniEl) return;
+
+            miniEl = document.createElement('div');
+            miniEl.className = 'mini hide';
+            miniEl.innerHTML =
+                `<div class="player-wrap">
+                    <video id="mini" class="video-el" muted></video>
+                 </div>`;
+            document.body.appendChild(miniEl);
+
+            const mv = miniEl.querySelector('#mini');
+
+            // THỬ captureStream, NẾU LỖI (cross-origin) thì fallback sang gán src trực tiếp
+            if (video.captureStream) {
+                try {
                     const stream = video.captureStream();
                     mv.srcObject = stream;
-                    mv.play().catch(()=>{});
+                    mv.play().catch(() => {});
+                } catch (err) {
+                    console.warn('captureStream bị chặn, dùng fallback src:', err);
+                    if (video.currentSrc) {
+                        mv.src = video.currentSrc;      // chỉ phát lại từ cùng URL, không mirror time
+                        mv.play().catch(() => {});
+                    }
                 }
-                miniEl.addEventListener('click', ()=> {
-                    window.scrollTo({ top: playerBox.getBoundingClientRect().top + window.scrollY - 80, behavior:'smooth' });
-                });
+            } else if (video.currentSrc) {
+                // Trình duyệt không hỗ trợ captureStream: phát lại từ URL
+                mv.src = video.currentSrc;
+                mv.play().catch(() => {});
             }
+
+            miniEl.addEventListener('click', () => {
+                window.scrollTo({
+                    top: playerBox.getBoundingClientRect().top + window.scrollY - 80,
+                    behavior: 'smooth'
+                });
+            });
         }
-        const onScroll = ()=>{
+
+        const onScroll = () => {
             const rect = playerBox.getBoundingClientRect();
             const outOfView = rect.bottom < 64 || rect.top < -200;
             if (document.pictureInPictureElement || document.fullscreenElement) return;
             if (outOfView) { ensureMini(); miniEl.classList.remove('hide'); }
             else { miniEl?.classList.add('hide'); }
         };
+
         window.addEventListener('scroll', onScroll);
 
         // UI auto hide (mousemove over player)
