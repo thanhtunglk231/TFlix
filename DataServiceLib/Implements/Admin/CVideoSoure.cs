@@ -1,44 +1,42 @@
-﻿using CoreLib.Dtos.VideSoure;
+﻿using CoreLib.Dtos;
+using CoreLib.Dtos.VideSoure;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
-using Oracle.ManagedDataAccess.Types;
+using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DataServiceLib.Implements.Admin
 {
     public class CVideoSoure : ICVideoSoure
     {
-
         private readonly ICBaseProvider _baseProvider;
         private readonly string _connectionString;
 
         public CVideoSoure(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
-        public  CResponseMessage get_all()
+        // ===== GET ALL =====
+        public CResponseMessage get_all()
         {
             try
             {
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor)
-                { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                { Direction = ParameterDirection.Output };
-
-                var parameters = new OracleParameter[] { o_cursor, o_code, o_message };
+                var parameters = new IDbDataParameter[] { o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_get_all_video_sources", parameters, _connectionString);
 
@@ -61,24 +59,29 @@ namespace DataServiceLib.Implements.Admin
             }
         }
 
-
+        // ===== GET BY ID =====
         public CResponseMessage get_bu_id(int id)
         {
             try
             {
-                var o_cursor = new OracleParameter("p_id", OracleDbType.Int32)
-                { Direction = ParameterDirection.Output };
-                var p_result = new OracleParameter("p_result", OracleDbType.RefCursor)
-                { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                { Direction = ParameterDirection.Output };
+                var p_id = new SqlParameter("@p_id", SqlDbType.Int)
+                {
+                    Value = id
+                };
 
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var parameters = new OracleParameter[] { o_cursor, p_result, o_code, o_message };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var dataset = _baseProvider.GetDatasetFromSP("sp_get_videosources_by_id ", parameters, _connectionString);
+                var parameters = new IDbDataParameter[] { p_id, o_code, o_message };
+
+                var dataset = _baseProvider.GetDatasetFromSP("sp_get_videosources_by_id", parameters, _connectionString);
 
                 return new CResponseMessage
                 {
@@ -99,82 +102,82 @@ namespace DataServiceLib.Implements.Admin
             }
         }
 
-        // Helper: đọc OUT NUMBER an toàn
-        private static decimal? ReadNullableDecimal(object value)
-        {
-            if (value == null || value == DBNull.Value) return null;
-            if (value is OracleDecimal od) return od.IsNull ? null : od.Value;
-            if (value is decimal d) return d;
-            return Convert.ToDecimal(value);
-        }
-
-        // ================== ADD ==================
+        // ===== ADD =====
         public async Task<CResponseMessage> Add_video_source(AddVideoSourceDto dto)
         {
             try
             {
-                // Kiểm tra logic: phải chọn đúng 1 đích (movie hoặc episode)
-                var movieProvided = dto.MovieId.HasValue;
-                var episodeProvided = dto.EpisodeId.HasValue;
-                if (movieProvided == episodeProvided) // cả 2 null hoặc cả 2 có giá trị
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal)
                 {
-                    return new CResponseMessage
-                    {
-                        Success = false,
-                        code = "400",
-                        message = "Phải chọn duy nhất một đích: movieId hoặc episodeId."
-                    };
-                }
+                    Value = (object?)dto.MovieId ?? DBNull.Value
+                };
 
-                // Tham số theo đúng thứ tự của sp_video_source_add:
-                // (p_movie_id, p_episode_id, p_provider, p_server_name, p_stream_url,
-                //  p_quality, p_format, p_drm_type, p_drm_license_url, p_is_primary, p_status,
-                //  o_source_id, o_code, o_message)
+                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.Decimal)
+                {
+                    Value = (object?)dto.EpisodeId ?? DBNull.Value
+                };
 
-                var p_movie_id = new OracleParameter("p_movie_id", OracleDbType.Decimal)
-                { Direction = ParameterDirection.Input, Value = (object?)dto.MovieId ?? DBNull.Value };
+                var p_provider = new SqlParameter("@p_provider", SqlDbType.NVarChar)
+                {
+                    Value = dto.Provider
+                };
 
-                var p_episode_id = new OracleParameter("p_episode_id", OracleDbType.Decimal)
-                { Direction = ParameterDirection.Input, Value = (object?)dto.EpisodeId ?? DBNull.Value };
+                var p_server = new SqlParameter("@p_server_name", SqlDbType.NVarChar)
+                {
+                    Value = (object?)dto.ServerName ?? DBNull.Value
+                };
 
-                var p_provider = new OracleParameter("p_provider", OracleDbType.Varchar2)
-                { Direction = ParameterDirection.Input, Value = dto.Provider };
+                var p_stream_url = new SqlParameter("@p_stream_url", SqlDbType.NVarChar)
+                {
+                    Value = dto.StreamUrl
+                };
 
-                var p_server = new OracleParameter("p_server_name", OracleDbType.Varchar2)
-                { Direction = ParameterDirection.Input, Value = (object?)dto.ServerName ?? DBNull.Value };
+                var p_quality = new SqlParameter("@p_quality", SqlDbType.NVarChar)
+                {
+                    Value = (object?)dto.Quality ?? DBNull.Value
+                };
 
-                var p_stream_url = new OracleParameter("p_stream_url", OracleDbType.Varchar2)
-                { Direction = ParameterDirection.Input, Value = dto.StreamUrl };
+                var p_format = new SqlParameter("@p_format", SqlDbType.NVarChar)
+                {
+                    Value = (object?)dto.Format ?? DBNull.Value
+                };
 
-                var p_quality = new OracleParameter("p_quality", OracleDbType.Varchar2)
-                { Direction = ParameterDirection.Input, Value = (object?)dto.Quality ?? DBNull.Value };
+                var p_drm_type = new SqlParameter("@p_drm_type", SqlDbType.NVarChar)
+                {
+                    Value = (object?)dto.DrmType ?? DBNull.Value
+                };
 
-                var p_format = new OracleParameter("p_format", OracleDbType.Varchar2)
-                { Direction = ParameterDirection.Input, Value = (object?)dto.Format ?? DBNull.Value };
+                var p_drm_url = new SqlParameter("@p_drm_license_url", SqlDbType.NVarChar)
+                {
+                    Value = (object?)dto.DrmLicenseUrl ?? DBNull.Value
+                };
 
-                var p_drm_type = new OracleParameter("p_drm_type", OracleDbType.Varchar2)
-                { Direction = ParameterDirection.Input, Value = (object?)dto.DrmType ?? DBNull.Value };
+                var p_is_primary = new SqlParameter("@p_is_primary", SqlDbType.Char, 1)
+                {
+                    Value = dto.IsPrimary ? "Y" : "N"
+                };
 
-                var p_drm_url = new OracleParameter("p_drm_license_url", OracleDbType.Varchar2)
-                { Direction = ParameterDirection.Input, Value = (object?)dto.DrmLicenseUrl ?? DBNull.Value };
+                var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar)
+                {
+                    Value = (object?)dto.Status ?? "ACTIVE"
+                };
 
-                var p_is_primary = new OracleParameter("p_is_primary", OracleDbType.Char, 1)
-                { Direction = ParameterDirection.Input, Value = dto.IsPrimary ? "Y" : "N" };
+                var o_source_id = new SqlParameter("@o_source_id", SqlDbType.Decimal)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var p_status = new OracleParameter("p_status", OracleDbType.Varchar2)
-                { Direction = ParameterDirection.Input, Value = (object?)dto.Status ?? "ACTIVE" };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var o_source_id = new OracleParameter("o_source_id", OracleDbType.Decimal)
-                { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                { Direction = ParameterDirection.Output };
-
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                { Direction = ParameterDirection.Output };
-
-
-                var parameters = new OracleParameter[]
+                var parameters = new IDbDataParameter[]
                 {
                     p_movie_id, p_episode_id, p_provider, p_server, p_stream_url,
                     p_quality, p_format, p_drm_type, p_drm_url,
@@ -189,7 +192,7 @@ namespace DataServiceLib.Implements.Admin
                     Data = new
                     {
                         DataSet = ds,
-                        SourceId = ReadNullableDecimal(o_source_id.Value)
+                        SourceId = o_source_id.Value != DBNull.Value ? Convert.ToDecimal(o_source_id.Value) : (decimal?)null
                     },
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
@@ -207,43 +210,68 @@ namespace DataServiceLib.Implements.Admin
             }
         }
 
-        // ================== UPDATE ==================
-        public async Task<CResponseMessage> Update_video_source(UpdateVideoSourceDto dto)
+        // ===== ADD PART =====
+        public async Task<CResponseMessage> Add_video_source_part(AddVideoSourcePartDto dto)
         {
             try
             {
-                // sp_video_source_update (
-                //   p_source_id, p_provider, p_server_name, p_stream_url,
-                //   p_quality, p_format, p_drm_type, p_drm_license_url,
-                //   p_is_primary, p_status, o_code, o_message)
-
-                var p_source_id = new OracleParameter("p_source_id", OracleDbType.Decimal, dto.SourceId, ParameterDirection.Input);
-                var p_provider = new OracleParameter("p_provider", OracleDbType.Varchar2, dto.Provider, ParameterDirection.Input);
-                var p_server = new OracleParameter("p_server_name", OracleDbType.Varchar2, (object?)dto.ServerName ?? DBNull.Value, ParameterDirection.Input);
-                var p_stream_url = new OracleParameter("p_stream_url", OracleDbType.Varchar2, dto.StreamUrl, ParameterDirection.Input);
-                var p_quality = new OracleParameter("p_quality", OracleDbType.Varchar2, (object?)dto.Quality ?? DBNull.Value, ParameterDirection.Input);
-                var p_format = new OracleParameter("p_format", OracleDbType.Varchar2, (object?)dto.Format ?? DBNull.Value, ParameterDirection.Input);
-                var p_drm_type = new OracleParameter("p_drm_type", OracleDbType.Varchar2, (object?)dto.DrmType ?? DBNull.Value, ParameterDirection.Input);
-                var p_drm_url = new OracleParameter("p_drm_license_url", OracleDbType.Varchar2, (object?)dto.DrmLicenseUrl ?? DBNull.Value, ParameterDirection.Input);
-                var p_is_primary = new OracleParameter("p_is_primary", OracleDbType.Char, dto.IsPrimary ? "Y" : "N", ParameterDirection.Input);
-                var p_status = new OracleParameter("p_status", OracleDbType.Varchar2, (object?)dto.Status ?? "ACTIVE", ParameterDirection.Input);
-
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
-
-                var parameters = new OracleParameter[]
+                var p_source_id = new SqlParameter("@p_source_id", SqlDbType.Decimal)
                 {
-                    p_source_id, p_provider, p_server, p_stream_url,
-                    p_quality, p_format, p_drm_type, p_drm_url,
-                    p_is_primary, p_status,
+                    Value = dto.SourceId
+                };
+
+                var p_part_index = new SqlParameter("@p_part_index", SqlDbType.Int)
+                {
+                    Value = dto.PartIndex
+                };
+
+                var p_url = new SqlParameter("@p_url", SqlDbType.NVarChar)
+                {
+                    Value = dto.Url
+                };
+
+                var p_byte_size = new SqlParameter("@p_byte_size", SqlDbType.BigInt)
+                {
+                    Value = (object?)dto.ByteSize ?? DBNull.Value
+                };
+
+                var p_duration_sec = new SqlParameter("@p_duration_sec", SqlDbType.Int)
+                {
+                    Value = (object?)dto.DurationSec ?? DBNull.Value
+                };
+
+                var p_checksum = new SqlParameter("@p_checksum", SqlDbType.NVarChar)
+                {
+                    Value = (object?)dto.Checksum ?? DBNull.Value
+                };
+
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var parameters = new IDbDataParameter[]
+                {
+                    p_source_id, p_part_index, p_url,
+                    p_byte_size, p_duration_sec, p_checksum,
                     o_code, o_message
                 };
 
-                var ds = _baseProvider.GetDatasetFromSP("sp_video_source_update", parameters, _connectionString);
+                var ds = _baseProvider.GetDatasetFromSP("sp_video_source_part_add", parameters, _connectionString);
 
                 return new CResponseMessage
                 {
-                    Data = ds, // SP update không mở cursor
+                    Data = new
+                    {
+                        DataSet = ds,
+                        SourceId = dto.SourceId,
+                        PartIndex = dto.PartIndex
+                    },
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
                     Success = o_code.Value?.ToString() == "200"
@@ -260,23 +288,84 @@ namespace DataServiceLib.Implements.Admin
             }
         }
 
-        // ================== DELETE ==================
+        // ===== UPDATE =====
+        public async Task<CResponseMessage> Update_video_source(UpdateVideoSourceDto dto)
+        {
+            try
+            {
+                var p_source_id = new SqlParameter("@p_source_id", SqlDbType.Decimal) { Value = dto.SourceId };
+                var p_provider = new SqlParameter("@p_provider", SqlDbType.NVarChar) { Value = dto.Provider };
+                var p_server = new SqlParameter("@p_server_name", SqlDbType.NVarChar) { Value = (object?)dto.ServerName ?? DBNull.Value };
+                var p_stream_url = new SqlParameter("@p_stream_url", SqlDbType.NVarChar) { Value = dto.StreamUrl };
+                var p_quality = new SqlParameter("@p_quality", SqlDbType.NVarChar) { Value = (object?)dto.Quality ?? DBNull.Value };
+                var p_format = new SqlParameter("@p_format", SqlDbType.NVarChar) { Value = (object?)dto.Format ?? DBNull.Value };
+                var p_drm_type = new SqlParameter("@p_drm_type", SqlDbType.NVarChar) { Value = (object?)dto.DrmType ?? DBNull.Value };
+                var p_drm_url = new SqlParameter("@p_drm_license_url", SqlDbType.NVarChar) { Value = (object?)dto.DrmLicenseUrl ?? DBNull.Value };
+                var p_is_primary = new SqlParameter("@p_is_primary", SqlDbType.Char, 1) { Value = dto.IsPrimary ? "Y" : "N" };
+                var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar) { Value = (object?)dto.Status ?? "ACTIVE" };
+
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+
+                var parameters = new IDbDataParameter[]
+                {
+                    p_source_id, p_provider, p_server, p_stream_url,
+                    p_quality, p_format, p_drm_type, p_drm_url,
+                    p_is_primary, p_status,
+                    o_code, o_message
+                };
+
+                var ds = _baseProvider.GetDatasetFromSP("sp_video_source_update", parameters, _connectionString);
+
+                return new CResponseMessage
+                {
+                    Data = ds,
+                    code = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
+            }
+        }
+
+        // ===== DELETE =====
         public async Task<CResponseMessage> Delete_video_source(decimal sourceId)
         {
             try
             {
-                // sp_video_source_delete(p_source_id, o_code, o_message)
-                var p_source_id = new OracleParameter("p_source_id", OracleDbType.Decimal, sourceId, ParameterDirection.Input);
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var p_source_id = new SqlParameter("@p_source_id", SqlDbType.Decimal)
+                {
+                    Value = sourceId
+                };
 
-                var parameters = new OracleParameter[] { p_source_id, o_code, o_message };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var parameters = new IDbDataParameter[]
+                {
+                    p_source_id, o_code, o_message
+                };
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_video_source_delete", parameters, _connectionString);
 
                 return new CResponseMessage
                 {
-                    Data = ds, // SP delete không mở cursor
+                    Data = ds,
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
                     Success = o_code.Value?.ToString() == "200"

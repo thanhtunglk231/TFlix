@@ -2,7 +2,7 @@
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -21,7 +21,7 @@ namespace DataServiceLib.Implements
         public CAuth(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
 
@@ -29,32 +29,28 @@ namespace DataServiceLib.Implements
         {
             try
             {
-                var p_email = new OracleParameter("p_email", OracleDbType.Varchar2)
+                var p_email = new SqlParameter("@p_email", SqlDbType.NVarChar)
                 {
                     Direction = ParameterDirection.Input,
                     Value = loginDto.Username
                 };
-                var p_password = new OracleParameter("p_password", OracleDbType.Varchar2)
+                var p_password = new SqlParameter("@p_password", SqlDbType.NVarChar)
                 {
                     Direction = ParameterDirection.Input,
                     Value = loginDto.Password
                 };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                {
-                    Direction = ParameterDirection.Output
-                };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                {
-                    Direction = ParameterDirection.Output
-                };
-                var o_user = new OracleParameter("o_user", OracleDbType.RefCursor)
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
                 {
                     Direction = ParameterDirection.Output
                 };
 
-                // THỨ TỰ phải khớp: p_email, p_password, o_code, o_message, o_user
-                var parameters = new OracleParameter[] { p_email, p_password, o_code, o_message, o_user };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                // For SQL Server stored procedure that returns a resultset, we don't send a REF CURSOR.
+                var parameters = new IDbDataParameter[] { p_email, p_password, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_login_user", parameters, _connectionString);
 
@@ -82,33 +78,32 @@ namespace DataServiceLib.Implements
         {
             try
             {
-                var p_email = new OracleParameter("p_email", OracleDbType.Varchar2)
+                var p_email = new SqlParameter("@p_email", SqlDbType.NVarChar)
                 {
                     Direction = ParameterDirection.Input,
                     Value = loginDto.Email
                 };
-                var p_fullname = new OracleParameter("p_full_name", OracleDbType.Varchar2)
+                var p_fullname = new SqlParameter("@p_full_name", SqlDbType.NVarChar)
                 {
                     Direction = ParameterDirection.Input,
                     Value = loginDto.FullName   
                 };
-                var p_password = new OracleParameter("p_password", OracleDbType.Varchar2)
+                var p_password = new SqlParameter("@p_password", SqlDbType.NVarChar)
                 {
                     Direction = ParameterDirection.Input,
                     Value = loginDto.Password
                 };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                {
-                    Direction = ParameterDirection.Output
-                };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
                 {
                     Direction = ParameterDirection.Output
                 };
 
-                // Thứ tự phải khớp với SP: p_email, p_full_name, p_password, o_code, o_message
-                var parameters = new OracleParameter[] { p_email, p_fullname, p_password, o_code, o_message };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var parameters = new IDbDataParameter[] { p_email, p_fullname, p_password, o_code, o_message };
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_register_user", parameters, _connectionString);
                 // SP không mở cursor => ds có thể rỗng, không sao.

@@ -209,6 +209,22 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
+                <div class="col-12">
+                    <label class="form-label">Kiểu nguồn video *</label>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="InputMode" id="modeFile" value="file" checked>
+                        <label class="form-check-label" for="modeFile">Upload file (MP4/1 file)</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="InputMode" id="modeUrl" value="url">
+                        <label class="form-check-label" for="modeUrl">Chỉ dùng Stream URL</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="InputMode" id="modeHls" value="hls">
+                        <label class="form-check-label" for="modeHls">Upload HLS (m3u8 + segments)</label>
+                    </div>
+                </div>
+
                 <form id="frmSource" class="row g-3">
                     @Html.AntiForgeryToken()
                     <input type="hidden" id="SourceId" />
@@ -283,13 +299,28 @@
                         </select>
                     </div>
 
-                    <div class="col-12">
-                        <label class="form-label">Upload file video</label>
+                    <!-- block upload 1 file cũ -->
+                    <div class="col-12" id="blockFile">
+                        <label class="form-label">Upload file video (1 file)</label>
                         <input id="File" type="file" class="form-control" accept="video/*" />
-                        <div id="fileNote" class="form-text">
-                            Thêm mới: file bắt buộc nếu bạn không điền Stream URL. Sửa: cần file mới vì API replace-file.
+                    </div>
+
+                    <!-- block upload HLS -->
+                    <div class="col-12 d-none" id="blockHls">
+                        <label class="form-label">Upload HLS</label>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Playlist (.m3u8) *</label>
+                                <input id="HlsPlaylist" type="file" class="form-control" accept=".m3u8" />
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Segments (.ts/.m4s) *</label>
+                                <input id="HlsSegments" type="file" class="form-control" multiple accept=".ts,.m4s,video/*" />
+                                <div class="form-text">Chọn nhiều file segments cùng lúc.</div>
+                            </div>
                         </div>
                     </div>
+
                 </form>
             </div>
             <div class="modal-footer">
@@ -739,6 +770,30 @@
             const video = document.getElementById('previewPlayer');
             video.pause(); video.removeAttribute('src'); video.load();
           });
+
+            function toggleInputMode() {
+            const mode = $('input[name="InputMode"]:checked').val();
+            if (mode === 'file') {
+                $('#blockFile').removeClass('d-none');
+                $('#blockHls').addClass('d-none');
+                $('#StreamUrl').prop('disabled', false);
+            } else if (mode === 'url') {
+                $('#blockFile').addClass('d-none');
+                $('#blockHls').addClass('d-none');
+                $('#StreamUrl').prop('disabled', false);
+            } else if (mode === 'hls') {
+                $('#blockFile').addClass('d-none');
+                $('#blockHls').removeClass('d-none');
+                $('#StreamUrl').prop('disabled', true); // HLS thì URL sẽ là m3u8 sau khi upload
+            }
+        }
+
+        // gắn event change
+        $('input[name="InputMode"]').on('change', toggleInputMode);
+
+        // gọi 1 lần để set đúng state ban đầu
+        toggleInputMode();
+
 
           // ===== Events =====
           $('#btnRefresh').on('click', ()=> loadAll());

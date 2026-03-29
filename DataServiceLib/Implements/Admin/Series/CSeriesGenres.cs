@@ -1,13 +1,10 @@
 ﻿using CoreLib.Dtos.SeriesGenre;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DataServiceLib.Implements.Admin.Series
@@ -20,20 +17,27 @@ namespace DataServiceLib.Implements.Admin.Series
         public CSeriesGenres(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
-        // ---------- GET ALL ----------
         public async Task<CResponseMessage> sp_get_all()
         {
             try
             {
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var ds = _baseProvider.GetDatasetFromSP("sp_series_genre_get_all",
-                    new[] { o_cursor, o_code, o_message }, _connectionString);
+                var ds = _baseProvider.GetDatasetFromSP(
+                    "sp_series_genre_get_all",
+                    new IDbDataParameter[] { o_code, o_message },
+                    _connectionString
+                );
 
                 return new CResponseMessage
                 {
@@ -45,24 +49,44 @@ namespace DataServiceLib.Implements.Admin.Series
             }
             catch (Exception ex)
             {
-                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
             }
         }
 
-        // ---------- GET BY PK (series_id + genre_id) ----------
         public async Task<CResponseMessage> sp_get_by_pk(decimal seriesId, decimal genreId)
         {
             try
             {
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal, seriesId, ParameterDirection.Input);
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, genreId, ParameterDirection.Input);
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal)
+                {
+                    Value = seriesId,
+                    Direction = ParameterDirection.Input
+                };
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal)
+                {
+                    Value = genreId,
+                    Direction = ParameterDirection.Input
+                };
 
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var ds = _baseProvider.GetDatasetFromSP("sp_series_genre_get_by_pk",
-                    new[] { p_series_id, p_genre_id, o_cursor, o_code, o_message }, _connectionString);
+                var ds = _baseProvider.GetDatasetFromSP(
+                    "sp_series_genre_get_by_pk",
+                    new IDbDataParameter[] { p_series_id, p_genre_id, o_code, o_message },
+                    _connectionString
+                );
 
                 return new CResponseMessage
                 {
@@ -74,22 +98,39 @@ namespace DataServiceLib.Implements.Admin.Series
             }
             catch (Exception ex)
             {
-                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
             }
         }
 
-        // ---------- GET BY SERIES (lấy danh sách genre của 1 series) ----------
         public async Task<CResponseMessage> sp_get_by_series(decimal seriesId)
         {
             try
             {
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal, seriesId, ParameterDirection.Input);
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal)
+                {
+                    Value = seriesId,
+                    Direction = ParameterDirection.Input
+                };
 
-                var ds = _baseProvider.GetDatasetFromSP("sp_series_genre_get_by_series",
-                    new[] { p_series_id, o_cursor, o_code, o_message }, _connectionString);
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var ds = _baseProvider.GetDatasetFromSP(
+                    "sp_series_genre_get_by_series",
+                    new IDbDataParameter[] { p_series_id, o_code, o_message },
+                    _connectionString
+                );
 
                 return new CResponseMessage
                 {
@@ -101,22 +142,39 @@ namespace DataServiceLib.Implements.Admin.Series
             }
             catch (Exception ex)
             {
-                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
             }
         }
 
-        // ---------- GET BY GENRE (lấy danh sách series thuộc 1 genre) ----------
         public async Task<CResponseMessage> sp_get_by_genre(decimal genreId)
         {
             try
             {
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, genreId, ParameterDirection.Input);
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal)
+                {
+                    Value = genreId,
+                    Direction = ParameterDirection.Input
+                };
 
-                var ds = _baseProvider.GetDatasetFromSP("sp_series_genre_get_by_genre",
-                    new[] { p_genre_id, o_cursor, o_code, o_message }, _connectionString);
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var ds = _baseProvider.GetDatasetFromSP(
+                    "sp_series_genre_get_by_genre",
+                    new IDbDataParameter[] { p_genre_id, o_code, o_message },
+                    _connectionString
+                );
 
                 return new CResponseMessage
                 {
@@ -128,23 +186,64 @@ namespace DataServiceLib.Implements.Admin.Series
             }
             catch (Exception ex)
             {
-                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
             }
         }
 
-        // ---------- ADD ----------
         public async Task<CResponseMessage> sp_add(AddSeriesGenreDto addSeriesGenreDto)
         {
             try
             {
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal, addSeriesGenreDto.SeriesId, ParameterDirection.Input);
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, addSeriesGenreDto.GenreId, ParameterDirection.Input);
+                Console.WriteLine("=== CALL sp_series_genre_add ===");
+                Console.WriteLine($"SeriesId: {addSeriesGenreDto.SeriesId}");
+                Console.WriteLine($"GenreId: {addSeriesGenreDto.GenreId}");
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal)
+                {
+                    Value = addSeriesGenreDto.SeriesId,
+                    Direction = ParameterDirection.Input
+                };
 
-                var ds = _baseProvider.GetDatasetFromSP("sp_series_genre_add",
-                    new[] { p_series_id, p_genre_id, o_code, o_message }, _connectionString);
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal)
+                {
+                    Value = addSeriesGenreDto.GenreId,
+                    Direction = ParameterDirection.Input
+                };
+
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var ds = _baseProvider.GetDatasetFromSP(
+                    "sp_series_genre_add",
+                    new IDbDataParameter[] { p_series_id, p_genre_id, o_code, o_message },
+                    _connectionString
+                );
+
+                Console.WriteLine("=== SP RESULT ===");
+                Console.WriteLine($"o_code: {o_code.Value}");
+                Console.WriteLine($"o_message: {o_message.Value}");
+
+                if (ds != null && ds.Tables.Count > 0)
+                {
+                    Console.WriteLine($"Tables count: {ds.Tables.Count}");
+                    Console.WriteLine($"Rows count: {ds.Tables[0].Rows.Count}");
+                }
+                else
+                {
+                    Console.WriteLine("Dataset NULL hoặc không có bảng");
+                }
 
                 return new CResponseMessage
                 {
@@ -156,24 +255,52 @@ namespace DataServiceLib.Implements.Admin.Series
             }
             catch (Exception ex)
             {
-                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+                Console.WriteLine("=== ERROR ===");
+                Console.WriteLine(ex.ToString());
+
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
             }
         }
 
-        // ---------- UPDATE ----------
         public async Task<CResponseMessage> sp_update(UpdateSeriesGenreDto updateSeriesGenreDto)
         {
             try
             {
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal, updateSeriesGenreDto.SeriesId, ParameterDirection.Input);
-                var p_old_genre_id = new OracleParameter("p_old_genre_id", OracleDbType.Decimal, updateSeriesGenreDto.OldGenreId, ParameterDirection.Input);
-                var p_new_genre_id = new OracleParameter("p_new_genre_id", OracleDbType.Decimal, updateSeriesGenreDto.NewGenreId, ParameterDirection.Input);
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal)
+                {
+                    Value = updateSeriesGenreDto.SeriesId,
+                    Direction = ParameterDirection.Input
+                };
+                var p_old_genre_id = new SqlParameter("@p_old_genre_id", SqlDbType.Decimal)
+                {
+                    Value = updateSeriesGenreDto.OldGenreId,
+                    Direction = ParameterDirection.Input
+                };
+                var p_new_genre_id = new SqlParameter("@p_new_genre_id", SqlDbType.Decimal)
+                {
+                    Value = updateSeriesGenreDto.NewGenreId,
+                    Direction = ParameterDirection.Input
+                };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var ds = _baseProvider.GetDatasetFromSP("sp_series_genre_update",
-                    new[] { p_series_id, p_old_genre_id, p_new_genre_id, o_code, o_message }, _connectionString);
+                var ds = _baseProvider.GetDatasetFromSP(
+                    "sp_series_genre_update",
+                    new IDbDataParameter[] { p_series_id, p_old_genre_id, p_new_genre_id, o_code, o_message },
+                    _connectionString
+                );
 
                 return new CResponseMessage
                 {
@@ -185,23 +312,44 @@ namespace DataServiceLib.Implements.Admin.Series
             }
             catch (Exception ex)
             {
-                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
             }
         }
 
-        // ---------- DELETE ----------
         public async Task<CResponseMessage> sp_delete(DeleteSeriesGenreDto deleteSeriesGenreDto)
         {
             try
             {
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal, deleteSeriesGenreDto.SeriesId, ParameterDirection.Input);
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, deleteSeriesGenreDto.GenreId, ParameterDirection.Input);
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal)
+                {
+                    Value = deleteSeriesGenreDto.SeriesId,
+                    Direction = ParameterDirection.Input
+                };
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal)
+                {
+                    Value = deleteSeriesGenreDto.GenreId,
+                    Direction = ParameterDirection.Input
+                };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
 
-                var ds = _baseProvider.GetDatasetFromSP("sp_series_genre_delete",
-                    new[] { p_series_id, p_genre_id, o_code, o_message }, _connectionString);
+                var ds = _baseProvider.GetDatasetFromSP(
+                    "sp_series_genre_delete",
+                    new IDbDataParameter[] { p_series_id, p_genre_id, o_code, o_message },
+                    _connectionString
+                );
 
                 return new CResponseMessage
                 {
@@ -213,9 +361,13 @@ namespace DataServiceLib.Implements.Admin.Series
             }
             catch (Exception ex)
             {
-                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
             }
         }
-
     }
 }

@@ -19,11 +19,10 @@ namespace Server.Controllers
         public async Task<IActionResult> GetAllMovies()
         {
             var response = await _cMovie.get_all();
-            if (response.code != "200")
-            {
-                return StatusCode(500, new { code = response.code, message = response.message });
-            }
-            return Ok(new { code = response.code, message = response.message, data = response.Data });
+            if (response == null)
+                return StatusCode(500, new { code = "500", message = "Null response from service" });
+
+            return Ok(new { code = response.code, success = response.Success, message = response.message, Data = response.Data });
         }
 
         [HttpPost("add")]
@@ -34,11 +33,10 @@ namespace Server.Controllers
                 return BadRequest(new { code = "400", message = "Invalid movie data." });
             }
             var response = await _cMovie.Add_movie(addMovieDto);
-            if (response.code != "200")
-            {
-                return StatusCode(500, new { code = response.code, message = response.message });
-            }
-            return Ok(new { code = response.code, message = response.message, data = response.Data });
+            if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+
+            // Include returned data (e.g., new MovieId) in the CResponseMessage.Data if needed
+            return Ok(response);
         }
 
         [HttpPost("update")]
@@ -49,23 +47,19 @@ namespace Server.Controllers
                 return BadRequest(new { code = "400", message = "Invalid movie data." });
             }
             var response = await _cMovie.Update_movie(addMovieDto);
-            if (response.code != "200")
-            {
-                return StatusCode(500, new { code = response.code, message = response.message });
-            }
-            return Ok(new { code = response.code, message = response.message, data = response.Data });
+            if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+            return Ok(response);
         }
 
         [HttpPost("delete")]
-        public async Task<IActionResult> deletemovie([FromBody] decimal id)
+        public async Task<IActionResult> deletemovie([FromBody] IdRequest req)
         {
-           
-            var response = await _cMovie.Delete_movie(id);
-            if (response.code != "200")
-            {
-                return StatusCode(500, new { code = response.code, message = response.message });
-            }
+            if (req == null || req.id <= 0) return BadRequest(new { code = "400", message = "Invalid id." });
+            var response = await _cMovie.Delete_movie(req.id);
+            if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
             return Ok(response);
         }
+
+        public class IdRequest { public decimal id { get; set; } }
     }
 }

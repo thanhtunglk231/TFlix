@@ -1,14 +1,10 @@
 ﻿using CoreLib.Dtos.Series;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
-using Oracle.ManagedDataAccess.Types;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DataServiceLib.Implements.Admin.Series
@@ -21,7 +17,7 @@ namespace DataServiceLib.Implements.Admin.Series
         public CSeries(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
         // ===== GET ALL =====
@@ -29,18 +25,17 @@ namespace DataServiceLib.Implements.Admin.Series
         {
             try
             {
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor)
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
                 { Direction = ParameterDirection.Output };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
                 { Direction = ParameterDirection.Output };
 
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                { Direction = ParameterDirection.Output };
-
-                var parameters = new OracleParameter[] { o_cursor, o_code, o_message };
-
-                var dataset = _baseProvider.GetDatasetFromSP("sp_get_all_series", parameters, _connectionString);
+                var dataset = _baseProvider.GetDatasetFromSP(
+                    "sp_get_all_series",
+                    new IDbDataParameter[] { o_code, o_message },
+                    _connectionString
+                );
 
                 return new CResponseMessage
                 {
@@ -62,62 +57,122 @@ namespace DataServiceLib.Implements.Admin.Series
         }
 
         // ===== ADD =====
-        private static decimal? ReadNullableDecimal(object value)
-        {
-            if (value == null || value == DBNull.Value) return null;
-            if (value is OracleDecimal od) return od.IsNull ? null : od.Value;
-            if (value is decimal d) return d;
-            return Convert.ToDecimal(value); // fallback
-        }
-
         public async Task<CResponseMessage> Add_series(AddSeriesDto dto)
         {
             try
             {
-                // IN params (đúng chữ ký sp_series_add)
-                var p_title = new OracleParameter("p_title", OracleDbType.Varchar2, dto.Title, ParameterDirection.Input);
-                var p_original_title = new OracleParameter("p_original_title", OracleDbType.Varchar2, (object?)dto.OriginalTitle ?? DBNull.Value, ParameterDirection.Input);
-                var p_overview = new OracleParameter("p_overview", OracleDbType.Clob, (object?)dto.Overview ?? DBNull.Value, ParameterDirection.Input);
-
-                var p_first_air_date = new OracleParameter("p_first_air_date", OracleDbType.Date, (object?)dto.FirstAirDate ?? DBNull.Value, ParameterDirection.Input);
-                var p_last_air_date = new OracleParameter("p_last_air_date", OracleDbType.Date, (object?)dto.LastAirDate ?? DBNull.Value, ParameterDirection.Input);
-
-                var p_country_code = new OracleParameter("p_country_code", OracleDbType.Varchar2, (object?)dto.CountryCode ?? DBNull.Value, ParameterDirection.Input);
-                var p_language_code = new OracleParameter("p_language_code", OracleDbType.Varchar2, (object?)dto.LanguageCode ?? DBNull.Value, ParameterDirection.Input);
-
-                var p_status = new OracleParameter("p_status", OracleDbType.Varchar2, (object?)dto.Status ?? "ONGOING", ParameterDirection.Input);
-                var p_is_premium = new OracleParameter("p_is_premium", OracleDbType.Char, dto.IsPremium ? "Y" : "N", ParameterDirection.Input);
-
-                var p_imdb_id = new OracleParameter("p_imdb_id", OracleDbType.Varchar2, (object?)dto.ImdbId ?? DBNull.Value, ParameterDirection.Input);
-                var p_tmdb_id = new OracleParameter("p_tmdb_id", OracleDbType.Varchar2, (object?)dto.TmdbId ?? DBNull.Value, ParameterDirection.Input);
-
-                // OUT
-                var o_series_id = new OracleParameter("o_series_id", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
-
-                // Giữ đúng thứ tự tham số như SP (phòng trường hợp provider không BindByName)
-                var parameters = new OracleParameter[]
+                var parameters = new IDbDataParameter[]
                 {
-            p_title, p_original_title, p_overview,
-            p_first_air_date, p_last_air_date,
-            p_country_code, p_language_code,
-            p_status, p_is_premium, p_imdb_id, p_tmdb_id,
-            o_series_id, o_code, o_message
+            // SERIES
+            new SqlParameter("@p_title", SqlDbType.NVarChar, 255)
+            {
+                Value = dto.Title
+            },
+            new SqlParameter("@p_original_title", SqlDbType.NVarChar, 255)
+            {
+                Value = (object?)dto.OriginalTitle ?? DBNull.Value
+            },
+            new SqlParameter("@p_overview", SqlDbType.NVarChar)
+            {
+                Value = (object?)dto.Overview ?? DBNull.Value
+            },
+            new SqlParameter("@p_first_air_date", SqlDbType.Date)
+            {
+                Value = (object?)dto.FirstAirDate ?? DBNull.Value
+            },
+            new SqlParameter("@p_country_code", SqlDbType.NVarChar, 10)
+            {
+                Value = (object?)dto.CountryCode ?? DBNull.Value
+            },
+            new SqlParameter("@p_language_code", SqlDbType.NVarChar, 10)
+            {
+                Value = (object?)dto.LanguageCode ?? DBNull.Value
+            },
+            new SqlParameter("@p_status", SqlDbType.NVarChar, 50)
+            {
+                Value = (object?)dto.Status ?? "ONGOING"
+            },
+            new SqlParameter("@p_is_premium", SqlDbType.Char, 1)
+            {
+                Value = dto.IsPremium ? "Y" : "N"
+            },
+
+            // SEASON
+            new SqlParameter("@p_season_no", SqlDbType.Int)
+            {
+                Value = dto.SeasonNo <= 0 ? 1 : dto.SeasonNo
+            },
+            new SqlParameter("@p_season_title", SqlDbType.NVarChar, 255)
+            {
+                Value = (object?)dto.SeasonTitle ?? DBNull.Value
+            },
+            new SqlParameter("@p_season_overview", SqlDbType.NVarChar)
+            {
+                Value = (object?)dto.SeasonOverview ?? DBNull.Value
+            },
+            new SqlParameter("@p_season_air_date", SqlDbType.Date)
+            {
+                Value = (object?)dto.SeasonAirDate ?? DBNull.Value
+            },
+
+            // EPISODES JSON
+            new SqlParameter("@p_episodes_json", SqlDbType.NVarChar)
+            {
+                Value = string.IsNullOrWhiteSpace(dto.EpisodesJson) ? "[]" : dto.EpisodesJson
+            },
+
+            // OUTPUT
+            new SqlParameter("@o_series_id", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            },
+            new SqlParameter("@o_season_id", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            },
+            new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
+            {
+                Direction = ParameterDirection.Output
+            },
+            new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+            {
+                Direction = ParameterDirection.Output
+            }
                 };
 
-                var dataset = _baseProvider.GetDatasetFromSP("sp_series_add", parameters, _connectionString);
+                var dataset = _baseProvider.GetDatasetFromSP(
+                    "sp_series_add_with_season_eps",
+                    parameters,
+                    _connectionString
+                );
+
+                var seriesIdObj = parameters[13].Value;
+                var seasonIdObj = parameters[14].Value;
+                var codeObj = parameters[15].Value;
+                var messageObj = parameters[16].Value;
+
+                var code = codeObj?.ToString() ?? "500";
+                var message = messageObj?.ToString() ?? "Không có phản hồi";
+
+                int? seriesId = null;
+                if (seriesIdObj != null && seriesIdObj != DBNull.Value)
+                    seriesId = Convert.ToInt32(seriesIdObj);
+
+                int? seasonId = null;
+                if (seasonIdObj != null && seasonIdObj != DBNull.Value)
+                    seasonId = Convert.ToInt32(seasonIdObj);
 
                 return new CResponseMessage
                 {
+                    Success = code == "200",
+                    code = code,
+                    message = message,
                     Data = new
                     {
-                        DataSet = dataset,
-                        SeriesId = ReadNullableDecimal(o_series_id.Value)   // <-- FIX cast OracleDecimal
-                    },
-                    code = o_code.Value?.ToString() ?? "500",
-                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = o_code.Value?.ToString() == "200"
+                        SeriesId = seriesId,
+                        SeasonId = seasonId,
+                        Episodes = dataset
+                    }
                 };
             }
             catch (Exception ex)
@@ -136,50 +191,38 @@ namespace DataServiceLib.Implements.Admin.Series
         {
             try
             {
-                // IN parameters: theo đúng chữ ký sp_series_update
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal, dto.SeriesId, ParameterDirection.Input);
-
-                var p_title = new OracleParameter("p_title", OracleDbType.Varchar2, dto.Title, ParameterDirection.Input);
-                var p_original_title = new OracleParameter("p_original_title", OracleDbType.Varchar2, (object?)dto.OriginalTitle ?? DBNull.Value, ParameterDirection.Input);
-                var p_overview = new OracleParameter("p_overview", OracleDbType.Clob, (object?)dto.Overview ?? DBNull.Value, ParameterDirection.Input);
-
-                var p_first_air_date = new OracleParameter("p_first_air_date", OracleDbType.Date, (object?)dto.FirstAirDate ?? DBNull.Value, ParameterDirection.Input);
-                var p_last_air_date = new OracleParameter("p_last_air_date", OracleDbType.Date, (object?)dto.LastAirDate ?? DBNull.Value, ParameterDirection.Input);
-
-                var p_country_code = new OracleParameter("p_country_code", OracleDbType.Varchar2, (object?)dto.CountryCode ?? DBNull.Value, ParameterDirection.Input);
-                var p_language_code = new OracleParameter("p_language_code", OracleDbType.Varchar2, (object?)dto.LanguageCode ?? DBNull.Value, ParameterDirection.Input);
-
-                var p_status = new OracleParameter("p_status", OracleDbType.Varchar2, (object?)dto.Status ?? "ONGOING", ParameterDirection.Input);
-                var p_is_premium = new OracleParameter("p_is_premium", OracleDbType.Char, dto.IsPremium ? "Y" : "N", ParameterDirection.Input);
-
-                var p_imdb_id = new OracleParameter("p_imdb_id", OracleDbType.Varchar2, (object?)dto.ImdbId ?? DBNull.Value, ParameterDirection.Input);
-                var p_tmdb_id = new OracleParameter("p_tmdb_id", OracleDbType.Varchar2, (object?)dto.TmdbId ?? DBNull.Value, ParameterDirection.Input);
-
-                // OUT
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                { Direction = ParameterDirection.Output };
-
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                { Direction = ParameterDirection.Output };
-
-                var parameters = new OracleParameter[]
+                var parameters = new IDbDataParameter[]
                 {
-                    p_series_id,
-                    p_title, p_original_title, p_overview,
-                    p_first_air_date, p_last_air_date,
-                    p_country_code, p_language_code,
-                    p_status, p_is_premium, p_imdb_id, p_tmdb_id,
-                    o_code, o_message
+                    new SqlParameter("@p_series_id", SqlDbType.Decimal) { Value = dto.SeriesId },
+
+                    new SqlParameter("@p_title", SqlDbType.NVarChar) { Value = dto.Title },
+                    new SqlParameter("@p_original_title", SqlDbType.NVarChar) { Value = (object?)dto.OriginalTitle ?? DBNull.Value },
+                    new SqlParameter("@p_overview", SqlDbType.NVarChar) { Value = (object?)dto.Overview ?? DBNull.Value },
+
+                    new SqlParameter("@p_first_air_date", SqlDbType.DateTime) { Value = (object?)dto.FirstAirDate ?? DBNull.Value },
+                    new SqlParameter("@p_last_air_date", SqlDbType.DateTime) { Value = (object?)dto.LastAirDate ?? DBNull.Value },
+
+                    new SqlParameter("@p_country_code", SqlDbType.NVarChar) { Value = (object?)dto.CountryCode ?? DBNull.Value },
+                    new SqlParameter("@p_language_code", SqlDbType.NVarChar) { Value = (object?)dto.LanguageCode ?? DBNull.Value },
+
+                    new SqlParameter("@p_status", SqlDbType.NVarChar) { Value = (object?)dto.Status ?? "ONGOING" },
+                    new SqlParameter("@p_is_premium", SqlDbType.Char) { Value = dto.IsPremium ? "Y" : "N" },
+
+                    new SqlParameter("@p_imdb_id", SqlDbType.NVarChar) { Value = (object?)dto.ImdbId ?? DBNull.Value },
+                    new SqlParameter("@p_tmdb_id", SqlDbType.NVarChar) { Value = (object?)dto.TmdbId ?? DBNull.Value },
+
+                    new SqlParameter("@o_code", SqlDbType.VarChar, 10) { Direction = ParameterDirection.Output },
+                    new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output }
                 };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_series_update", parameters, _connectionString);
 
                 return new CResponseMessage
                 {
-                    Data = dataset, // SP update không mở cursor
-                    code = o_code.Value?.ToString() ?? "500",
-                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = o_code.Value?.ToString() == "200"
+                    Data = dataset,
+                    code = parameters[^2].Value?.ToString() ?? "500",
+                    message = parameters[^1].Value?.ToString() ?? "Không có phản hồi",
+                    Success = parameters[^2].Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)
@@ -198,24 +241,21 @@ namespace DataServiceLib.Implements.Admin.Series
         {
             try
             {
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal, seriesId, ParameterDirection.Input);
-
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                { Direction = ParameterDirection.Output };
-
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                { Direction = ParameterDirection.Output };
-
-                var parameters = new OracleParameter[] { p_series_id, o_code, o_message };
+                var parameters = new IDbDataParameter[]
+                {
+                    new SqlParameter("@p_series_id", SqlDbType.Decimal) { Value = seriesId },
+                    new SqlParameter("@o_code", SqlDbType.VarChar, 10) { Direction = ParameterDirection.Output },
+                    new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output }
+                };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_series_delete", parameters, _connectionString);
 
                 return new CResponseMessage
                 {
-                    Data = dataset, // SP delete không mở cursor
-                    code = o_code.Value?.ToString() ?? "500",
-                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = o_code.Value?.ToString() == "200"
+                    Data = dataset,
+                    code = parameters[1].Value?.ToString() ?? "500",
+                    message = parameters[2].Value?.ToString() ?? "Không có phản hồi",
+                    Success = parameters[1].Value?.ToString() == "200"
                 };
             }
             catch (Exception ex)

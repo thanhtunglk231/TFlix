@@ -3,7 +3,7 @@ using CoreLib.Dtos.MovieGenre;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -22,7 +22,7 @@ namespace DataServiceLib.Implements.Admin.Movies
         public CMovieGenre(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
         // ---------- GET ALL ----------
@@ -56,15 +56,14 @@ namespace DataServiceLib.Implements.Admin.Movies
         {
             try
             {
-                var p_movie_id = new OracleParameter("p_movie_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, genreId, ParameterDirection.Input);
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = movieId };
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = genreId };
 
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_movie_genre_get_by_pk",
-                    new[] { p_movie_id, p_genre_id, o_cursor, o_code, o_message }, _connectionString);
+                    new IDbDataParameter[] { p_movie_id, p_genre_id, o_code, o_message }, _connectionString);
 
                 return new CResponseMessage
                 {
@@ -85,13 +84,12 @@ namespace DataServiceLib.Implements.Admin.Movies
         {
             try
             {
-                var p_movie_id = new OracleParameter("p_movie_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = movieId };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_movie_genre_get_by_movie",
-                    new[] { p_movie_id, o_cursor, o_code, o_message }, _connectionString);
+                    new IDbDataParameter[] { p_movie_id, o_code, o_message }, _connectionString);
 
                 return new CResponseMessage
                 {
@@ -112,13 +110,12 @@ namespace DataServiceLib.Implements.Admin.Movies
         {
             try
             {
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, genreId, ParameterDirection.Input);
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = genreId };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_movie_genre_get_by_genre",
-                    new[] { p_genre_id, o_cursor, o_code, o_message }, _connectionString);
+                    new IDbDataParameter[] { p_genre_id, o_code, o_message }, _connectionString);
 
                 return new CResponseMessage
                 {
@@ -139,14 +136,14 @@ namespace DataServiceLib.Implements.Admin.Movies
         {
             try
             {
-                var p_movie_id = new OracleParameter("p_movie_id", OracleDbType.Decimal, addMovieAssetDto.MovieId, ParameterDirection.Input);
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, addMovieAssetDto.GenreId, ParameterDirection.Input);
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = addMovieAssetDto.MovieId };
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = addMovieAssetDto.GenreId };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_movie_genre_add",
-                    new[] { p_movie_id, p_genre_id, o_code, o_message }, _connectionString);
+                    new IDbDataParameter[] { p_movie_id, p_genre_id, o_code, o_message }, _connectionString);
 
                 return new CResponseMessage
                 {
@@ -167,15 +164,15 @@ namespace DataServiceLib.Implements.Admin.Movies
         {
             try
             {
-                var p_movie_id = new OracleParameter("p_movie_id", OracleDbType.Decimal, updateMovieGenreDto.MovieId, ParameterDirection.Input);
-                var p_old_genre_id = new OracleParameter("p_old_genre_id", OracleDbType.Decimal, updateMovieGenreDto.OldGenreId, ParameterDirection.Input);
-                var p_new_genre_id = new OracleParameter("p_new_genre_id", OracleDbType.Decimal, updateMovieGenreDto.NewGenreId, ParameterDirection.Input);
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = updateMovieGenreDto.MovieId };
+                var p_old_genre_id = new SqlParameter("@p_old_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = updateMovieGenreDto.OldGenreId };
+                var p_new_genre_id = new SqlParameter("@p_new_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = updateMovieGenreDto.NewGenreId };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_movie_genre_update",
-                    new[] { p_movie_id, p_old_genre_id, p_new_genre_id, o_code, o_message }, _connectionString);
+                    new IDbDataParameter[] { p_movie_id, p_old_genre_id, p_new_genre_id, o_code, o_message }, _connectionString);
 
                 return new CResponseMessage
                 {
@@ -196,14 +193,14 @@ namespace DataServiceLib.Implements.Admin.Movies
         {
             try
             {
-                var p_movie_id = new OracleParameter("p_movie_id", OracleDbType.Decimal, deleteMovieGenreDto.MovieId, ParameterDirection.Input);
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, deleteMovieGenreDto.GenreId, ParameterDirection.Input);
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = deleteMovieGenreDto.MovieId };
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = deleteMovieGenreDto.GenreId };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_movie_genre_delete",
-                    new[] { p_movie_id, p_genre_id, o_code, o_message }, _connectionString);
+                    new IDbDataParameter[] { p_movie_id, p_genre_id, o_code, o_message }, _connectionString);
 
                 return new CResponseMessage
                 {

@@ -27,7 +27,13 @@ namespace WebBrowser.Services.Implements
     var resp = await _httpService.GetAsync<ApiResponse<PreviewTableWrapper>>(url);
 
     Console.WriteLine("[get_preview] <- EXIT: " + JsonConvert.SerializeObject(resp));
+    if (resp == null)
+    {
+        return new ApiResponse<PreviewTableWrapper> { code = "500", success = false, message = "Null response from API", Data = new PreviewTableWrapper() };
+    }
+
     resp.success = resp.success || resp.code == "200";
+    resp.Data ??= new PreviewTableWrapper();
     return resp;
 }
 

@@ -35,12 +35,24 @@ namespace WebBrowser.Controllers
             Console.WriteLine("[Preview.Details] resp = " + JsonConvert.SerializeObject(resp));
 
             // resp: ApiResponse<PreviewTableWrapper>
-            if (resp == null || resp.Data == null )
+            if (resp == null)
+            {
+                return NotFound("Không lấy được phản hồi từ service");
+            }
+
+            if (!resp.success)
+            {
+                // Forward message from API if any
+                return NotFound(resp.message ?? "Không tìm thấy nội dung");
+            }
+
+            if (resp.Data == null || resp.Data.Table == null || resp.Data.Table.Count == 0)
             {
                 return NotFound("Không tìm thấy nội dung");
             }
 
-            PreviewItem movie = resp.Data.Table[0];
+            // Safe access first item
+            var movie = resp.Data.Table[0];
 
             // View Index.cshtml đang khai báo @model PreviewItem
             return View("Index", movie);

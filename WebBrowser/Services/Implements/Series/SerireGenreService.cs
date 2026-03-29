@@ -65,11 +65,23 @@ namespace WebBrowser.Services.Implements.Series
         public async Task<ApiResponse<SeriesGenreTableWrapper>> get_byid(decimal id)
         {
             string url = $"/api/SeriesGenres/getbyid?id={id}";
-            Console.WriteLine("[SeriesGenresService] -> get_all ENTER url=" + url);
+            Console.WriteLine("[SeriesGenresService] -> get_byid ENTER url=" + url);
 
-            var resp = await _httpService.GetAsync<ApiResponse<SeriesGenreTableWrapper>>(url);
+            var wrapped = await _httpService.GetAsync<HttpWrappedResponse<ApiResponse<SeriesGenreTableWrapper>>>(url);
 
-            Console.WriteLine("[SeriesGenresService] <- get_all EXIT: " + JsonConvert.SerializeObject(resp));
+            Console.WriteLine("[SeriesGenresService] <- get_byid WRAPPED: " + JsonConvert.SerializeObject(wrapped));
+
+            var resp = wrapped?.Result ?? new ApiResponse<SeriesGenreTableWrapper>
+            {
+                code = "500",
+                success = false,
+                message = "Không lấy được dữ liệu",
+                Data = new SeriesGenreTableWrapper()
+            };
+
+            Console.WriteLine("[SeriesGenresService] <- get_byid RESULT: " + JsonConvert.SerializeObject(resp));
+            Console.WriteLine("[SeriesGenresService] <- get_byid TABLE: " + JsonConvert.SerializeObject(resp?.Data?.Table));
+
             resp.success = resp.success || resp.code == "200";
             return resp;
         }

@@ -36,7 +36,7 @@ namespace WebBrowser.Services.Implements.Movies
             return resp!;
         }
 
-        public async Task<CResponseMessage> uppdate_Movie(AddMovieDto updateDto)
+        public async Task<CResponseMessage> uppdate_Movie(UpdateMovieDto updateDto)
         {
             const string url = "/api/Movie/update";
             Console.WriteLine("[MovieService] -> update_Movie ENTER url=" + url);

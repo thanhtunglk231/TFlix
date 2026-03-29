@@ -3,8 +3,7 @@ using CoreLib.Dtos.Episode;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
-using Oracle.ManagedDataAccess.Types;   // ✅ THÊM
+using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Threading.Tasks;
@@ -19,18 +18,17 @@ namespace DataServiceLib.Implements.Admin.Episodes
         public CEpisode(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
         public async Task<CResponseMessage> sp_get_all_episode()
         {
             try
             {
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] { o_cursor, o_code, o_message };
+                var parameters = new IDbDataParameter[] { o_code, o_message };
                 var dataset = _baseProvider.GetDatasetFromSP("sp_get_all_episode", parameters, _connectionString);
 
                 return new CResponseMessage
@@ -52,12 +50,11 @@ namespace DataServiceLib.Implements.Admin.Episodes
         {
             try
             {
-                var p_asset_id = new OracleParameter("p_asset_id", OracleDbType.Decimal, 10) { Direction = ParameterDirection.Input, Value=id };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
+                var p_asset_id = new SqlParameter("@p_asset_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = id };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] { o_cursor, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_asset_id, o_code, o_message };
                 var dataset = _baseProvider.GetDatasetFromSP("sp_episode_asset_get_by_id", parameters, _connectionString);
 
                 return new CResponseMessage
@@ -79,23 +76,24 @@ namespace DataServiceLib.Implements.Admin.Episodes
             try
             {
                 // IN
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal, addEpisodeDto.SeriesId, ParameterDirection.Input);
-                var p_season_id = new OracleParameter("p_season_id", OracleDbType.Decimal, addEpisodeDto.SeasonId, ParameterDirection.Input);
-                var p_episode_no = new OracleParameter("p_episode_no", OracleDbType.Int32, addEpisodeDto.EpisodeNo, ParameterDirection.Input);
-                var p_title = new OracleParameter("p_title", OracleDbType.Varchar2, addEpisodeDto.Title, ParameterDirection.Input);
-                var p_air_date = new OracleParameter("p_air_date", OracleDbType.Date, (object?)addEpisodeDto.AirDate ?? DBNull.Value, ParameterDirection.Input);
-                var p_duration_min = new OracleParameter("p_duration_min", OracleDbType.Int32, (object?)addEpisodeDto.DurationMin ?? DBNull.Value, ParameterDirection.Input);
-                var p_overview = new OracleParameter("p_overview", OracleDbType.Clob, (object?)addEpisodeDto.Overview ?? DBNull.Value, ParameterDirection.Input);
-                var p_status = new OracleParameter("p_status", OracleDbType.Varchar2, string.IsNullOrWhiteSpace(addEpisodeDto.Status) ? "PUBLISHED" : addEpisodeDto.Status, ParameterDirection.Input);
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = addEpisodeDto.SeriesId };
+                var p_season_id = new SqlParameter("@p_season_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = addEpisodeDto.SeasonId };
+                var p_episode_no = new SqlParameter("@p_episode_no", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = addEpisodeDto.EpisodeNo };
+                var p_title = new SqlParameter("@p_title", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.Title ?? DBNull.Value };
+                var p_air_date = new SqlParameter("@p_air_date", SqlDbType.DateTime) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.AirDate ?? DBNull.Value };
+                var p_duration_min = new SqlParameter("@p_duration_min", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.DurationMin ?? DBNull.Value };
+                var p_overview = new SqlParameter("@p_overview", SqlDbType.NVarChar, -1) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.Overview ?? DBNull.Value };
+                var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = string.IsNullOrWhiteSpace(addEpisodeDto.Status) ? "PUBLISHED" : addEpisodeDto.Status };
                 // ✅ CHAR(1) + truyền đúng 'Y'/'N'
-                var p_is_premium = new OracleParameter("p_is_premium", OracleDbType.Char, 1, addEpisodeDto.IsPremium ? "Y" : "N", ParameterDirection.Input);
+                var p_is_premium = new SqlParameter("@p_is_premium", SqlDbType.Char, 1) { Direction = ParameterDirection.Input, Value = addEpisodeDto.IsPremium ? "Y" : "N" };
 
                 // OUT
-                var o_episode_id = new OracleParameter("o_episode_id", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[]
+                var o_episode_id = new SqlParameter("@o_episode_id", SqlDbType.Decimal) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+
+                var parameters = new IDbDataParameter[]
                 {
                     p_series_id, p_season_id, p_episode_no, p_title,
                     p_air_date, p_duration_min, p_overview, p_status, p_is_premium,
@@ -108,8 +106,7 @@ namespace DataServiceLib.Implements.Admin.Episodes
                 decimal? newId = null;
                 if (o_episode_id.Value != null && o_episode_id.Value != DBNull.Value)
                 {
-                    var od = (OracleDecimal)o_episode_id.Value;
-                    if (!od.IsNull) newId = od.Value;
+                    newId = Convert.ToDecimal(o_episode_id.Value);
                 }
 
                 return new CResponseMessage
@@ -130,23 +127,21 @@ namespace DataServiceLib.Implements.Admin.Episodes
         {
             try
             {
-                var p_episode_id = new OracleParameter("p_episode_id", OracleDbType.Decimal, dto.EpisodeId, ParameterDirection.Input);
-                var p_series_id = new OracleParameter("p_series_id", OracleDbType.Decimal,
-                        (object?)dto.SeriesId ?? DBNull.Value, ParameterDirection.Input);
-                var p_season_id = new OracleParameter("p_season_id", OracleDbType.Decimal,
-                                        (object?)dto.SeasonId ?? DBNull.Value, ParameterDirection.Input);
-                var p_title = new OracleParameter("p_title", OracleDbType.Varchar2, dto.Title, ParameterDirection.Input);
-                var p_episode_no = new OracleParameter("p_episode_no", OracleDbType.Int32, dto.EpisodeNo, ParameterDirection.Input);
-                var p_air_date = new OracleParameter("p_air_date", OracleDbType.Date, (object?)dto.AirDate ?? DBNull.Value, ParameterDirection.Input);
-                var p_duration_min = new OracleParameter("p_duration_min", OracleDbType.Int32, (object?)dto.DurationMin ?? DBNull.Value, ParameterDirection.Input);
-                var p_overview = new OracleParameter("p_overview", OracleDbType.Clob, (object?)dto.Overview ?? DBNull.Value, ParameterDirection.Input);
-                var p_status = new OracleParameter("p_status", OracleDbType.Varchar2, string.IsNullOrWhiteSpace(dto.Status) ? "PUBLISHED" : dto.Status, ParameterDirection.Input);
-                var p_is_premium = new OracleParameter("p_is_premium", OracleDbType.Char, 1, dto.IsPremium ? "Y" : "N", ParameterDirection.Input);
+                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = dto.EpisodeId };
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = (object?)dto.SeriesId ?? DBNull.Value };
+                var p_season_id = new SqlParameter("@p_season_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = (object?)dto.SeasonId ?? DBNull.Value };
+                var p_title = new SqlParameter("@p_title", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Input, Value = (object?)dto.Title ?? DBNull.Value };
+                var p_episode_no = new SqlParameter("@p_episode_no", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = dto.EpisodeNo };
+                var p_air_date = new SqlParameter("@p_air_date", SqlDbType.DateTime) { Direction = ParameterDirection.Input, Value = (object?)dto.AirDate ?? DBNull.Value };
+                var p_duration_min = new SqlParameter("@p_duration_min", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = (object?)dto.DurationMin ?? DBNull.Value };
+                var p_overview = new SqlParameter("@p_overview", SqlDbType.NVarChar, -1) { Direction = ParameterDirection.Input, Value = (object?)dto.Overview ?? DBNull.Value };
+                var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = string.IsNullOrWhiteSpace(dto.Status) ? "PUBLISHED" : dto.Status };
+                var p_is_premium = new SqlParameter("@p_is_premium", SqlDbType.Char, 1) { Direction = ParameterDirection.Input, Value = dto.IsPremium ? "Y" : "N" };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[]
+                var parameters = new IDbDataParameter[]
                 {
                     p_episode_id,p_series_id,p_season_id, p_title, p_episode_no, p_air_date,
                     p_duration_min, p_overview, p_status, p_is_premium,
@@ -173,11 +168,11 @@ namespace DataServiceLib.Implements.Admin.Episodes
         {
             try
             {
-                var p_episode_id = new OracleParameter("p_episode_id", OracleDbType.Decimal, episodeId, ParameterDirection.Input);
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = episodeId };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] { p_episode_id, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_episode_id, o_code, o_message };
                 var dataset = _baseProvider.GetDatasetFromSP("sp_episode_delete", parameters, _connectionString);
 
                 return new CResponseMessage

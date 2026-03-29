@@ -1,26 +1,18 @@
 ﻿using CoreLib.Models;
 using DataServiceLib.Interfaces;
-using Oracle.ManagedDataAccess.Client;
-using System;
-using System.Collections.Generic;
+using Microsoft.Data.SqlClient;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataServiceLib.Implements
 {
     public class CBaseProvider : ICBaseProvider
     {
-
-        private OracleConnection _connection;
-        private OracleCommand _command;
-        private OracleDataAdapter _adapter;
-
+        private SqlConnection _connection;
+        private SqlCommand _command;
+        private SqlDataAdapter _adapter;
 
         public CBaseProvider()
         {
-
         }
 
         public bool OpenConnection(string connectionString)
@@ -29,16 +21,15 @@ namespace DataServiceLib.Implements
             {
                 if (_connection == null || _connection.State != ConnectionState.Open)
                 {
-                    _connection = new OracleConnection(connectionString);
+                    _connection = new SqlConnection(connectionString);
                     _connection.Open();
-                    Console.WriteLine("Opened Oracle connection.");
+                    Console.WriteLine("Opened SQL Server connection.");
                 }
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex + "Failed to open Oracle connection.");
-
+                Console.WriteLine(ex + " Failed to open SQL Server connection.");
                 return false;
             }
         }
@@ -47,32 +38,41 @@ namespace DataServiceLib.Implements
         {
             try
             {
-                if (_connection?.State == ConnectionState.Open)
+                if (_connection != null)
                 {
-                    _connection.Close();
+                    if (_connection.State == ConnectionState.Open)
+                    {
+                        _connection.Close();
+                    }
+
                     _connection.Dispose();
-                    _command?.Dispose();
                     _connection = null;
-                    Console.WriteLine("Closed Oracle connection.");
                 }
+
+                _command?.Dispose();
+                _command = null;
+
+                _adapter?.Dispose();
+                _adapter = null;
+
+                Console.WriteLine("Closed SQL Server connection.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex + "Failed to close Oracle connection.");
-                //WriteToFile(ex);
+                Console.WriteLine(ex + " Failed to close SQL Server connection.");
             }
         }
 
-        // 1. Trả về DataSet
         public DataSet GetDatasetFromSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
             var dataset = new DataSet();
+
             if (!OpenConnection(connectionString))
                 return dataset;
 
             try
             {
-                _command = new OracleCommand(spName, _connection)
+                _command = new SqlCommand(spName, _connection)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
@@ -80,10 +80,13 @@ namespace DataServiceLib.Implements
                 if (parameters != null)
                 {
                     foreach (var param in parameters)
-                        _command.Parameters.Add(param);
+                    {
+                        if (param is SqlParameter sqlParam)
+                            _command.Parameters.Add(sqlParam);
+                    }
                 }
 
-                _adapter = new OracleDataAdapter(_command);
+                _adapter = new SqlDataAdapter(_command);
                 _adapter.Fill(dataset);
             }
             catch (Exception ex)
@@ -94,13 +97,16 @@ namespace DataServiceLib.Implements
             finally
             {
                 _command?.Dispose();
+                _command = null;
+
                 _adapter?.Dispose();
+                _adapter = null;
+
                 CloseConnection();
             }
 
             return dataset;
         }
-
 
         public DataTable GetDataTableFromSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
@@ -108,23 +114,22 @@ namespace DataServiceLib.Implements
             return ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
         }
 
-
         public DataRow GetDataRowFromSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
             var dt = GetDataTableFromSP(spName, parameters, connectionString);
-            return dt.Rows.Count > 0 ? dt.Rows[0] : dt.NewRow();
+            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
         }
-
 
         public bool ExecuteSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
             bool success = false;
+
             if (!OpenConnection(connectionString))
                 return false;
 
             try
             {
-                _command = new OracleCommand(spName, _connection)
+                _command = new SqlCommand(spName, _connection)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
@@ -132,10 +137,14 @@ namespace DataServiceLib.Implements
                 if (parameters != null)
                 {
                     foreach (var param in parameters)
-                        _command.Parameters.Add(param);
+                    {
+                        if (param is SqlParameter sqlParam)
+                            _command.Parameters.Add(sqlParam);
+                    }
                 }
 
-                success = _command.ExecuteNonQuery() > 0;
+                _command.ExecuteNonQuery();
+                success = true;
             }
             catch (Exception ex)
             {
@@ -144,18 +153,22 @@ namespace DataServiceLib.Implements
             finally
             {
                 _command?.Dispose();
+                _command = null;
+
                 CloseConnection();
             }
 
             return success;
         }
+
         public (DataRow Row, CResponseMessage Response) GetDataRowAndResponseFromSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
-            var code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
+            var code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
             {
                 Direction = ParameterDirection.Output
             };
-            var message = new OracleParameter("o_message", OracleDbType.Varchar2, 200)
+
+            var message = new SqlParameter("@o_message", SqlDbType.NVarChar, 200)
             {
                 Direction = ParameterDirection.Output
             };
@@ -170,27 +183,23 @@ namespace DataServiceLib.Implements
             var response = new CResponseMessage
             {
                 code = code.Value?.ToString(),
-                message = message.Value?.ToString()
+                message = message.Value?.ToString(),
+                Success = code.Value?.ToString() == "1"
             };
 
             return (row, response);
         }
 
-
         public CResponseMessage GetResponseFromExecutedSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
-            var code = new OracleParameter("o_code", OracleDbType.Varchar2)
+            var code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
             {
-                Size = 10,
-                Direction = ParameterDirection.Output,
-                Value = DBNull.Value
+                Direction = ParameterDirection.Output
             };
 
-            var message = new OracleParameter("o_message", OracleDbType.Varchar2)
+            var message = new SqlParameter("@o_message", SqlDbType.NVarChar, 200)
             {
-                Size = 200,
-                Direction = ParameterDirection.Output,
-                Value = DBNull.Value
+                Direction = ParameterDirection.Output
             };
 
             var paramList = parameters?.ToList() ?? new List<IDbDataParameter>();
@@ -202,21 +211,21 @@ namespace DataServiceLib.Implements
             return new CResponseMessage
             {
                 code = code.Value?.ToString(),
-                message = message.Value?.ToString()
+                message = message.Value?.ToString(),
+                Success = code.Value?.ToString() == "1"
             };
         }
+
         public (DataSet Data, CResponseMessage Response) GetDatasetAndResponseFromSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
-            var code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
+            var code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
             {
-                Direction = ParameterDirection.Output,
-                Value = DBNull.Value
+                Direction = ParameterDirection.Output
             };
 
-            var message = new OracleParameter("o_message", OracleDbType.Varchar2, 200)
+            var message = new SqlParameter("@o_message", SqlDbType.NVarChar, 200)
             {
-                Direction = ParameterDirection.Output,
-                Value = DBNull.Value
+                Direction = ParameterDirection.Output
             };
 
             var paramList = parameters?.ToList() ?? new List<IDbDataParameter>();
@@ -228,7 +237,8 @@ namespace DataServiceLib.Implements
             var response = new CResponseMessage
             {
                 code = code.Value?.ToString(),
-                message = message.Value?.ToString()
+                message = message.Value?.ToString(),
+                Success = code.Value?.ToString() == "1"
             };
 
             return (dataset, response);

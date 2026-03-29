@@ -7,37 +7,44 @@ namespace WebBrowser.Areas.Admin.Controllers
     [Area("Admin")]
     public class SeriesGenreController : Controller
     {
-        private readonly ISerireGenreService _movieGenreService;
-        public SeriesGenreController(ISerireGenreService movieGenreService)
+        private readonly ISerireGenreService _seriesGenreService;
+
+        public SeriesGenreController(ISerireGenreService seriesGenreService)
         {
-            _movieGenreService = movieGenreService;
+            _seriesGenreService = seriesGenreService;
         }
+
         public IActionResult Index()
         {
             return View();
         }
 
-        public async Task<IActionResult> GetByMovie(decimal id)
+        [HttpGet]
+        public async Task<IActionResult> GetBySeries(decimal id)
         {
-            var result = await _movieGenreService.get_byid(id);
-            return Ok(result);
-        }
-        public async Task<IActionResult> Add(AddSeriesGenreDto addMovieGenreDto)
-        {
-            var result = await _movieGenreService.add_MovieGenre(addMovieGenreDto);
+            var result = await _seriesGenreService.get_byid(id);
             return Ok(result);
         }
 
-        public async Task<IActionResult> Update(UpdateSeriesGenreDto updateMovieGenreDto)
+        [HttpPost]
+        public async Task<IActionResult> Add([FromBody] AddSeriesGenreDto dto)
         {
-            var result = await _movieGenreService.uppdate_MovieGenre(updateMovieGenreDto);
+            var result = await _seriesGenreService.add_MovieGenre(dto);
             return Ok(result);
         }
-        public async Task<IActionResult> Delete(DeleteSeriesGenreDto deleteMovieGenreDto)
-        {
-            var result = await _movieGenreService.delete_Episode(deleteMovieGenreDto);
-            return Ok(result);
 
+        [HttpPost]
+        public async Task<IActionResult> Update([FromBody] UpdateSeriesGenreDto dto)
+        {
+            var result = await _seriesGenreService.uppdate_MovieGenre(dto);
+            return Ok(result);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Delete([FromBody] DeleteSeriesGenreDto dto)
+        {
+            var result = await _seriesGenreService.delete_Episode(dto);
+            return Ok(result);
         }
     }
 }

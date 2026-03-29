@@ -11,6 +11,6 @@ namespace WebBrowser.Services.Interfaces
         Task<CResponseMessage> add_Movie(AddMovieDto addSeriesDto);
         Task<CResponseMessage> delete_Season(decimal id);
         Task<ApiResponse<MovieTableWrapper>> get_all();
-        Task<CResponseMessage> uppdate_Movie(AddMovieDto updateDto);
+        Task<CResponseMessage> uppdate_Movie(UpdateMovieDto updateDto);
     }
 }

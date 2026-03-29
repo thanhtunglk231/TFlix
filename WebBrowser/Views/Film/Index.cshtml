@@ -10,7 +10,7 @@
     var isLoggedIn = !string.IsNullOrEmpty(token);
 
     // Lấy các giá trị từ Model (đã gắn Binding từ JSON)
-    var movieTitle = Model.OriginalTitle ?? "Duty After School – Học Kỳ Sinh Tử";
+    var movieTitle = Model.OriginalTitle ?? Model.title ?? "Duty After School – Học Kỳ Sinh Tử";
     var movieYear = Model.ReleaseOrAirDate?.Year ?? 2024; // Lấy năm từ ReleaseOrAirDate
     var movieGenres = Model.genres ?? "Hành động · Viễn tưởng · Hàn Quốc"; // genres từ Model
     var rating = 0.0; // Không có rating trong JSON nhưng có thể thêm vào sau

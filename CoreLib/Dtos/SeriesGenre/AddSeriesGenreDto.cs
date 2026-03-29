@@ -8,7 +8,7 @@ namespace CoreLib.Dtos.SeriesGenre
 {
     public class AddSeriesGenreDto
     {
-        public decimal SeriesId { get; set; }
-        public decimal GenreId { get; set; }
+        public int SeriesId { get; set; }
+        public int GenreId { get; set; }
     }
 }

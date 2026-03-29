@@ -2,8 +2,7 @@
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
-using Oracle.ManagedDataAccess.Types;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Threading.Tasks;
@@ -18,7 +17,7 @@ namespace DataServiceLib.Implements.Admin
         public CGenres(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
         // ========== GET ALL ==========
@@ -26,11 +25,10 @@ namespace DataServiceLib.Implements.Admin
         {
             try
             {
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] { o_cursor, o_code, o_message };
+                var parameters = new IDbDataParameter[] { o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_genre_get_all", parameters, _connectionString);
 
@@ -58,23 +56,22 @@ namespace DataServiceLib.Implements.Admin
         {
             try
             {
-                var p_genre_name = new OracleParameter("p_genre_name", OracleDbType.Varchar2, (object?)dto.genreName ?? DBNull.Value, ParameterDirection.Input);
-                var p_slug = new OracleParameter("p_slug", OracleDbType.Varchar2, (object?)dto.slug ?? DBNull.Value, ParameterDirection.Input);
+                var p_genre_name = new SqlParameter("@p_genre_name", SqlDbType.NVarChar, 200) { Direction = ParameterDirection.Input, Value = (object?)dto.genreName ?? DBNull.Value };
+                var p_slug = new SqlParameter("@p_slug", SqlDbType.NVarChar, 200) { Direction = ParameterDirection.Input, Value = (object?)dto.slug ?? DBNull.Value };
 
-                var o_genre_id = new OracleParameter("o_genre_id", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_genre_id = new SqlParameter("@o_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] { p_genre_name, p_slug, o_genre_id, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_genre_name, p_slug, o_genre_id, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_genre_add", parameters, _connectionString);
 
-                // Đọc OUTPUT NUMBER (Oracle NUMBER -> OracleDecimal)
+                // Đọc OUTPUT NUMBER (SQL Server decimal)
                 decimal? genreId = null;
-                if (o_genre_id.Value != DBNull.Value)
+                if (o_genre_id.Value != DBNull.Value && o_genre_id.Value != null)
                 {
-                    var od = (OracleDecimal)o_genre_id.Value;
-                    if (!od.IsNull) genreId = od.Value; // decimal
+                    genreId = Convert.ToDecimal(o_genre_id.Value);
                 }
 
                 return new CResponseMessage
@@ -101,14 +98,14 @@ namespace DataServiceLib.Implements.Admin
         {
             try
             {
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, dto.GenreId, ParameterDirection.Input);
-                var p_genre_name = new OracleParameter("p_genre_name", OracleDbType.Varchar2, (object?)dto.genreName ?? DBNull.Value, ParameterDirection.Input);
-                var p_slug = new OracleParameter("p_slug", OracleDbType.Varchar2, (object?)dto.slug ?? DBNull.Value, ParameterDirection.Input);
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = dto.GenreId };
+                var p_genre_name = new SqlParameter("@p_genre_name", SqlDbType.NVarChar, 200) { Direction = ParameterDirection.Input, Value = (object?)dto.genreName ?? DBNull.Value };
+                var p_slug = new SqlParameter("@p_slug", SqlDbType.NVarChar, 200) { Direction = ParameterDirection.Input, Value = (object?)dto.slug ?? DBNull.Value };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] { p_genre_id, p_genre_name, p_slug, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_genre_id, p_genre_name, p_slug, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_genre_update", parameters, _connectionString);
 
@@ -136,11 +133,11 @@ namespace DataServiceLib.Implements.Admin
         {
             try
             {
-                var p_genre_id = new OracleParameter("p_genre_id", OracleDbType.Decimal, genreId, ParameterDirection.Input);
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var p_genre_id = new SqlParameter("@p_genre_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = genreId };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] { p_genre_id, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_genre_id, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_genre_delete", parameters, _connectionString);
 

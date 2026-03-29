@@ -25,7 +25,7 @@ namespace DataServiceLib.Implements
             var options = new RestClientOptions(SupabaseConfig.SupabaseUrl);
             _client = new RestClient(options);
 
-            // Đặt header mặc định cho mọi request
+            // Header mặc định cho mọi request
             _client.AddDefaultHeader("apikey", SupabaseConfig.SupabaseApiKey);
             _client.AddDefaultHeader("Authorization", $"Bearer {SupabaseConfig.SupabaseApiKey}");
         }
@@ -100,38 +100,59 @@ namespace DataServiceLib.Implements
         }
 
         /// <summary>
-        /// Upload 1 file lên bucket và trả về public URL.
+        /// Upload 1 file với đường dẫn chỉ định (objectPath) và trả về public URL.
+        /// Dùng cho HLS để giữ nguyên tên file trong playlist/segments.
         /// </summary>
-        public async Task<string?> UploadFileAsync(IFormFile file)
+        public async Task<string?> UploadFileAsync(IFormFile file, string objectPath)
         {
             if (file == null || file.Length == 0)
                 return null;
 
-            var fileName = $"products/{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-            var relativeUrl = $"/storage/v1/object/{SupabaseConfig.StorageBucket}/{fileName}";
+            if (string.IsNullOrWhiteSpace(objectPath))
+                throw new ArgumentException("objectPath không được rỗng.", nameof(objectPath));
+
+            // Bỏ dấu / đầu nếu có
+            objectPath = objectPath.TrimStart('/');
+
+            // Encode path (từng segment)
+            var encodedPath = EncodeObjectPath(objectPath);
+
+            var relativeUrl = $"/storage/v1/object/{SupabaseConfig.StorageBucket}/{encodedPath}";
 
             using var memoryStream = new MemoryStream();
             await file.CopyToAsync(memoryStream);
             memoryStream.Position = 0;
 
             var request = new RestRequest(relativeUrl, Method.Put);
-            // Nếu cần, có thể đặt Content-Type cho body
             request.AddHeader("Content-Type", file.ContentType);
-
-            // RestSharp hiện đại: AddBody(byte[]) – một số phiên bản cần AddParameter như bạn dùng
             request.AddParameter(file.ContentType, memoryStream.ToArray(), ParameterType.RequestBody);
-            // Hoặc: request.AddBody(memoryStream.ToArray(), file.ContentType);
 
             var response = await _client.ExecuteAsync(request);
 
             if (response.IsSuccessful)
             {
-                var publicUrl = $"{SupabaseConfig.SupabaseUrl}/storage/v1/object/public/{SupabaseConfig.StorageBucket}/{fileName}";
+                var publicUrl =
+                    $"{SupabaseConfig.SupabaseUrl}/storage/v1/object/public/{SupabaseConfig.StorageBucket}/{encodedPath}";
                 return publicUrl;
             }
 
             Console.WriteLine("Supabase Upload Error: " + response.Content);
             return null;
+        }
+
+        /// <summary>
+        /// Upload 1 file lên bucket với đường dẫn auto (products/{guid}.ext) và trả về public URL.
+        /// Giữ cho code cũ vẫn chạy được.
+        /// </summary>
+        public Task<string?> UploadFileAsync(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return Task.FromResult<string?>(null);
+
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            var objectPath = $"products/{fileName}";
+
+            return UploadFileAsync(file, objectPath);
         }
     }
 }

@@ -3,8 +3,7 @@ using CoreLib.Dtos.Movies;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
-using Oracle.ManagedDataAccess.Types;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -22,7 +21,7 @@ namespace DataServiceLib.Implements.Admin.Movies
         public CMovie(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
 
@@ -32,21 +31,16 @@ namespace DataServiceLib.Implements.Admin.Movies
             {
 
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
                 {
                     Direction = ParameterDirection.Output
                 };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                {
-                    Direction = ParameterDirection.Output
-                };
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor)
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
                 {
                     Direction = ParameterDirection.Output
                 };
 
-                
-                var parameters = new OracleParameter[] { o_cursor, o_code, o_message };
+                var parameters = new IDbDataParameter[] { o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_get_all_movie", parameters, _connectionString);
 
@@ -73,24 +67,31 @@ namespace DataServiceLib.Implements.Admin.Movies
             try
             {
                 // IN parameters
-                var p_title = new OracleParameter("p_title", OracleDbType.Varchar2, addMovieDto.Title, ParameterDirection.Input);
-                var p_release_date = new OracleParameter("p_release_date", OracleDbType.Date, (object?)addMovieDto.ReleaseDate ?? DBNull.Value, ParameterDirection.Input);
-                var p_duration_min = new OracleParameter("p_duration_min", OracleDbType.Int32, (object?)addMovieDto.DurationMin ?? DBNull.Value, ParameterDirection.Input);
-                var p_language_code = new OracleParameter("p_language_code", OracleDbType.Varchar2, (object?)addMovieDto.LanguageCode ?? DBNull.Value, ParameterDirection.Input);
-                var p_country_code = new OracleParameter("p_country_code", OracleDbType.Varchar2, (object?)addMovieDto.CountryCode ?? DBNull.Value, ParameterDirection.Input);
+                var p_title = new SqlParameter("@p_title", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.Title ?? DBNull.Value };
+                var p_release_date = new SqlParameter("@p_release_date", SqlDbType.DateTime) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.ReleaseDate ?? DBNull.Value };
+                var p_duration_min = new SqlParameter("@p_duration_min", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.DurationMin ?? DBNull.Value };
+                // Trim codes to typical 2-char ISO codes to avoid DB truncation if DB column is short
+                string? lang = addMovieDto.LanguageCode;
+                if (!string.IsNullOrWhiteSpace(lang) && lang.Length > 2) lang = lang.Substring(0, 2);
+                string? country = addMovieDto.CountryCode;
+                if (!string.IsNullOrWhiteSpace(country) && country.Length > 2) country = country.Substring(0, 2);
+                var p_language_code = new SqlParameter("@p_language_code", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)lang ?? DBNull.Value };
+
+                var p_original_title = new SqlParameter("@p_original_title", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.OriginalTitle ?? DBNull.Value };
+                var p_country_code = new SqlParameter("@p_country_code", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)country ?? DBNull.Value };
                 // ✅ CHAR(1) cho Y/N
-                var p_is_premium = new OracleParameter("p_is_premium", OracleDbType.Char, 1, addMovieDto.IsPremium ? "Y" : "N", ParameterDirection.Input);
-                var p_overview = new OracleParameter("p_overview", OracleDbType.Clob, (object?)addMovieDto.Overview ?? DBNull.Value, ParameterDirection.Input);
-                var p_status = new OracleParameter("p_status", OracleDbType.Varchar2, (object?)addMovieDto.Status ?? "PUBLISHED", ParameterDirection.Input);
+                var p_is_premium = new SqlParameter("@p_is_premium", SqlDbType.Char, 1) { Direction = ParameterDirection.Input, Value = addMovieDto.IsPremium ? "Y" : "N" };
+                var p_overview = new SqlParameter("@p_overview", SqlDbType.NVarChar, -1) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.Overview ?? DBNull.Value };
+                var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.Status ?? "PUBLISHED" };
 
                 // OUT parameters
-                var o_movie_id = new OracleParameter("o_movie_id", OracleDbType.Decimal) { Direction = ParameterDirection.Output };
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+                var o_movie_id = new SqlParameter("@o_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[]
+                var parameters = new IDbDataParameter[]
                 {
-            p_title, p_release_date, p_duration_min,
+            p_title,p_original_title, p_release_date, p_duration_min,
             p_language_code, p_country_code, p_is_premium,
             p_overview, p_status,
             o_movie_id, o_code, o_message
@@ -102,8 +103,7 @@ namespace DataServiceLib.Implements.Admin.Movies
                 decimal? newId = null;
                 if (o_movie_id.Value != null && o_movie_id.Value != DBNull.Value)
                 {
-                    var od = (OracleDecimal)o_movie_id.Value;
-                    if (!od.IsNull) newId = od.Value;
+                    newId = Convert.ToDecimal(o_movie_id.Value);
                 }
 
                 return new CResponseMessage
@@ -130,29 +130,30 @@ namespace DataServiceLib.Implements.Admin.Movies
             try
             {
                 // IN parameters
-                var p_movie_id = new OracleParameter("p_movie_id", OracleDbType.Decimal, updateMovieDto.Movideid, ParameterDirection.Input);
-                var p_title = new OracleParameter("p_title", OracleDbType.Varchar2, updateMovieDto.Title, ParameterDirection.Input);
-                var p_release_date = new OracleParameter("p_release_date", OracleDbType.Date, (object?)updateMovieDto.ReleaseDate ?? DBNull.Value, ParameterDirection.Input);
-                var p_duration_min = new OracleParameter("p_duration_min", OracleDbType.Int32, (object?)updateMovieDto.DurationMin ?? DBNull.Value, ParameterDirection.Input);
-                var p_language_code = new OracleParameter("p_language_code", OracleDbType.Varchar2, (object?)updateMovieDto.LanguageCode ?? DBNull.Value, ParameterDirection.Input);
-                var p_country_code = new OracleParameter("p_country_code", OracleDbType.Varchar2, (object?)updateMovieDto.CountryCode ?? DBNull.Value, ParameterDirection.Input);
-                var p_is_premium = new OracleParameter("p_is_premium", OracleDbType.Char, updateMovieDto.IsPremium ? "Y" : "N", ParameterDirection.Input);
-                var p_overview = new OracleParameter("p_overview", OracleDbType.Clob, (object?)updateMovieDto.Overview ?? DBNull.Value, ParameterDirection.Input);
-                var p_status = new OracleParameter("p_status", OracleDbType.Varchar2, (object?)updateMovieDto.Status ?? "PUBLISHED", ParameterDirection.Input);
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = updateMovieDto.MovieId };
+                var p_title = new SqlParameter("@p_title", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.Title ?? DBNull.Value };
+                var p_original_title = new SqlParameter("@p_original_title", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.OriginalTitle ?? DBNull.Value };
+
+                var p_release_date = new SqlParameter("@p_release_date", SqlDbType.DateTime) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.ReleaseDate ?? DBNull.Value };
+                var p_duration_min = new SqlParameter("@p_duration_min", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.DurationMin ?? DBNull.Value };
+                string? ulang = updateMovieDto.LanguageCode;
+                if (!string.IsNullOrWhiteSpace(ulang) && ulang.Length > 2) ulang = ulang.Substring(0, 2);
+                string? ucountry = updateMovieDto.CountryCode;
+                if (!string.IsNullOrWhiteSpace(ucountry) && ucountry.Length > 2) ucountry = ucountry.Substring(0, 2);
+
+                var p_language_code = new SqlParameter("@p_language_code", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)ulang ?? DBNull.Value };
+                var p_country_code = new SqlParameter("@p_country_code", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)ucountry ?? DBNull.Value };
+                var p_is_premium = new SqlParameter("@p_is_premium", SqlDbType.Char, 1) { Direction = ParameterDirection.Input, Value = updateMovieDto.IsPremium ? "Y" : "N" };
+                var p_overview = new SqlParameter("@p_overview", SqlDbType.NVarChar, -1) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.Overview ?? DBNull.Value };
+                var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.Status ?? "PUBLISHED" };
 
                 // OUT parameters
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                {
-                    Direction = ParameterDirection.Output
-                };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                {
-                    Direction = ParameterDirection.Output
-                };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[]
+                var parameters = new IDbDataParameter[]
                 {
-            p_movie_id, p_title, p_release_date, p_duration_min,
+            p_movie_id, p_title,p_original_title, p_release_date, p_duration_min,
             p_language_code, p_country_code, p_is_premium,
             p_overview, p_status,
             o_code, o_message
@@ -186,22 +187,13 @@ namespace DataServiceLib.Implements.Admin.Movies
             try
             {
                 // IN parameter
-                var p_movie_id = new OracleParameter("p_movie_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = movieId };
 
                 // OUT parameters
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                {
-                    Direction = ParameterDirection.Output
-                };
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                {
-                    Direction = ParameterDirection.Output
-                };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[]
-                {
-            p_movie_id, o_code, o_message
-                };
+                var parameters = new IDbDataParameter[] { p_movie_id, o_code, o_message };
 
                 // Gọi stored procedure
                 var dataset = _baseProvider.GetDatasetFromSP("sp_movie_delete", parameters, _connectionString);

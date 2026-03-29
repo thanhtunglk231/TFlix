@@ -32,9 +32,9 @@ namespace WebBrowser.Areas.Admin.Controllers
             Console.WriteLine("[Admin/MovieController] <- AddMovie() EXIT: " + JsonConvert.SerializeObject(result));
             return Ok(result);
         }
-        public async Task<IActionResult> UpdateMovie([FromBody] AddMovieDto dto)
+        public async Task<IActionResult> UpdateMovie([FromBody] UpdateMovieDto dto)
         {
-            Console.WriteLine("[Admin/MovieController] <- UpdateMovie() Calling: ");
+            Console.WriteLine("[Admin/MovieController] <- UpdateMovie() Calling: "+ dto.MovieId);
             var result = await _movieService.uppdate_Movie(dto);
             Console.WriteLine("[Admin/MovieController] <- UpdateMovie() EXIT: " + JsonConvert.SerializeObject(result));
             return Ok(result);

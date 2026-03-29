@@ -6,17 +6,20 @@ using DataServiceLib.Implements.Admin.Series;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Data.SqlClient;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Services.AddControllers()
+    .AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+        options.SerializerSettings.DateParseHandling = Newtonsoft.Json.DateParseHandling.None;
+    });
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-
-
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<ICBaseProvider, CBaseProvider>();
 builder.Services.AddScoped<ICFilm, CFilm>();
@@ -34,9 +37,27 @@ builder.Services.AddScoped<ICMovieGenre, CMovieGenre>();
 builder.Services.AddScoped<ICSeriesGenres, CSeriesGenres>();
 builder.Services.AddScoped<IPreView, PreView>();
 builder.Services.AddScoped<ICHome, CHome>();
-// --------------------JWT Authentication Setup--------------------
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+
+var config = builder.Configuration;
+var connStr = config.GetConnectionString("SqlServer");
+
+// test kết nối
+using (SqlConnection conn = new SqlConnection(connStr))
+{
+    try
+    {
+        conn.Open();
+        Console.WriteLine("✅ SQL Server connected successfully!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("❌ Connection failed:");
+        Console.WriteLine(ex.Message);
+    }
+}
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -52,31 +73,19 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]))
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!))
     };
 });
-builder.Services.AddControllers()
-    .AddNewtonsoftJson(options =>
-    {
-        options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
-        // N?u mu?n serialize DataSet:
-        options.SerializerSettings.DateParseHandling = Newtonsoft.Json.DateParseHandling.None;
-    });
-
-
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

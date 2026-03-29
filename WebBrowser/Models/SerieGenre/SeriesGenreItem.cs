@@ -4,11 +4,12 @@ namespace WebBrowser.Models.SerieGenre
 {
     public class SeriesGenreItem
     {
-        [JsonProperty("genrE_ID")]
+        [JsonProperty("genre_id")]
         public decimal GenreId { get; set; }
 
-        [JsonProperty("genrE_NAME")]
+        [JsonProperty("genre_name")]
         public string GenreName { get; set; } = string.Empty;
+
         [JsonProperty("slug")]
         public string Slug { get; set; } = string.Empty;
     }

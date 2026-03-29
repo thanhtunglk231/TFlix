@@ -2,7 +2,7 @@
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -20,62 +20,56 @@ namespace DataServiceLib.Implements
         public PreView(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
 
     public CResponseMessage Get_All_Series(int seriesId)
     {
-        try
-        {
-            using var conn = new OracleConnection(_connectionString);
-            using var cmd = new OracleCommand("sp_series_preview", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure,
-                BindByName = true
-            };
+                using var conn = new SqlConnection(_connectionString);
+                using var cmd = new SqlCommand("sp_series_preview", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            // IN
-            cmd.Parameters.Add(new OracleParameter("p_series_id", OracleDbType.Int32)
-            {
-                Direction = ParameterDirection.Input,
-                Value = seriesId
-            });
+                // IN
+                cmd.Parameters.Add(new SqlParameter("@p_series_id", SqlDbType.Int)
+                {
+                    Direction = ParameterDirection.Input,
+                    Value = seriesId
+                });
 
-            // OUT
-            cmd.Parameters.Add(new OracleParameter("o_cursor", OracleDbType.RefCursor)
-            {
-                Direction = ParameterDirection.Output
-            });
+                // Output parameters for code/message
+                cmd.Parameters.Add(new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                });
 
-            cmd.Parameters.Add(new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-            {
-                Direction = ParameterDirection.Output
-            });
+                cmd.Parameters.Add(new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                });
 
-            cmd.Parameters.Add(new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-            {
-                Direction = ParameterDirection.Output
-            });
+                var ds = new DataSet();
+                using (var da = new SqlDataAdapter(cmd))
+                {
+                    conn.Open();
+                    da.Fill(ds); // first resultset is the SP result
+                }
 
-            var ds = new DataSet();
-            using (var da = new OracleDataAdapter(cmd))
-            {
-                conn.Open();
-                da.Fill(ds);              // ds.Tables[0] = kết quả từ o_cursor
+                var code = cmd.Parameters["@o_code"].Value?.ToString() ?? "400";
+                var msg = cmd.Parameters["@o_message"].Value?.ToString() ?? "Không lấy được phản hồi";
+
+                return new CResponseMessage
+                {
+                    Data = ds,
+                    code = code,
+                    message = msg,
+                    Success = code == "200"
+                };
             }
-
-            var code = cmd.Parameters["o_code"].Value?.ToString() ?? "400";
-            var msg = cmd.Parameters["o_message"].Value?.ToString() ?? "Không lấy được phản hồi";
-
-            return new CResponseMessage
-            {
-                Data = ds,
-                code = code,
-                message = msg,
-                Success = code == "200"
-            };
-        }
         catch (Exception ex)
         {
             return new CResponseMessage
@@ -90,21 +84,15 @@ namespace DataServiceLib.Implements
         {
             try
             {
-                var p_movie_id= new OracleParameter("p_movie_id", OracleDbType.Int32)
-                { Value = ParameterDirection.Input };
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor)
-                { Direction = ParameterDirection.Output };
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = movieId };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
 
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] {p_movie_id, o_cursor, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_movie_id, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_movie_preview", parameters, _connectionString);
-
                 return new CResponseMessage
                 {
                     Data = dataset,
@@ -133,29 +121,17 @@ namespace DataServiceLib.Implements
                 Console.WriteLine($"Input movie.kind = {movie?.kind}");
                 Console.WriteLine("=================================================");
 
-                var p_movie_id = new OracleParameter("p_id", OracleDbType.Int32)
-                { Value = movie.id };
-                var p_kind = new OracleParameter("p_kind", OracleDbType.Varchar2)
-                { Value = movie.kind };
-                var o_cursor = new OracleParameter("p_result", OracleDbType.RefCursor)
-                { Direction = ParameterDirection.Output };
+                var p_movie_id = new SqlParameter("@p_id", SqlDbType.Int) { Value = movie.id };
+                var p_kind = new SqlParameter("@p_kind", SqlDbType.NVarChar, 50) { Value = (object?)movie.kind ?? DBNull.Value };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
-                { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
 
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
-                { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new OracleParameter[] { p_movie_id, p_kind, o_cursor, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_movie_id, p_kind, o_code, o_message };
 
-                // Debug parameters
-                Console.WriteLine(">>> Oracle Parameters Sent:");
-                foreach (var p in parameters)
-                {
-                    Console.WriteLine($" - {p.ParameterName} = {p.Value} ({p.OracleDbType})");
-                }
-
-                // Gọi SP
+               
+                // Gọi SP (SQL Server stored procedure should return a resultset directly)
                 var dataset = _baseProvider.GetDatasetFromSP("SP_GET_CONTENT_BY_ID", parameters, _connectionString);
 
                 // Debug dataset return

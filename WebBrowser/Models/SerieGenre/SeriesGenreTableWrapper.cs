@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json;
-using WebBrowser.Models.MovieAsset;
 
 namespace WebBrowser.Models.SerieGenre
 {

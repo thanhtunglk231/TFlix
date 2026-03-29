@@ -9,8 +9,10 @@ namespace DataServiceLib.Interfaces
 {
     public interface ISupabaseService
     {
-      
-            Task<string?> UploadFileAsync(IFormFile file);
+
+        Task<string?> UploadFileAsync(IFormFile file);
+        Task<string?> UploadFileAsync(IFormFile file, string objectPath);
         Task<bool> DeleteFileAsync(string pathOrUrl);
-    }
+    
+}
 }

@@ -2,12 +2,9 @@
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DataServiceLib.Implements
@@ -20,42 +17,37 @@ namespace DataServiceLib.Implements
         public CHome(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
-
 
         public async Task<CResponseMessage> MovieLastestItem()
         {
             try
             {
-                // NÊN: nếu _baseProvider không tự set BindByName=true thì bạn phải giữ đúng thứ tự tham số như SP:
-                // (p_limit IN, o_cursor OUT, o_code OUT, o_message OUT)
-
-                var p_limit = new OracleParameter("p_limit", OracleDbType.Int32)
+                var p_limit = new SqlParameter("@p_limit", SqlDbType.Int)
                 {
                     Direction = ParameterDirection.Input,
-                    Value = 5 // hoặc truyền từ ngoài; NULL không dùng mặc định được ở client driver
+                    Value = 5
                 };
 
-                var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor)
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
                 {
                     Direction = ParameterDirection.Output
                 };
 
-                var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10)
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
                 {
                     Direction = ParameterDirection.Output
                 };
 
-                var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000)
+                var parameters = new IDbDataParameter[]
                 {
-                    Direction = ParameterDirection.Output
+                    p_limit, o_code, o_message
                 };
 
-        
                 var ds = _baseProvider.GetDatasetFromSP(
                     "sp_movies_get_latest",
-                    new[] { p_limit, o_cursor, o_code, o_message },
+                    parameters,
                     _connectionString
                 );
 
@@ -77,6 +69,5 @@ namespace DataServiceLib.Implements
                 };
             }
         }
-
     }
 }

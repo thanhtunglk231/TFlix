@@ -1,4 +1,5 @@
-﻿using CoreLib.Dtos.VideSoure;
+﻿using CoreLib.Dtos;
+using CoreLib.Dtos.VideSoure;
 using CoreLib.Models;
 
 namespace DataServiceLib.Interfaces
@@ -10,5 +11,6 @@ namespace DataServiceLib.Interfaces
         Task<CResponseMessage> Update_video_source(UpdateVideoSourceDto dto);
         CResponseMessage get_all();
         CResponseMessage get_bu_id(int id);
+        Task<CResponseMessage> Add_video_source_part(AddVideoSourcePartDto dto);
     }
 }

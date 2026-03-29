@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace CoreLib.Dtos.Movies
@@ -11,7 +12,7 @@ namespace CoreLib.Dtos.Movies
         // NUMBER -> decimal
         public string Title { get; set; } = default!;
         public string? OriginalTitle { get; set; }
-        public string? Overview { get; set; }         // CLOB -> string
+        public string? Overview { get; set; }        
         public DateTime? ReleaseDate { get; set; }    // DATE
         public int? DurationMin { get; set; }         // NUMBER
         public string? AgeRating { get; set; }
@@ -36,7 +37,8 @@ namespace CoreLib.Dtos.Movies
     public class UpdateMovieDto : AddMovieDto
     {
 
-        public decimal Movideid { get; set; }
+        [JsonPropertyName("MovieId")]
+        public decimal MovieId { get; set; }
     }
 }
 

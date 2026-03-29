@@ -1,14 +1,11 @@
 ﻿using CoreLib.Dtos;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
-using System;
-using System.Collections.Generic;
+using RestSharp;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Data.SqlClient;
 
 namespace DataServiceLib.Implements
 {
@@ -20,52 +17,42 @@ namespace DataServiceLib.Implements
         public CFilm(ICBaseProvider baseProvider, IConfiguration configuration)
         {
             _baseProvider = baseProvider;
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
         public CResponseMessage Get_Film_Detail(GetFilmDetail filmId)
         {
             try
             {
-                // --- INPUTS ---
-                var p_id = new OracleParameter("p_id", OracleDbType.Int32)
+                var p_id = new System.Data.SqlClient.SqlParameter("@p_id", SqlDbType.Int)
                 {
-                    Value = filmId.id, // truyền ID phim cần lấy
+                    Value = filmId.id,
                     Direction = ParameterDirection.Input
                 };
 
-                var p_kind = new OracleParameter("p_kind", OracleDbType.Varchar2, 20)
+                var p_kind = new System.Data.SqlClient.SqlParameter("@p_kind", SqlDbType.NVarChar, 20)
                 {
-                    Value = filmId.genre ?? (object)DBNull.Value, // "MOVIE", "SERIES", "EPISODE" hoặc null
+                    Value = string.IsNullOrWhiteSpace(filmId.genre) ? DBNull.Value : filmId.genre,
                     Direction = ParameterDirection.Input
                 };
 
-                // --- OUTPUTS ---
-                var p_result = new OracleParameter("p_result", OracleDbType.RefCursor)
+                var p_code = new System.Data.SqlClient.SqlParameter("@p_code", SqlDbType.Int)
                 {
                     Direction = ParameterDirection.Output
                 };
 
-                var p_code = new OracleParameter("p_code", OracleDbType.Int32)
+                var p_message = new System.Data.SqlClient.SqlParameter("@p_message", SqlDbType.NVarChar, 4000)
                 {
                     Direction = ParameterDirection.Output
                 };
 
-                var p_message = new OracleParameter("p_message", OracleDbType.NVarchar2, 4000)
+                var parameters = new IDbDataParameter[]
                 {
-                    Direction = ParameterDirection.Output
+                    p_id, p_kind, p_code, p_message
                 };
 
-                // Gộp tất cả tham số
-                var parameters = new OracleParameter[]
-                {
-        p_id, p_kind, p_result, p_code, p_message
-                };
-
-                // Gọi stored procedure
                 var dataset = _baseProvider.GetDatasetFromSP("SP_GET_CONTENT_BY_ID", parameters, _connectionString);
 
-                // Lấy kết quả phản hồi
                 return new CResponseMessage
                 {
                     Data = dataset,
@@ -83,10 +70,6 @@ namespace DataServiceLib.Implements
                     message = "Lỗi server: " + ex.Message
                 };
             }
-
         }
-
-
-
     }
 }

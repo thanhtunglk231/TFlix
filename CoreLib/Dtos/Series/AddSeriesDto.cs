@@ -35,6 +35,12 @@ namespace CoreLib.Dtos.Series
         public string? ImdbId { get; set; }
 
         public string? TmdbId { get; set; }
+        public int SeasonNo { get; set; } = 1;
+        public string? SeasonTitle { get; set; }
+        public string? SeasonOverview { get; set; }
+        public DateTime? SeasonAirDate { get; set; }
+
+        public string? EpisodesJson { get; set; }
     }
 
     // DTO để update Series (kế thừa AddSeriesDto, bổ sung Id)
