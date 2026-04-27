@@ -17,8 +17,18 @@ namespace WebBrowser.Controllers
             var result = await _homeService.get_Movie_Lastest_Item(); // ?? không tham s?
             return Json(result);
         }
-
-
+        [HttpGet]
+        public async Task<IActionResult> getEpisodeLatest()
+        {
+            var result = await _homeService.get_episode_latest(); // ?? không tham s?
+            return Json(result);
+        }
+        [HttpGet]
+        public async Task<IActionResult> SearchContents([FromQuery] string keyword)
+        {
+            var result = await _homeService.search_contents(keyword);
+            return Json(result);
+        }
         //[HttpGet]
         //public async Task<IActionResult>get
 

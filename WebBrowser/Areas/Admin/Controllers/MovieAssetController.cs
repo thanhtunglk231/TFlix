@@ -60,7 +60,7 @@ namespace WebBrowser.Areas.Admin.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest(new { code = "400", message = "File rỗng." });
             if (EpisodeId is null or <= 0 || string.IsNullOrWhiteSpace(AssetType))
-                return BadRequest(new { code = "400", message = "Thiếu EpisodeId/AssetType." });
+                return BadRequest(new { code = "400", message = "Thiếu AssetType." });
 
             var dto = new AddMovieAssetDto
             {

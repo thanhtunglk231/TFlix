@@ -63,11 +63,26 @@
             </ul>
 
             <!-- Search -->
-            <form class="d-flex me-3" method="get" asp-controller="Movies" asp-action="Search" role="search">
-                <input class="form-control me-2" type="search" name="q" placeholder="Tìm phim, diễn viên…" value="@q" />
+            <!-- Search -->
+            <form class="d-flex me-3 position-relative navbar-search"
+                  method="get"
+                  asp-controller="Movies"
+                  asp-action="Search"
+                  role="search"
+                  autocomplete="off">
+
+                <input id="navbarSearchInput"
+                       class="form-control me-2"
+                       type="search"
+                       name="q"
+                       placeholder="Tìm phim, diễn viên…"
+                       value="@q" />
+
                 <button class="btn btn-outline-light" type="submit">
                     <i class="bi bi-search"></i>
                 </button>
+
+                <div id="navbarSearchSuggest" class="search-suggest-box d-none"></div>
             </form>
 
             <!-- User area -->
@@ -104,7 +119,164 @@
         </div>
     </div>
 </nav>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        console.log("[NavbarSearch] DOM loaded");
 
+        let searchTimer = null;
+        let lastKeyword = null;
+        let isLoading = false;
+
+        const input = document.getElementById("navbarSearchInput");
+        const box = document.getElementById("navbarSearchSuggest");
+
+        if (!input || !box) {
+            console.error("[NavbarSearch] Missing input or suggest box");
+            return;
+        }
+
+        function hideSuggest() {
+            box.classList.add("d-none");
+            box.innerHTML = "";
+        }
+
+        function getTable(resp) {
+            return resp?.data?.table
+                || resp?.Data?.Table
+                || resp?.data?.Table
+                || resp?.Data?.table
+                || [];
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        input.addEventListener("input", function () {
+            const keyword = input.value.trim();
+
+            console.log("[NavbarSearch] input =", keyword);
+
+            clearTimeout(searchTimer);
+
+            if (keyword === lastKeyword) {
+                console.log("[NavbarSearch] Same keyword, skip");
+                return;
+            }
+
+            searchTimer = setTimeout(async function () {
+                if (isLoading) {
+                    console.log("[NavbarSearch] Loading, skip");
+                    return;
+                }
+
+                isLoading = true;
+                lastKeyword = keyword;
+
+                const url = `/Home/SearchContents?keyword=${encodeURIComponent(keyword)}`;
+                console.log("[NavbarSearch] Fetch:", url);
+
+                try {
+                    const response = await fetch(url, {
+                        method: "GET",
+                        headers: {
+                            "Accept": "application/json"
+                        }
+                    });
+
+                    console.log("[NavbarSearch] Status:", response.status, response.statusText);
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error("[NavbarSearch] HTTP error:", errorText);
+                        hideSuggest();
+                        return;
+                    }
+
+                    const resp = await response.json();
+                    console.log("[NavbarSearch] JSON:", resp);
+
+                    const items = getTable(resp);
+                    console.log("[NavbarSearch] Items:", items);
+
+                    box.innerHTML = "";
+
+                    if (!items || items.length === 0) {
+                        box.classList.remove("d-none");
+                        box.innerHTML = `<div class="search-suggest-empty">Không tìm thấy kết quả</div>`;
+                        return;
+                    }
+
+                        items.slice(0, 8).forEach(function (item, index) {
+        const type = (item.content_type || item.CONTENT_TYPE || "").toUpperCase();
+
+        const id = type === "MOVIE"
+            ? (item.movie_id || item.MOVIE_ID || item.content_id)
+            : (item.content_id || item.CONTENT_ID);
+
+        const kind = type === "MOVIE" ? "MOVIE" : "EPISODE";
+
+        const title = item.title || item.TITLE || "Không có tiêu đề";
+        let poster = item.poster_url || item.POSTER_URL || "";
+
+        const publishDate = item.publish_date || item.PUBLISH_DATE;
+        const year = publishDate ? new Date(publishDate).getFullYear() : "";
+
+        const label = type === "MOVIE" ? "Phim lẻ" : "Phim tập";
+
+        const detailUrl = `/Preview/Details?id=${encodeURIComponent(id ?? "")}&kind=${kind}`;
+
+        console.log("[NavbarSearch] FIX URL =", detailUrl);
+
+        const posterHtml = poster
+            ? `<img class="search-suggest-img"
+                    src="${escapeHtml(poster)}"
+                    alt="${escapeHtml(title)}"
+                    onerror="this.onerror=null;this.style.display='none';">`
+            : `<div class="search-suggest-img d-flex align-items-center justify-content-center">
+                    <i class="bi bi-film"></i>
+               </div>`;
+
+        box.insertAdjacentHTML("beforeend", `
+            <a class="search-suggest-item" href="${detailUrl}">
+                ${posterHtml}
+                <div>
+                    <div class="search-suggest-title">${escapeHtml(title)}</div>
+                    <div class="search-suggest-meta">${escapeHtml(label)}${year ? " • " + year : ""}</div>
+                </div>
+            </a>
+        `);
+    });
+
+                    box.classList.remove("d-none");
+                    console.log("[NavbarSearch] Render done");
+                } catch (error) {
+                    console.error("[NavbarSearch] Exception:", error);
+                    hideSuggest();
+                } finally {
+                    isLoading = false;
+                }
+            }, 300);
+        });
+
+        document.addEventListener("click", function (e) {
+            if (!e.target.closest(".navbar-search")) {
+                hideSuggest();
+            }
+        });
+
+        input.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") {
+                hideSuggest();
+            }
+        });
+    });
+</script>
 <style>
     .navbar-brand .brand-logo {
         max-height: 64px;
@@ -142,6 +314,74 @@
 
         .navbar .dropdown-menu {
             margin-top: .25rem;
+        }
+    }
+
+    .navbar-search {
+        width: 360px;
+    }
+
+    .search-suggest-box {
+        position: absolute;
+        top: 44px;
+        left: 0;
+        right: 52px;
+        background: #111;
+        border: 1px solid #333;
+        border-radius: 10px;
+        z-index: 9999;
+        max-height: 420px;
+        overflow-y: auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    }
+
+    .search-suggest-item {
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+        cursor: pointer;
+        color: #fff;
+        text-decoration: none;
+        border-bottom: 1px solid #222;
+    }
+
+        .search-suggest-item:hover {
+            background: #222;
+            color: #fff;
+        }
+
+    .search-suggest-img {
+        width: 48px;
+        height: 68px;
+        object-fit: cover;
+        border-radius: 6px;
+        background: #333;
+    }
+
+    .search-suggest-title {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .search-suggest-meta {
+        font-size: 12px;
+        color: #aaa;
+    }
+
+    .search-suggest-empty {
+        padding: 12px;
+        color: #aaa;
+        font-size: 14px;
+    }
+
+    @@media (max-width: 991.98px) {
+        .navbar-search {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .search-suggest-box {
+            right: 52px;
         }
     }
 </style>

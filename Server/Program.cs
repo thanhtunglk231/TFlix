@@ -1,3 +1,6 @@
+using Amazon.S3;
+using Amazon.S3.Model;
+using CoreLib.Models;
 using DataServiceLib.Implements;
 using DataServiceLib.Implements.Admin;
 using DataServiceLib.Implements.Admin.Episodes;
@@ -5,7 +8,9 @@ using DataServiceLib.Implements.Admin.Movies;
 using DataServiceLib.Implements.Admin.Series;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Server.CloudFlareServices;
 using System.Data.SqlClient;
 using System.Text;
 
@@ -57,7 +62,10 @@ using (SqlConnection conn = new SqlConnection(connStr))
         Console.WriteLine(ex.Message);
     }
 }
+builder.Services.Configure<CloudflareR2Options>(
+    builder.Configuration.GetSection("CloudflareR2"));
 
+builder.Services.AddSingleton<IR2Service, R2Service>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -89,5 +97,60 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var r2Options = scope.ServiceProvider
+            .GetRequiredService<IOptions<CloudflareR2Options>>()
+            .Value;
 
+        var endpoint = $"https://{r2Options.AccountId}.r2.cloudflarestorage.com";
+
+        var s3Config = new AmazonS3Config
+        {
+            ServiceURL = endpoint,
+            ForcePathStyle = true,
+            AuthenticationRegion = "auto"
+        };
+
+        using var s3Client = new AmazonS3Client(
+            r2Options.AccessKey,
+            r2Options.SecretKey,
+            s3Config);
+
+        var key = "test-connection.txt";
+        var content = $"hello r2 - {DateTime.UtcNow:O}";
+        var bytes = Encoding.UTF8.GetBytes(content);
+
+        using var stream = new MemoryStream(bytes);
+
+        var putRequest = new PutObjectRequest
+        {
+            BucketName = r2Options.BucketName,
+            Key = key,
+            InputStream = stream,
+            ContentType = "text/plain",
+            DisablePayloadSigning = true
+        };
+
+        await s3Client.PutObjectAsync(putRequest);
+
+        Console.WriteLine("✅ R2 upload success");
+        Console.WriteLine($"{r2Options.PublicBaseUrl.TrimEnd('/')}/{key}");
+    }
+    catch (AmazonS3Exception ex)
+    {
+        Console.WriteLine("❌ R2 S3 error");
+        Console.WriteLine($"Message: {ex.Message}");
+        Console.WriteLine($"StatusCode: {ex.StatusCode}");
+        Console.WriteLine($"ErrorCode: {ex.ErrorCode}");
+        Console.WriteLine($"RequestId: {ex.RequestId}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("❌ R2 connection failed");
+        Console.WriteLine(ex.Message);
+    }
+}
 app.Run();

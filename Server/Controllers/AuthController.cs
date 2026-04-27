@@ -36,11 +36,9 @@ namespace Server.Controllers
 
             var response = await _auth.LoginAsync(loginDto);
 
-            // Nếu lỗi hệ thống thì cứ trả code trong body cho thống nhất
             if (response.code != "200")
                 return Ok(new { code = response.code, message = response.message, data = (object)null });
 
-            // Lấy user từ DataSet (bảng ở o_user ref cursor)
             var user = MapUserFromDataSet(response.Data as DataSet);
             var email = user?.Email ?? loginDto.Username;
             var token = GenerateJwtToken(email);

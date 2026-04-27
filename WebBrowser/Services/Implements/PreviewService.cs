@@ -32,11 +32,35 @@ namespace WebBrowser.Services.Implements
         return new ApiResponse<PreviewTableWrapper> { code = "500", success = false, message = "Null response from API", Data = new PreviewTableWrapper() };
     }
 
-    resp.success = resp.success || resp.code == "200";
+    resp.success = resp.success || resp.code == "1";
     resp.Data ??= new PreviewTableWrapper();
     return resp;
 }
+        public async Task<ApiResponse<PreviewTableWrapper>> get_episode(int episodeId)
+        {
+            var url = $"/api/Preview/episode?episodeID={episodeId}";
+            Console.WriteLine("[get_episode] -> ENTER url=" + url);
 
+            var resp = await _httpService.GetAsync<ApiResponse<PreviewTableWrapper>>(url);
+
+            Console.WriteLine("[get_episode] <- EXIT: " + JsonConvert.SerializeObject(resp));
+
+            if (resp == null)
+            {
+                return new ApiResponse<PreviewTableWrapper>
+                {
+                    code = "500",
+                    success = false,
+                    message = "Null response from API",
+                    Data = new PreviewTableWrapper()
+                };
+            }
+
+            resp.success = resp.success || resp.code == "200";
+            resp.Data ??= new PreviewTableWrapper();
+
+            return resp;
+        }
         //public async Task<ApiResponse<MovieTableWrapper>> get_movie(int id)
         //{
         //     string url = $"/api/Preview/movie?movieId={id}";

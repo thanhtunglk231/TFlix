@@ -63,6 +63,37 @@ namespace WebBrowser.Controllers
             var reusult = await _previewService.get_preview(movie);
             return Json(reusult);
         }
+
+
+
+
+        public async Task<IActionResult> Episode(int episodeId)
+        {
+            Console.WriteLine($"[Preview.Episode] episodeId={episodeId}");
+
+            var resp = await _previewService.get_episode(episodeId);
+
+            Console.WriteLine("[Preview.Episode] resp = " + JsonConvert.SerializeObject(resp));
+
+            if (resp == null)
+            {
+                return NotFound("Không lấy được phản hồi từ service");
+            }
+
+            if (!resp.success)
+            {
+                return NotFound(resp.message ?? "Không tìm thấy tập phim");
+            }
+
+            if (resp.Data == null || resp.Data.Table == null || resp.Data.Table.Count == 0)
+            {
+                return NotFound("Không có dữ liệu tập phim");
+            }
+
+            var episode = resp.Data.Table[0];
+
+            return View("Index", episode); // dùng chung view với movie
+        }
         //public async Task<IActionResult> GetMovie([FromQuery] int id)
         //{
         //    var result = await _previewService.(id);

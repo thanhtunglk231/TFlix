@@ -22,14 +22,17 @@ namespace Server.Controllers.Normal
         var result = _preView.get_all(movieID);
         return Ok(result);
         }
-
+        [HttpGet("episode")]
+        public async Task<IActionResult> Preview_episode([FromQuery] int episodeID)
+        {
+            var result = _preView.Get_Episode(episodeID);
+            return Ok(result);
+        }
 
         [HttpGet("GetPreview")]
         public IActionResult preview([FromQuery] GETCONTENTByID movie)
         {
-            Console.WriteLine("=== [Preview] Incoming Query ===");
-            Console.WriteLine($"movie.id   = {movie?.id}");
-            Console.WriteLine($"movie.kind = {movie?.kind}");
+   
 
             var result = _preView.GET_CONTENT_BY_ID(movie);
 

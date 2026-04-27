@@ -142,19 +142,18 @@ namespace DataServiceLib.Implements.Admin.Movies
             try
             {
                 // IN
-                var p_asset_id = new SqlParameter("@p_asset_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = dto.AssetId };
-                var p_asset_type = new SqlParameter("@p_asset_type", SqlDbType.NVarChar, 100) { Direction = ParameterDirection.Input, Value = dto.AssetType };
-                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = dto.MovieId };
-                var p_url = new SqlParameter("@p_url", SqlDbType.NVarChar, 1000) { Direction = ParameterDirection.Input, Value = dto.Url };
-                var p_sort_order = new SqlParameter("@p_sort_order", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = dto.SortOrder };
+                var p_asset_id = new SqlParameter("@p_asset_id", SqlDbType.Int) { Value = dto.AssetId };
+                var p_asset_type = new SqlParameter("@p_asset_type", SqlDbType.NVarChar, 50) { Value = dto.AssetType };
+                var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Int) { Value = dto.MovieId };
+                var p_url = new SqlParameter("@p_url", SqlDbType.NVarChar, 1000) { Value = dto.Url };
+                var p_sort_order = new SqlParameter("@p_sort_order", SqlDbType.Int) { Value = dto.SortOrder };
 
-                // OUT
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
                 var parameters = new IDbDataParameter[]
                 {
-                    p_asset_id, p_asset_type, p_url, p_sort_order,
+                    p_asset_id, p_asset_type, p_movie_id, p_url, p_sort_order,
                     o_code, o_message
                 };
 

@@ -6,6 +6,7 @@
     var urlGetAll = Url.Action("GetAll", "VideoSoure", new { area = "Admin" });
     var urlAdd = Url.Action("Add", "VideoSoure", new { area = "Admin" });
     var urlUpdate = Url.Action("Update", "VideoSoure", new { area = "Admin" });
+    var urlUploadR2 = Url.Action("uploadvideoR2", "VideoSoure", new { area = "Admin" });
 
     // Nguồn dữ liệu tham chiếu
     var urlGetAllMovies = Url.Action("GetAll", "Movie", new { area = "Admin" });
@@ -139,7 +140,7 @@
         </button>
         <button class="btn btn-primary" id="btnAdd">
             <i class="bi bi-plus-circle me-1"></i>Thêm nguồn
-        </button>
+     
     </div>
 </div>
 
@@ -327,6 +328,7 @@
                 <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
                 <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
             </div>
+
         </div>
     </div>
 </div>
@@ -361,7 +363,8 @@
             add:     '@urlAdd',
             update:  '@urlUpdate',
             movies:  '@urlGetAllMovies',
-            eps:     '@urlGetAllEpisodes'
+            eps:     '@urlGetAllEpisodes',
+            uploadR2: '@urlUploadR2'
           };
 
           // ===== Elements & State =====
@@ -652,110 +655,94 @@
           }
 
           // ===== Save (Add/Update) =====
-          function save(){
+            function save() {
             const anti = $('input[name="__RequestVerificationToken"]').val();
-            const id = ($('#SourceId').val()||'').trim();
-            const isEdit = !!id;
+            const fileObj = document.getElementById('File').files?.[0] || null;
 
-            const type      = $('#SourceType').val();
-            const movieId   = $('#MovieId').val();
+            if (!fileObj) {
+            showToast("Vui lòng chọn file video.", false);
+            return;
+            }
+
+            const type = $('#SourceType').val();
+            const movieId = $('#MovieId').val();
             const episodeId = $('#EpisodeId').val();
+            const provider = ($('#Provider').val() || '').trim();
 
-            const payload = {
-              Provider:     ($('#Provider').val()||'').trim(),
-              ServerName:   ($('#ServerName').val()||'').trim() || null,
-              StreamUrl:    ($('#StreamUrl').val()||'').trim() || '',
-              Quality:      ($('#Quality').val()||'').trim() || null,
-              Format:       ($('#Format').val()||'').trim() || null,
-              DrmType:      ($('#DrmType').val()||'').trim() || null,
-              DrmLicenseUrl:($('#DrmLicenseUrl').val()||'').trim() || null,
-              IsPrimary:    ($('#IsPrimary').val()==='true'),
-              Status:       ($('#Status').val()||'ACTIVE').trim()
-            };
-
-            if (type==='movie'){
-              if (!movieId){ showToast("Vui lòng chọn Movie.", false); return; }
-              payload.MovieId = Number(movieId);
-              payload.EpisodeId = null;
-            } else {
-              if (!episodeId){ showToast("Vui lòng chọn Episode.", false); return; }
-              payload.MovieId = null;
-              payload.EpisodeId = Number(episodeId);
+            if (type === 'movie' && !movieId) {
+            showToast("Vui lòng chọn Movie.", false);
+            return;
             }
 
-            if (!payload.Provider){ showToast("Provider là bắt buộc.", false); return; }
-
-            if (!isEdit){
-              // ADD
-              const fd = new FormData();
-              const fileObj = document.getElementById('File').files?.[0] || null;
-              if (!payload.StreamUrl && !fileObj){
-                showToast("Thêm mới: cần Stream URL hoặc chọn file video.", false);
-                return;
-              }
-              if (fileObj) fd.append('File', fileObj);
-
-              Object.entries(payload).forEach(([k,v])=>{
-                if (v === null || v === undefined || v === '') return;
-                fd.append(k, String(v));
-              });
-
-              showLoading();
-              $.ajax({
-                url: urls.add, type: 'POST',
-                data: fd, processData: false, contentType: false,
-                headers: anti ? { "RequestVerificationToken": anti } : {},
-                success(res){
-                  const ok = res && (res.success===true || res.code==="200" || res.Success===true);
-                  if (ok){ showToast("Đã thêm nguồn.", true); sourceModal.hide(); loadAll(); }
-                  else    { showToast(res?.message || res?.Message || "Thêm thất bại.", false); }
-                },
-                error(xhr){ showToast(xhr?.responseJSON?.message || xhr?.responseText || "Lỗi thêm nguồn.", false); },
-                complete(){ hideLoading(); }
-              });
-
-            } else {
-              // UPDATE (replace file)
-              const fileObj = document.getElementById('File').files?.[0] || null;
-              if (!fileObj){ showToast("Sửa nguồn: vui lòng chọn file mới để thay thế.", false); return; }
-
-              const meta = {
-                SourceId: Number(id),
-                MovieId: payload.MovieId ?? null,
-                EpisodeId: payload.EpisodeId ?? null,
-                Provider: payload.Provider,
-                ServerName: payload.ServerName,
-                Quality: payload.Quality,
-                Format: payload.Format,
-                DrmType: payload.DrmType,
-                DrmLicenseUrl: payload.DrmLicenseUrl,
-                IsPrimary: payload.IsPrimary,
-                Status: payload.Status,
-                OldStreamUrl: ($('#OldStreamUrl').val()||'').trim() || null
-              };
-
-              const fd = new FormData();
-              fd.append('File', fileObj);
-              Object.entries(meta).forEach(([k,v])=>{ if (v !== null && v !== undefined) fd.append(k, String(v)); });
-
-              const updateUrl = urls.update + '?sourceId=' + encodeURIComponent(id);
-
-              showLoading();
-              $.ajax({
-                url: updateUrl, type: 'POST',
-                data: fd, processData: false, contentType: false,
-                headers: anti ? { "RequestVerificationToken": anti } : {},
-                success(res){
-                  const ok = res && (res.success===true || res.code==="200" || res.Success===true);
-                  if (ok){ showToast("Đã cập nhật nguồn.", true); sourceModal.hide(); loadAll(); }
-                  else    { showToast(res?.message || res?.Message || "Cập nhật thất bại.", false); }
-                },
-                error(xhr){ showToast(xhr?.responseJSON?.message || xhr?.responseText || "Lỗi cập nhật.", false); },
-                complete(){ hideLoading(); }
-              });
+            if (type === 'episode' && !episodeId) {
+            showToast("Vui lòng chọn Episode.", false);
+            return;
             }
-          }
 
+            if (!provider) {
+            showToast("Provider là bắt buộc.", false);
+            return;
+            }
+
+            const fd = new FormData();
+            fd.append("File", fileObj);
+
+            if (type === 'movie') {
+            fd.append("MovieId", movieId);
+            } else {
+            fd.append("EpisodeId", episodeId);
+            }
+
+            fd.append("Provider", provider);
+
+            const serverName = ($('#ServerName').val() || '').trim();
+            const quality = ($('#Quality').val() || '').trim();
+            const format = ($('#Format').val() || '').trim();
+            const drmType = ($('#DrmType').val() || '').trim();
+            const drmLicenseUrl = ($('#DrmLicenseUrl').val() || '').trim();
+            const isPrimary = $('#IsPrimary').val() === 'true';
+            const status = ($('#Status').val() || 'ACTIVE').trim();
+            console.log(quality,serverName,format,drmType,drmLicenseUrl,isPrimary);
+            if (serverName) fd.append("ServerName", serverName);
+            if (quality) fd.append("Quality", quality);
+            if (format) fd.append("Format", format);
+            if (drmType) fd.append("DrmType", drmType);
+            if (drmLicenseUrl) fd.append("DrmLicenseUrl", drmLicenseUrl);
+
+            fd.append("IsPrimary", String(isPrimary));
+            fd.append("Status", status);
+            console.log("===== DEBUG FORM DATA =====");
+            for (const pair of fd.entries()) {
+            console.log(pair[0], "=", pair[1]);
+            }
+            console.log("===== END DEBUG =====");
+            showLoading();
+
+            $.ajax({
+            url: '@urlUploadR2',
+            type: 'POST',
+            data: fd,
+            processData: false,
+            contentType: false,
+            headers: anti ? { "RequestVerificationToken": anti } : {},
+            success: function (res) {
+            const ok = res && (res.success === true || res.Success === true || res.code === "200");
+            if (ok) {
+            showToast("Upload R2 thành công.", true);
+            sourceModal.hide();
+            loadAll();
+            } else {
+            showToast(res?.message || res?.Message || "Upload R2 thất bại.", false);
+            }
+            },
+            error: function (xhr) {
+            showToast(xhr?.responseJSON?.message || xhr?.responseText || "Lỗi upload R2.", false);
+            },
+            complete: function () {
+            hideLoading();
+            }
+            });
+            }
           // ===== Preview modal =====
           $tbody.on('click', '.btn-preview', function(){
             const url = $(this).data('url');
@@ -798,6 +785,7 @@
           // ===== Events =====
           $('#btnRefresh').on('click', ()=> loadAll());
           $('#btnAdd').on('click', ()=> { openAdd(); });
+          $('#btnUploadR2').on('click', ()=> { uploadR2(); });
           $('#btnSave').on('click', save);
 
           // Lọc + phân trang
@@ -842,5 +830,43 @@
             loadAll();
           })();
         })();
+
+        // ===== Upload R2 =====
+        function uploadR2(){
+          const anti = $('input[name="__RequestVerificationToken"]').val();
+          const fileObj = document.getElementById('File').files?.[0] || null;
+          if (!fileObj){ showToast("Vui lòng chọn file để upload (ORIGINAL).", false); return; }
+
+          const movieId = $('#MovieId').val();
+          const episodeId = $('#EpisodeId').val();
+          if (!movieId && !episodeId){ showToast("Vui lòng chọn Movie hoặc Episode trước khi upload.", false); return; }
+
+          const fd = new FormData();
+          fd.append('File', fileObj);
+          if (movieId) fd.append('MovieId', String(movieId));
+          if (episodeId) fd.append('EpisodeId', String(episodeId));
+
+          const provider = ($('#Provider').val()||'').trim();
+          if (provider) fd.append('Provider', provider);
+          const server = ($('#ServerName').val()||'').trim(); if (server) fd.append('ServerName', server);
+          const quality = ($('#Quality').val()||'').trim(); if (quality) fd.append('Quality', quality);
+          const format = ($('#Format').val()||'').trim(); if (format) fd.append('Format', format);
+          const drm = ($('#DrmType').val()||'').trim(); if (drm) fd.append('DrmType', drm);
+          const drmLic = ($('#DrmLicenseUrl').val()||'').trim(); if (drmLic) fd.append('DrmLicenseUrl', drmLic);
+          const isPrimary = ($('#IsPrimary').val()==='true'); fd.append('IsPrimary', String(isPrimary));
+          const status = ($('#Status').val()||'ACTIVE').trim(); if (status) fd.append('Status', status);
+
+          showLoading();
+          const uploadUrl = '@urlUploadR2';
+          fetch(uploadUrl, { method: 'POST', headers: anti ? { 'RequestVerificationToken': anti } : {}, body: fd })
+            .then(r=>r.json())
+            .then(res=>{
+              const ok = res && (res.success===true || res.code==="200" || res.Success===true);
+              if (ok){ showToast("Upload R2 thành công.", true); loadAll(); }
+              else { showToast(res?.message || res?.Message || "Upload R2 thất bại.", false); }
+            })
+            .catch(e=>{ showToast("Lỗi upload R2: " + (e?.message||e), false); })
+            .finally(()=> hideLoading());
+        }
     </script>
 }

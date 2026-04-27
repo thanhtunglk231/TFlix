@@ -239,20 +239,10 @@
     </section>
 
     <!-- TOP 5 HÔM NAY (demo tĩnh) -->
-    <section class="my-5">
-        <div class="section-title">Top 5 phim hôm nay</div>
-        <div class="d-flex gap-3 overflow-auto scrollbar-hidden pb-1">
-            @for (int i = 1; i <= 5; i++)
-            {
-                <div class="card movie-card" style="min-width:220px;">
-                    <img class="poster" src="https://picsum.photos/600/340?random=@(200 + i)" alt="Top @i" loading="lazy" />
-                    <div class="movie-overlay"><a class="play-btn" href="#"><i class="bi bi-play-fill fs-3"></i></a></div>
-                    <div class="card-body"><h6 class="card-title mb-0">Top @i</h6></div>
-                </div>
-            }
-        </div>
+    <section class="my-5" id="episodes-latest-section">
+        <div class="section-title">Tập phim mới nhất</div>
+        <div class="row g-3" id="episodesLatestWrap"></div>
     </section>
-
     <!-- KHÁM PHÁ -->
     <section class="my-5">
         <div class="section-title">Khám phá</div>
@@ -331,25 +321,23 @@
             hero.style.setProperty('--y', ((e.clientY - r.top)/r.height*100).toFixed(2)+'%');
         });
 
-        // Modal login
         function showLoginModal() {
             const modalEl = document.getElementById('loginRequiredModal');
             if (window.bootstrap && modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
             else alert('Bạn cần đăng nhập để xem nội dung phim này.');
         }
 
-        // Event delegation cho click vào poster / play-btn (kể cả phần tử render động)
               $(document).on('click', '.movie-card', function (e) {
             const id   = this.dataset.id;
             const kind = this.dataset.kind;
 
-            if (!id) return; // không có id thì bỏ qua
+            if (!id) return; 
 
             if (!isLoggedIn) {
                 e.preventDefault();
                 e.stopPropagation();
                 showLoginModal();
-                return; // QUAN TRỌNG: không redirect nữa
+                return; 
             }
 
             const url = `/Preview/Details?id=${encodeURIComponent(id)}&kind=${encodeURIComponent(kind || 'MOVIE')}`;
@@ -366,38 +354,45 @@
                 return;
             }
 
-            const html = list.map(x=>{
-                const id        = x.movieId ?? x.movie_id ?? x.MovieId;
-                const kind      = x.kind || 'MOVIE';
-                const title     = x.title ?? x.Title ?? 'No title';
-                const poster    = x.posterUrl ?? x.poster_url ?? x.PosterUrl ?? 'https://picsum.photos/640/360?blur=2';
-                const genres    = x.genres ?? x.Genres ?? '';
-                const srcCount  = x.sourceCount ?? x.source_count ?? x.SourceCount ?? 0;
-                const rlsYear   = (x.releaseDate || x.ReleaseDate) ? new Date(x.releaseDate ?? x.ReleaseDate).getFullYear() : '';
-                const prem      = x.isPremium ?? x.is_premium ?? x.IsPremium;
-                const badgePrem = (String(prem).toUpperCase()==='Y'||String(prem)==='true')
-                                  ? '<span class="badge bg-warning text-dark ms-1">Premium</span>' : '';
+        const html = list.map(x=>{
+        const id        = x.movieId
+        ?? x.movieId    ;
+        const kind      = x.kind || 'EPISODE';
+        const title     = x.title ?? 'No title';
+        const series    = x.series_title ?? x.seriesTitle ?? '';
+        const thumb     = x.thumb_url
+        ?? x.thumbUrl
+        ?? x.poster_url
+        ?? x.posterUrl
+        ?? x.still_url
+        ?? x.stillUrl
+        ?? 'https://picsum.photos/640/360?blur=2';
 
-                return `
-                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-                  <div class="card movie-card position-relative"
-                       data-id="${id}" data-kind="${kind}">
-                    <img class="poster" src="${poster}" alt="${title}" loading="lazy">
-                    <div class="movie-overlay">
-                      <div class="play-btn">
-                        <i class="bi bi-play-fill fs-3"></i>
-                      </div>
-                    </div>
-                    <div class="card-body">
-                      <h6 class="card-title mb-1">${title} ${badgePrem}</h6>
-                      <div class="movie-meta">
-                        ${rlsYear ? (rlsYear + ' • ') : ''}${genres || 'Không rõ thể loại'}
-                        ${srcCount ? ` • ${srcCount} nguồn` : ''}
-                      </div>
-                    </div>
-                  </div>
-                </div>`;
-            }).join('');
+        const season    = x.season_no ?? x.seasonNo ?? '';
+        const epNo      = x.episode_no ?? x.episodeNo ?? '';
+        const genres    = x.genres ?? '';
+        const srcCount  = x.source_count ?? x.sourceCount ?? 0;
+
+        return `
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+        <div class="card movie-card position-relative"
+        data-id="${id}" data-kind="${kind}">
+        <img class="poster" src="${thumb}" alt="${title}" loading="lazy">
+        <div class="movie-overlay">
+        <div class="play-btn">
+        <i class="bi bi-play-fill fs-3"></i>
+        </div>
+        </div>
+        <div class="card-body">
+        <h6 class="card-title mb-1">${series}</h6>
+        <div class="movie-meta">
+        ${title} • Tập ${epNo} - SS${season} • ${genres || 'Không rõ thể loại'}
+        ${srcCount ? ` • ${srcCount} nguồn` : ''}
+        </div>
+        </div>
+        </div>
+        </div>`;
+        }).join('');
 
             $wrap.html(html);
         }
@@ -426,6 +421,73 @@
 
 
 
-        $(loadMoviesLatest);
+        $(function () {
+        loadMoviesLatest();
+        loadEpisodesLatest(); // 👈 thêm dòng này
+        });
+        const urlEpisodesLatest = '@Url.Action("getEpisodeLatest", "Home")';
+        function renderEpisodesLatest(list){
+        const $wrap = $('#episodesLatestWrap');
+
+        if(!list?.length){
+        $wrap.html('<div class="col-12 text-secondary">Chưa có dữ liệu tập phim.</div>');
+        return;
+        }
+
+        const html = list.map(x=>{
+        const id        = x.episode_id ?? x.episodeId;
+        const kind      = x.kind || 'EPISODE';
+        const title     = x.title ?? 'No title';
+        const series    = x.series_title ?? '';
+        const thumb     = x.thumb_url ?? 'https://picsum.photos/640/360?blur=2';
+        const season    = x.season_no ?? '';
+        const epNo      = x.episode_no ?? '';
+        const genres    = x.genres ?? '';
+        const srcCount  = x.source_count ?? 0;
+
+        return `
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+        <div class="card movie-card position-relative"
+        data-id="${id}" data-kind="${kind}">
+        <img class="poster" src="${thumb}" alt="${title}" loading="lazy">
+        <div class="movie-overlay">
+        <div class="play-btn">
+        <i class="bi bi-play-fill fs-3"></i>
+        </div>
+        </div>
+        <div class="card-body">
+        <h6 class="card-title mb-1">${series}</h6>
+        <div class="movie-meta">
+        Tập ${epNo} - SS${season} • ${genres || 'Không rõ thể loại'}
+        ${srcCount ? ` • ${srcCount} nguồn` : ''}
+        </div>
+        </div>
+        </div>
+        </div>`;
+        }).join('');
+
+        $wrap.html(html);
+        }
+
+        function loadEpisodesLatest(){
+        $.get(urlEpisodesLatest, function(res){
+        console.log('[EpisodesLatest] res:', res);
+
+        const list = res?.data?.table
+        ?? res?.Data?.table
+        ?? res?.table
+        ?? [];
+
+        if (!Array.isArray(list)) {
+        $('#episodesLatestWrap').html('<div class="col-12 text-warning">Payload lỗi.</div>');
+        return;
+        }
+
+        renderEpisodesLatest(list);
+        }).fail(xhr=>{
+        $('#episodesLatestWrap').html('<div class="col-12 text-danger">Lỗi tải tập phim.</div>');
+        console.error('EpisodesLatest error:', xhr?.responseText||xhr?.statusText);
+        });
+        }
     </script>
 }
