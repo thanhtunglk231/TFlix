@@ -12,6 +12,5 @@ namespace WebBrowser.Services.Interfaces
         Task<CResponseMessage> add_VideoSoure(IFormFile file, AddVideoSourceInputDto addVideoSourceDto);
         Task<ApiResponse<SourceTableWrapper>> get_all();
         Task<CResponseMessage> uppdate_VideoSoure(decimal sourceId, IFormFile file, [FromBody] UpdateVideoSourceInputDto meta);
-        Task<CResponseMessage> UploadVideoAsyncR2(UploadOriginalVideoForm file);
     }
 }

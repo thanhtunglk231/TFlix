@@ -2,7 +2,6 @@
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Server.CloudFlareServices;
 using static CoreLib.Dtos.EpisodeAsset.AddEpisodeAsset;
 
 namespace Server.Controllers
@@ -13,14 +12,11 @@ namespace Server.Controllers
     {
         private readonly ISupabaseService _supabase;
         private readonly ICEpisodeAssets _episodeAssetService;
-        private readonly IR2Service _r2Service;
 
-        public EpisodeAssetController(ISupabaseService supabase, ICEpisodeAssets episodeAssetService, IR2Service r2Service)
+        public EpisodeAssetController(ISupabaseService supabase, ICEpisodeAssets episodeAssetService)
         {
             _supabase = supabase;
             _episodeAssetService = episodeAssetService;
-            _r2Service = r2Service;
-
         }
 
 
@@ -35,60 +31,33 @@ namespace Server.Controllers
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadAndCreate([FromForm] EpisodeAssetAddForm form)
         {
-            string? publicUrl = null;
+            if (form.File == null || form.File.Length == 0)
+                return BadRequest(new { code = "400", message = "File rỗng." });
+            if (form.EpisodeId <= 0 || string.IsNullOrWhiteSpace(form.AssetType))
+                return BadRequest(new { code = "400", message = "Thiếu EpisodeId/AssetType." });
 
-            try
+            // Upload Supabase
+            var publicUrl = await _supabase.UploadFileAsync(form.File);
+            if (string.IsNullOrWhiteSpace(publicUrl))
+                return StatusCode(500, new { code = "500", message = "Upload Supabase thất bại." });
+
+            // Lưu DB (URL)
+            var dto = new AddEpisodeAsset
             {
-                if (form.File == null || form.File.Length == 0)
-                    return BadRequest(new { code = "400", message = "File rỗng." });
+                EpisodeId = form.EpisodeId,
+                AssetType = form.AssetType,
+                Url = publicUrl,
+                SortOrder = form.SortOrder ?? 0
+            };
 
-                if (form.EpisodeId <= 0 || string.IsNullOrWhiteSpace(form.AssetType))
-                    return BadRequest(new { code = "400", message = "Thiếu EpisodeId/AssetType." });
-
-                var ext = Path.GetExtension(form.File.FileName).ToLowerInvariant();
-                var safeFileName = $"{Guid.NewGuid():N}{ext}";
-
-                var assetType = form.AssetType.Trim().ToLowerInvariant();
-                var objectPath = $"episode-assets/{form.EpisodeId}/{assetType}/{safeFileName}";
-
-                // Upload Cloudflare R2
-                publicUrl = await _r2Service.UploadFileAsync(form.File, objectPath);
-
-                if (string.IsNullOrWhiteSpace(publicUrl))
-                    return StatusCode(500, new { code = "500", message = "Upload R2 thất bại." });
-
-                var dto = new AddEpisodeAsset
-                {
-                    EpisodeId = form.EpisodeId,
-                    AssetType = form.AssetType,
-                    Url = publicUrl,
-                    SortOrder = form.SortOrder ?? 0
-                };
-
-                var resp = await _episodeAssetService.Add(dto);
-
-                if (!resp.Success)
-                {
-                    await _r2Service.DeleteFileAsync(publicUrl); // rollback file
-                    return StatusCode(500, new { code = resp.code, message = resp.message });
-                }
-
-                return Ok(new
-                {
-                    resp.code,
-                    resp.message,
-                    resp.Success,
-                    publicUrl,
-                    resp.Data
-                });
-            }
-            catch (Exception ex)
+            var resp = await _episodeAssetService.Add(dto);
+            if (!resp.Success)
             {
-                if (!string.IsNullOrWhiteSpace(publicUrl))
-                    await _r2Service.DeleteFileAsync(publicUrl);
-
-                return StatusCode(500, new { code = "500", message = ex.Message });
+                _ = _supabase.DeleteFileAsync(publicUrl); // rollback file
+                return StatusCode(500, new { code = resp.code, message = resp.message });
             }
+
+            return Ok(new { resp.code, resp.message, resp.Success, publicUrl, resp.Data });
         }
 
         // ===== 2) GET ALL =====
@@ -100,6 +69,7 @@ namespace Server.Controllers
             return Ok(new { resp.code, resp.message, resp.Data });
         }
 
+        // ===== 3) REPLACE FILE: upload file mới -> cập nhật URL trong DB theo SP sp_episode_asset_update =====
         [HttpPost("{assetId:decimal}/replace-file")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ReplaceFile(decimal assetId, [FromForm] EpisodeAssetReplaceForm form)

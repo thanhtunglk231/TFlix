@@ -1,8 +1,6 @@
 ﻿using CoreLib.Dtos.VideSoure;
-using CoreLib.Models;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using System.Reflection.Metadata.Ecma335;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
@@ -55,21 +53,6 @@ namespace WebBrowser.Areas.Admin.Controllers
             return Ok(result);
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Consumes("multipart/form-data")]
-        [RequestSizeLimit(int.MaxValue)]
-        [RequestFormLimits(MultipartBodyLengthLimit = int.MaxValue)]
-        public async Task<IActionResult> uploadvideoR2([FromForm] UploadOriginalVideoForm addVideoSourceInputDto)
-        {
-            if (addVideoSourceInputDto == null)
-            {
-                return BadRequest("Model bind thất bại: addVideoSourceInputDto = null");
-            }
-
-            var result = await _videoSoureService.UploadVideoAsyncR2(addVideoSourceInputDto);
-            return Ok(result);
-        }
 
 
         public async Task<IActionResult> GetAll()

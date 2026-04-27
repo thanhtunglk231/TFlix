@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
-using WebBrowser.Models;
 using WebBrowser.Services.Implements;
 using WebBrowser.Services.Implements.Episodes;
 using WebBrowser.Services.Implements.Movies;
@@ -70,8 +69,7 @@ builder.Services.AddSession(o =>
     o.Cookie.HttpOnly = true;
     o.Cookie.IsEssential = true;
 });
-builder.Services.Configure<PathStrings>(
-    builder.Configuration.GetSection("PathStrings"));
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

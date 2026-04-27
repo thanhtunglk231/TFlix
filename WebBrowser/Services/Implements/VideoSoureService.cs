@@ -2,7 +2,6 @@
 using CoreLib.Dtos.VideSoure;
 using CoreLib.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using WebBrowser.Models;
 using WebBrowser.Models.Episode;
@@ -16,68 +15,11 @@ namespace WebBrowser.Services.Implements
     {
         private readonly IHttpService _httpService;
         private readonly IHttpContextAccessor _http;
-        private readonly HttpClient _client;
-        private readonly string _baseApi;
-        public VideoSoureService(IHttpService httpService, IHttpContextAccessor http, HttpClient client, IOptions<PathStrings> options)
+        public VideoSoureService(IHttpService httpService, IHttpContextAccessor http)
         {
             _httpService = httpService;
             _http = http;
-            _client = client;
-            _baseApi = options.Value.Url;
         }
-
-
-        public async Task<CResponseMessage> UploadVideoAsyncR2(UploadOriginalVideoForm form)
-        {
-            try
-            {
-                using var content = new MultipartFormDataContent();
-
-                var streamContent = new StreamContent(form.File.OpenReadStream());
-                streamContent.Headers.ContentType =
-                    new System.Net.Http.Headers.MediaTypeHeaderValue(
-                        string.IsNullOrWhiteSpace(form.File.ContentType)
-                            ? "application/octet-stream"
-                            : form.File.ContentType);
-
-                content.Add(streamContent, "File", form.File.FileName);
-
-                void Add(string key, object? value)
-                {
-                    if (value != null)
-                        content.Add(new StringContent(value.ToString()!), key);
-                }
-
-                Add("MovieId", form.MovieId);
-                Add("EpisodeId", form.EpisodeId);
-                Add("Provider", form.Provider);
-                Add("ServerName", form.ServerName);
-                Add("Quality", form.Quality);
-                Add("Format", form.Format);
-                Add("DrmType", form.DrmType);
-                Add("DrmLicenseUrl", form.DrmLicenseUrl);
-                Add("IsPrimary", form.IsPrimary);
-                Add("Status", form.Status);
-
-                var url = $"{_baseApi}/VideoSources/upload-original";
-
-                var response = await _client.PostAsync(url, content);
-                var json = await response.Content.ReadAsStringAsync();
-
-                return JsonConvert.DeserializeObject<CResponseMessage>(json)!;
-            }
-            catch (Exception ex)
-            {
-                return new CResponseMessage
-                {
-                    Success = false,
-                    code = "500",
-                    message = ex.Message
-                };
-            }
-        }
-
-
         public async Task<CResponseMessage> add_VideoSoure(IFormFile file, AddVideoSourceInputDto dto)
         {
             const string url = "/api/VideoSources/add";

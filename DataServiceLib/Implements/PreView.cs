@@ -111,57 +111,7 @@ namespace DataServiceLib.Implements
                 };
             }
         }
-        public CResponseMessage Get_Episode(int episodeId)
-        {
-            try
-            {
-                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.Int)
-                {
-                    Direction = ParameterDirection.Input,
-                    Value = episodeId
-                };
 
-                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
-                {
-                    Direction = ParameterDirection.Output
-                };
-
-                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
-                {
-                    Direction = ParameterDirection.Output
-                };
-
-                var parameters = new IDbDataParameter[]
-                {
-            p_episode_id,
-            o_code,
-            o_message
-                };
-
-                var dataset = _baseProvider.GetDatasetFromSP(
-                    "sp_episode_preview",
-                    parameters,
-                    _connectionString
-                );
-
-                return new CResponseMessage
-                {
-                    Data = dataset,
-                    code = o_code.Value?.ToString() ?? "400",
-                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = o_code.Value?.ToString() == "200"
-                };
-            }
-            catch (Exception ex)
-            {
-                return new CResponseMessage
-                {
-                    Success = false,
-                    code = "500",
-                    message = "Lỗi server: " + ex.Message
-                };
-            }
-        }
         public CResponseMessage GET_CONTENT_BY_ID(GETCONTENTByID movie)
         {
             try
@@ -174,9 +124,9 @@ namespace DataServiceLib.Implements
                 var p_movie_id = new SqlParameter("@p_id", SqlDbType.Int) { Value = movie.id };
                 var p_kind = new SqlParameter("@p_kind", SqlDbType.NVarChar, 50) { Value = (object?)movie.kind ?? DBNull.Value };
 
-                var o_code = new SqlParameter("@p_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
 
-                var o_message = new SqlParameter("@p_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
                 var parameters = new IDbDataParameter[] { p_movie_id, p_kind, o_code, o_message };
 

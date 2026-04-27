@@ -3,7 +3,6 @@ using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Server.CloudFlareServices;
 
 namespace Server.Controllers
 {
@@ -13,12 +12,11 @@ namespace Server.Controllers
     {
         private readonly ICMovieAsset _cMovieAsset;
         private readonly ISupabaseService _supabase;
-        private readonly IR2Service _r2Service;
-        public MovieAssetController(ICMovieAsset cMovieAsset, ISupabaseService supabase,IR2Service r2Service)
+
+        public MovieAssetController(ICMovieAsset cMovieAsset, ISupabaseService supabase)
         {
             _cMovieAsset = cMovieAsset;
             _supabase = supabase;
-            _r2Service = r2Service;
         }
 
         // GET: /api/MovieAsset/getbyid/123
@@ -39,181 +37,93 @@ namespace Server.Controllers
             return Ok(new { resp.code, resp.message, resp.Data });
         }
 
+        // POST: /api/MovieAsset/add   (multipart/form-data)
         [HttpPost("add")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadAndCreate([FromForm] MovieAssetAddForm form)
         {
-            string? publicUrl = null;
+            if (form.File == null || form.File.Length == 0)
+                return BadRequest(new { code = "400", message = "File rỗng." });
+            if (form.MovieId <= 0 || string.IsNullOrWhiteSpace(form.AssetType))
+                return BadRequest(new { code = "400", message = "Thiếu MovieId/AssetType." });
 
-            try
+            // Upload lên Supabase
+            var publicUrl = await _supabase.UploadFileAsync(form.File);
+            if (string.IsNullOrWhiteSpace(publicUrl))
+                return StatusCode(500, new { code = "500", message = "Upload Supabase thất bại." });
+
+            // Gọi SP lưu DB
+            var dto = new AddMovieAssetDto
             {
-                if (form.File == null || form.File.Length == 0)
-                    return BadRequest(new { code = "400", message = "File rỗng." });
+                MovieId = form.MovieId,
+                AssetType = form.AssetType,
+                Url = publicUrl,
+                SortOrder = form.SortOrder ?? 0
+            };
 
-                if (form.MovieId <= 0 || string.IsNullOrWhiteSpace(form.AssetType))
-                    return BadRequest(new { code = "400", message = "Thiếu MovieId/AssetType." });
-
-                var ext = Path.GetExtension(form.File.FileName).ToLowerInvariant();
-                var safeFileName = $"{Guid.NewGuid():N}{ext}";
-
-                var assetType = form.AssetType.Trim().ToLowerInvariant();
-                var objectPath = $"movie-assets/{form.MovieId}/{assetType}/{safeFileName}";
-
-                // Upload lên R2 / Firebase
-                publicUrl = await _r2Service.UploadFileAsync(form.File, objectPath);
-
-                if (string.IsNullOrWhiteSpace(publicUrl))
-                    return StatusCode(500, new { code = "500", message = "Upload thất bại." });
-
-                // Gọi SP lưu DB
-                var dto = new AddMovieAssetDto
-                {
-                    MovieId = form.MovieId,
-                    AssetType = form.AssetType,
-                    Url = publicUrl,
-                    SortOrder = form.SortOrder ?? 0
-                };
-
-                var resp = await _cMovieAsset.Add(dto);
-
-                if (!resp.Success)
-                {
-                    await _r2Service.DeleteFileAsync(publicUrl); // rollback file
-
-                    return StatusCode(500, new
-                    {
-                        code = resp.code,
-                        message = resp.message
-                    });
-                }
-
-                return Ok(new
-                {
-                    resp.code,
-                    resp.message,
-                    resp.Success,
-                    publicUrl,
-                    resp.Data
-                });
-            }
-            catch (Exception ex)
+            var resp = await _cMovieAsset.Add(dto);
+            if (!resp.Success)
             {
-                if (!string.IsNullOrWhiteSpace(publicUrl))
-                    await _r2Service.DeleteFileAsync(publicUrl);
-
-                return StatusCode(500, new
-                {
-                    code = "500",
-                    message = ex.Message
-                });
+                _ = _supabase.DeleteFileAsync(publicUrl); // rollback file
+                return StatusCode(500, new { code = resp.code, message = resp.message });
             }
+
+            return Ok(new { resp.code, resp.message, resp.Success, publicUrl, resp.Data });
         }
 
-        // POST: /api/MovieAsset/{assetId}/replace-file
+        // POST: /api/MovieAsset/{assetId}/replace-file  (multipart/form-data)
         [HttpPost("{assetId:decimal}/replace-file")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> ReplaceFile(
-            [FromRoute] decimal assetId,
-            [FromForm] MovieAssetReplaceForm form)
+        public async Task<IActionResult> ReplaceFile([FromRoute] decimal assetId, [FromForm] MovieAssetReplaceForm form)
         {
-            string? newUrl = null;
+            if (assetId <= 0)
+                return BadRequest(new { code = "400", message = "assetId không hợp lệ." });
+            if (form.File == null || form.File.Length == 0)
+                return BadRequest(new { code = "400", message = "File rỗng." });
+            if (form.MovieId <= 0 || string.IsNullOrWhiteSpace(form.AssetType))
+                return BadRequest(new { code = "400", message = "Thiếu MovieId/AssetType." });
 
-            try
+            var newUrl = await _supabase.UploadFileAsync(form.File);
+            if (string.IsNullOrWhiteSpace(newUrl))
+                return StatusCode(500, new { code = "500", message = "Upload Supabase thất bại." });
+
+            var dto = new UpdateMovieAssetDto
             {
-                if (assetId <= 0)
-                    return BadRequest(new { code = "400", message = "assetId không hợp lệ." });
+                AssetId = assetId,
+                MovieId = form.MovieId,
+                AssetType = form.AssetType,
+                Url = newUrl,
+                SortOrder = form.SortOrder ?? 0
+            };
 
-                if (form.File == null || form.File.Length == 0)
-                    return BadRequest(new { code = "400", message = "File rỗng." });
-
-                if (form.MovieId <= 0 || string.IsNullOrWhiteSpace(form.AssetType))
-                    return BadRequest(new { code = "400", message = "Thiếu MovieId/AssetType." });
-
-                var ext = Path.GetExtension(form.File.FileName).ToLowerInvariant();
-                var safeFileName = $"{Guid.NewGuid():N}{ext}";
-                var assetType = form.AssetType.Trim().ToLowerInvariant();
-
-                var objectPath = $"movie-assets/{form.MovieId}/{assetType}/{safeFileName}";
-
-                newUrl = await _r2Service.UploadFileAsync(form.File, objectPath);
-
-                if (string.IsNullOrWhiteSpace(newUrl))
-                    return StatusCode(500, new { code = "500", message = "Upload thất bại." });
-
-                var dto = new UpdateMovieAssetDto
-                {
-                    AssetId = assetId,
-                    MovieId = form.MovieId,
-                    AssetType = form.AssetType,
-                    Url = newUrl,
-                    SortOrder = form.SortOrder ?? 0
-                };
-
-                var resp = await _cMovieAsset.Update_episode(dto);
-
-                if (!resp.Success)
-                {
-                    await _r2Service.DeleteFileAsync(newUrl);
-
-                    return StatusCode(500, new
-                    {
-                        code = resp.code,
-                        message = resp.message
-                    });
-                }
-
-                if (!string.IsNullOrWhiteSpace(form.OldUrl))
-                    await _r2Service.DeleteFileAsync(form.OldUrl);
-
-                return Ok(new
-                {
-                    resp.code,
-                    resp.message,
-                    resp.Success,
-                    newUrl
-                });
-            }
-            catch (Exception ex)
+            var resp = await _cMovieAsset.Update_episode(dto); // (hàm tên cũ) => nếu được, rename thành Update
+            if (!resp.Success)
             {
-                if (!string.IsNullOrWhiteSpace(newUrl))
-                    await _r2Service.DeleteFileAsync(newUrl);
-
-                return StatusCode(500, new
-                {
-                    code = "500",
-                    message = ex.Message
-                });
+                _ = _supabase.DeleteFileAsync(newUrl); // rollback file
+                return StatusCode(500, new { code = resp.code, message = resp.message });
             }
+
+            if (!string.IsNullOrWhiteSpace(form.OldUrl))
+                _ = _supabase.DeleteFileAsync(form.OldUrl); // best-effort
+
+            return Ok(new { resp.code, resp.message, resp.Success, newUrl });
         }
-
 
         // DELETE: /api/MovieAsset/{assetId}?url=xx
         [HttpDelete("{assetId:decimal}")]
-        public async Task<IActionResult> Delete(
-            [FromRoute] decimal assetId,
-            [FromQuery] string? url = null)
+        public async Task<IActionResult> Delete([FromRoute] decimal assetId, [FromQuery] string? url = null)
         {
             if (assetId <= 0)
                 return BadRequest(new { code = "400", message = "assetId không hợp lệ." });
 
             var resp = await _cMovieAsset.Delete_episode(assetId);
-
             if (!resp.Success)
-                return StatusCode(500, new
-                {
-                    code = resp.code,
-                    message = resp.message
-                });
+                return StatusCode(500, new { code = resp.code, message = resp.message });
 
             if (!string.IsNullOrWhiteSpace(url))
-                await _r2Service.DeleteFileAsync(url);
+                _ = _supabase.DeleteFileAsync(url);
 
-            return Ok(new
-            {
-                resp.code,
-                resp.message,
-                resp.Success
-            });
+            return Ok(new { resp.code, resp.message, resp.Success });
         }
     }
 

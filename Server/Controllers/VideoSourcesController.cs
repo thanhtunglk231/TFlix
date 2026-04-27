@@ -1,10 +1,8 @@
 ﻿using CoreLib.Dtos;
 using CoreLib.Dtos.VideSoure;
-using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Server.CloudFlareServices;
 using Server.Forms;
 
 namespace Server.Controllers
@@ -15,105 +13,12 @@ namespace Server.Controllers
     {
         private readonly ISupabaseService _supabase;
         private readonly ICVideoSoure _videoSourceService;
-        private readonly IR2Service _r2Service;
-        public VideoSourcesController(ISupabaseService supabase, ICVideoSoure videoSourceService, IR2Service r2Service)
+
+        public VideoSourcesController(ISupabaseService supabase, ICVideoSoure videoSourceService)
         {
             _supabase = supabase;
             _videoSourceService = videoSourceService;
-            _r2Service = r2Service;
         }
-
-
-        [HttpPost("upload-original")]
-        [Consumes("multipart/form-data")]
-        [DisableRequestSizeLimit]
-        [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue)]
-        public async Task<IActionResult> UploadOriginalAndCreate([FromForm] UploadOriginalVideoForm form)
-        {
-            string? fileUrl = null;
-
-            try
-            {
-                // 1) Validate
-                if (form.File == null || form.File.Length == 0)
-                    return BadRequest("File không hợp lệ.");
-
-                var hasMovie = form.MovieId.HasValue;
-                var hasEpisode = form.EpisodeId.HasValue;
-                if (hasMovie == hasEpisode)
-                    return BadRequest("Phải chọn duy nhất một đích: movie_id hoặc episode_id.");
-
-                var ext = Path.GetExtension(form.File.FileName).ToLowerInvariant();
-                var allowed = new[] { ".mp4", ".mov", ".mkv", ".webm", ".avi" };
-                if (!allowed.Contains(ext))
-                    return BadRequest("Chỉ hỗ trợ file video.");
-
-                if (string.IsNullOrWhiteSpace(form.File.ContentType) || !form.File.ContentType.StartsWith("video/"))
-                    return BadRequest("File phải là video.");
-
-                var status = (form.Status ?? "ACTIVE").Trim().ToUpperInvariant();
-
-                // 2) Tạo path upload
-                var ownerId = form.MovieId ?? form.EpisodeId ?? 0;
-                var videoId = Guid.NewGuid().ToString("N");
-
-                var safeFileName = $"{Guid.NewGuid():N}{ext}";
-                var objectPath = $"videos/original/{ownerId}/{videoId}/{safeFileName}";
-
-                // 3) Upload lên R2
-                fileUrl = await _r2Service.UploadFileAsync(form.File, objectPath);
-                if (string.IsNullOrWhiteSpace(fileUrl))
-                    return StatusCode(500, "Upload file gốc lên R2 thất bại.");
-
-                // 4) Tạo video_sources
-                var addDto = new AddVideoSourceDto
-                {
-                    MovieId = form.MovieId,
-                    EpisodeId = form.EpisodeId,
-                    Provider = form.Provider ?? string.Empty,
-                    ServerName = form.ServerName,
-                    StreamUrl = fileUrl,
-                    Quality = form.Quality,
-                    Format = string.IsNullOrWhiteSpace(form.Format) ? "ORIGINAL" : form.Format,
-                    DrmType = form.DrmType,
-                    DrmLicenseUrl = form.DrmLicenseUrl,
-                    IsPrimary = form.IsPrimary,
-                    Status = status
-                };
-
-                var sourceResp = await _videoSourceService.Add_video_source(addDto);
-                if (!sourceResp.Success)
-                {
-                    await _r2Service.DeleteFileAsync(fileUrl);
-                    return StatusCode(500, sourceResp.message);
-                }
-
-                return Ok(new CResponseMessage
-                {
-                    code = sourceResp.code,
-                    Success = sourceResp.Success,
-                    message = sourceResp.message,
-                    Data = new
-                    {
-                        videoId,
-                        fileName = form.File.FileName,
-                        size = form.File.Length,
-                        contentType = form.File.ContentType,
-                        url = fileUrl,
-                        sourceResp.Data
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                if (!string.IsNullOrWhiteSpace(fileUrl))
-                    await _r2Service.DeleteFileAsync(fileUrl);
-
-                return StatusCode(500, ex.Message);
-            }
-        }
-
-
 
         // =========================================================
         //  HLS: Playlist + Segments

@@ -1,5 +1,4 @@
-﻿using DataServiceLib.Implements;
-using DataServiceLib.Interfaces;
+﻿using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,18 +20,5 @@ namespace Server.Controllers
             return Ok(result);
         }
 
-        [HttpGet("search")]
-        public IActionResult Search([FromQuery] string keyword)
-        {
-            var result = _homeService.Search(keyword);
-            return Ok(result);
-        }
-
-        [HttpGet("EpisodeLatestItem")]
-        public async Task<IActionResult> EpisodeLatestItem()
-        {
-            var result = await _homeService.EpisodeLatestItem();
-            return Ok(result);
-        }
     }
 }

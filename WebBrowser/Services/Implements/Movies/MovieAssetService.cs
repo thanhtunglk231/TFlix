@@ -30,9 +30,10 @@ namespace WebBrowser.Services.Implements.Movies
                 var sc = new StreamContent(file.OpenReadStream());
                 sc.Headers.ContentType =
                     new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType ?? "application/octet-stream");
-                form.Add(sc, "File", file.FileName); 
+                form.Add(sc, "File", file.FileName); // field name: File
             }
 
+            // ✅ KHỚP với MovieAssetAddForm
             if (dto.MovieId > 0) form.Add(new StringContent(dto.MovieId.ToString()), "MovieId");
             if (!string.IsNullOrWhiteSpace(dto.AssetType)) form.Add(new StringContent(dto.AssetType), "AssetType");
             form.Add(new StringContent(dto.SortOrder.ToString()), "SortOrder");

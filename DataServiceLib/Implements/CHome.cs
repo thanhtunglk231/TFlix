@@ -19,49 +19,7 @@ namespace DataServiceLib.Implements
             _baseProvider = baseProvider;
             _connectionString = configuration.GetConnectionString("SqlServer");
         }
-        public CResponseMessage Search(string keyword)
-        {
-            try
-            {
-                var p_keyword = new SqlParameter("@p_keyword", SqlDbType.NVarChar, 200)
-                {
-                    Value = keyword
-                };
 
-                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
-                {
-                    Direction = ParameterDirection.Output
-                };
-
-                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
-                {
-                    Direction = ParameterDirection.Output
-                };
-
-                var dataset = _baseProvider.GetDatasetFromSP(
-                    "sp_search_contents",
-                    new IDbDataParameter[] { p_keyword, o_code, o_message },
-                    _connectionString
-                );
-
-                return new CResponseMessage
-                {
-                    Data = dataset,
-                    code = o_code.Value?.ToString(),
-                    message = o_message.Value?.ToString(),
-                    Success = o_code.Value?.ToString() == "200"
-                };
-            }
-            catch (Exception ex)
-            {
-                return new CResponseMessage
-                {
-                    Success = false,
-                    code = "500",
-                    message = ex.Message
-                };
-            }
-        }
         public async Task<CResponseMessage> MovieLastestItem()
         {
             try
@@ -89,57 +47,6 @@ namespace DataServiceLib.Implements
 
                 var ds = _baseProvider.GetDatasetFromSP(
                     "sp_movies_get_latest",
-                    parameters,
-                    _connectionString
-                );
-
-                return new CResponseMessage
-                {
-                    Data = ds,
-                    code = o_code.Value?.ToString() ?? "500",
-                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = string.Equals(o_code.Value?.ToString(), "200", StringComparison.Ordinal)
-                };
-            }
-            catch (Exception ex)
-            {
-                return new CResponseMessage
-                {
-                    Success = false,
-                    code = "500",
-                    message = "Lỗi server: " + ex.Message
-                };
-            }
-        }
-
-
-        public async Task<CResponseMessage> EpisodeLatestItem(int limit = 10)
-        {
-            try
-            {
-                var p_limit = new SqlParameter("@p_limit", SqlDbType.Int)
-                {
-                    Direction = ParameterDirection.Input,
-                    Value = limit
-                };
-
-                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
-                {
-                    Direction = ParameterDirection.Output
-                };
-
-                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
-                {
-                    Direction = ParameterDirection.Output
-                };
-
-                var parameters = new IDbDataParameter[]
-                {
-            p_limit, o_code, o_message
-                };
-
-                var ds = _baseProvider.GetDatasetFromSP(
-                    "sp_episodes_get_latest",   // 👈 SP episode
                     parameters,
                     _connectionString
                 );
