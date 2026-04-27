@@ -20,7 +20,7 @@ namespace Server.Controllers.Normal
         {
             try
             {
-                using (var conn = new SqlConnection("Server=tcp:rg-sql-demo-toto.database.windows.net,1433;Initial Catalog=free-sql-db-9132213;User ID=toto;Password=123456789@Aa;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"))
+                using (var conn = new SqlConnection("ur_key"))
                 {
                     await conn.OpenAsync();
 
