@@ -30,9 +30,6 @@ namespace DataServiceLib.Implements.Admin.Movies
         //{
         //    try
         //    {
-        //        var o_cursor = new OracleParameter("o_cursor", OracleDbType.RefCursor) { Direction = ParameterDirection.Output };
-        //        var o_code = new OracleParameter("o_code", OracleDbType.Varchar2, 10) { Direction = ParameterDirection.Output };
-        //        var o_message = new OracleParameter("o_message", OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
 
         //        var ds = _baseProvider.GetDatasetFromSP("sp_movie_genre_get_all",
         //            new[] { o_cursor, o_code, o_message }, _connectionString);

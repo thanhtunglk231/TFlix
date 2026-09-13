@@ -3,9 +3,7 @@ using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using RestSharp;
 using System.Data;
-using System.Data.SqlClient;
 
 namespace DataServiceLib.Implements
 {
@@ -24,24 +22,24 @@ namespace DataServiceLib.Implements
         {
             try
             {
-                var p_id = new System.Data.SqlClient.SqlParameter("@p_id", SqlDbType.Int)
+                var p_id = new SqlParameter("@p_id", SqlDbType.Int)
                 {
                     Value = filmId.id,
                     Direction = ParameterDirection.Input
                 };
 
-                var p_kind = new System.Data.SqlClient.SqlParameter("@p_kind", SqlDbType.NVarChar, 20)
+                var p_kind = new SqlParameter("@p_kind", SqlDbType.NVarChar, 20)
                 {
                     Value = string.IsNullOrWhiteSpace(filmId.genre) ? DBNull.Value : filmId.genre,
                     Direction = ParameterDirection.Input
                 };
 
-                var p_code = new System.Data.SqlClient.SqlParameter("@p_code", SqlDbType.Int)
+                var p_code = new SqlParameter("@p_code", SqlDbType.Int)
                 {
                     Direction = ParameterDirection.Output
                 };
 
-                var p_message = new System.Data.SqlClient.SqlParameter("@p_message", SqlDbType.NVarChar, 4000)
+                var p_message = new SqlParameter("@p_message", SqlDbType.NVarChar, 4000)
                 {
                     Direction = ParameterDirection.Output
                 };

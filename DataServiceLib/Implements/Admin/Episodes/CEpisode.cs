@@ -102,7 +102,7 @@ namespace DataServiceLib.Implements.Admin.Episodes
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_episode_add", parameters, _connectionString);
 
-                // ✅ ĐỌC OracleDecimal ĐÚNG CÁCH
+                // Đọc output id từ SQL Server.
                 decimal? newId = null;
                 if (o_episode_id.Value != null && o_episode_id.Value != DBNull.Value)
                 {

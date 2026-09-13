@@ -29,7 +29,7 @@ namespace CoreLib.Dtos.EpisodeAsset
     public class UpdateEpisodeAsset : AddEpisodeAsset
     {
         /// <summary>
-        /// Khóa chính asset_id (NUMBER trong Oracle).
+        /// Khóa chính asset_id trong SQL Server.
         /// </summary>
         public decimal AssetId { get; set; }
     }

@@ -20,7 +20,7 @@ namespace DataServiceLib.Implements
             _connectionString = configuration.GetConnectionString("SqlServer");
         }
 
-        public async Task<CResponseMessage> MovieLastestItem()
+        public Task<CResponseMessage> MovieLastestItem()
         {
             try
             {
@@ -42,7 +42,9 @@ namespace DataServiceLib.Implements
 
                 var parameters = new IDbDataParameter[]
                 {
-                    p_limit, o_code, o_message
+                    p_limit,
+                    o_code,
+                    o_message
                 };
 
                 var ds = _baseProvider.GetDatasetFromSP(
@@ -51,22 +53,28 @@ namespace DataServiceLib.Implements
                     _connectionString
                 );
 
-                return new CResponseMessage
+                var response = new CResponseMessage
                 {
                     Data = ds,
                     code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = string.Equals(o_code.Value?.ToString(), "200", StringComparison.Ordinal)
+                    Success = string.Equals(
+                        o_code.Value?.ToString(),
+                        "200",
+                        StringComparison.Ordinal
+                    )
                 };
+
+                return Task.FromResult(response);
             }
             catch (Exception ex)
             {
-                return new CResponseMessage
+                return Task.FromResult(new CResponseMessage
                 {
                     Success = false,
                     code = "500",
                     message = "Lỗi server: " + ex.Message
-                };
+                });
             }
         }
     }

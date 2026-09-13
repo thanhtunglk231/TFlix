@@ -1,0 +1,195 @@
+@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Quản lý phân quyền";
+
+    var urlMatrix = Url.Action("Matrix", "Permission", new { area = "Admin" });
+    var urlSet = Url.Action("SetRolePermission", "Permission", new { area = "Admin" });
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="m-0"><i class="bi bi-shield-lock me-2"></i>Quản lý phân quyền</h4>
+    <button class="btn btn-outline-secondary" id="btnRefresh" type="button">
+        <i class="bi bi-arrow-clockwise me-1"></i>Nạp lại
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="row g-2 mb-3">
+            <div class="col-md-4">
+                <input id="txtSearch" class="form-control" placeholder="Tìm màn hình/quyền..." />
+            </div>
+            <div class="col-md-3">
+                <select id="roleFilter" class="form-select">
+                    <option value="">Tất cả role</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="tblPermissions">
+                <thead>
+                    <tr id="permissionHeader">
+                        <th style="min-width:260px;">Màn hình / Quyền</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+    <script>
+        (function(){
+          const urls = {
+            matrix: '@urlMatrix',
+            set: '@urlSet'
+          };
+
+          let roles = [];
+          let permissions = [];
+          let rolePermissions = new Set();
+
+          const $header = $('#permissionHeader');
+          const $tbody = $('#tblPermissions tbody');
+
+          function showToast(msg, ok=true){
+            if (window.__showAdminToast) {
+              window.__showAdminToast(msg, ok);
+              return;
+            }
+            alert(msg);
+          }
+
+          function pickTables(res){
+            const d = res?.data ?? res?.Data;
+            if (!d) return [];
+            if (Array.isArray(d)) return d;
+            if (Array.isArray(d.Table) || Array.isArray(d.table)) {
+              return [d.Table || d.table, d.Table1 || d.table1 || [], d.Table2 || d.table2 || []];
+            }
+            return [];
+          }
+
+          function gv(o, ...keys){
+            for (const k of keys){
+              if (o?.[k] !== undefined && o?.[k] !== null) return o[k];
+            }
+            return undefined;
+          }
+
+          function key(roleId, permissionId){
+            return `${roleId}:${permissionId}`;
+          }
+
+          function renderRoleFilter(){
+            const current = $('#roleFilter').val() || '';
+            const options = ['<option value="">Tất cả role</option>']
+              .concat(roles.map(r => {
+                const id = gv(r, 'RoleId', 'roleId', 'ROLE_ID');
+                const code = gv(r, 'RoleCode', 'roleCode', 'ROLE_CODE') || id;
+                return `<option value="${id}">${code}</option>`;
+              }));
+            $('#roleFilter').html(options.join('')).val(current);
+          }
+
+          function render(){
+            const q = ($('#txtSearch').val() || '').trim().toLowerCase();
+            const roleFilter = $('#roleFilter').val();
+            const visibleRoles = roleFilter
+              ? roles.filter(r => String(gv(r, 'RoleId', 'roleId', 'ROLE_ID')) === String(roleFilter))
+              : roles;
+
+            $header.html('<th style="min-width:260px;">Màn hình / Quyền</th>' +
+              visibleRoles.map(r => `<th class="text-center">${gv(r, 'RoleCode', 'roleCode', 'ROLE_CODE') || ''}</th>`).join(''));
+
+            const rows = permissions.filter(p => {
+              const text = [
+                gv(p, 'ScreenCode', 'screenCode', 'SCREEN_CODE'),
+                gv(p, 'PermissionCode', 'permissionCode', 'PERMISSION_CODE'),
+                gv(p, 'PermissionName', 'permissionName', 'PERMISSION_NAME')
+              ].join(' ').toLowerCase();
+              return !q || text.includes(q);
+            }).map(p => {
+              const permissionId = gv(p, 'PermissionId', 'permissionId', 'PERMISSION_ID');
+              const screen = gv(p, 'ScreenCode', 'screenCode', 'SCREEN_CODE') || '';
+              const action = gv(p, 'PermissionCode', 'permissionCode', 'PERMISSION_CODE') || '';
+              const name = gv(p, 'PermissionName', 'permissionName', 'PERMISSION_NAME') || '';
+              const cells = visibleRoles.map(r => {
+                const roleId = gv(r, 'RoleId', 'roleId', 'ROLE_ID');
+                const checked = rolePermissions.has(key(roleId, permissionId)) ? 'checked' : '';
+                return `<td class="text-center">
+                  <input class="form-check-input js-role-permission"
+                         type="checkbox"
+                         data-role-id="${roleId}"
+                         data-permission-id="${permissionId}"
+                         ${checked} />
+                </td>`;
+              }).join('');
+
+              return `<tr>
+                <td>
+                  <div class="fw-semibold">${screen} <span class="badge text-bg-secondary">${action}</span></div>
+                  <div class="text-secondary small">${name}</div>
+                </td>
+                ${cells}
+              </tr>`;
+            }).join('');
+
+            $tbody.html(rows || `<tr><td colspan="${visibleRoles.length + 1}" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
+          }
+
+          function load(){
+            $.get(urls.matrix)
+              .done(res => {
+                const tables = pickTables(res);
+                roles = tables[0] || [];
+                permissions = tables[1] || [];
+                const assigned = tables[2] || [];
+                rolePermissions = new Set(assigned.map(x => key(gv(x, 'RoleId', 'roleId', 'ROLE_ID'), gv(x, 'PermissionId', 'permissionId', 'PERMISSION_ID'))));
+                renderRoleFilter();
+                render();
+              })
+              .fail(xhr => showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Không tải được phân quyền.', false));
+          }
+
+          $tbody.on('change', '.js-role-permission', function(){
+            const $cb = $(this);
+            const payload = {
+              RoleId: Number($cb.data('role-id')),
+              PermissionId: Number($cb.data('permission-id')),
+              IsAllowed: $cb.is(':checked')
+            };
+            $cb.prop('disabled', true);
+            $.ajax({
+              url: urls.set,
+              method: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify(payload)
+            }).done(res => {
+              const ok = res?.Success === true || res?.success === true || res?.code === '200';
+              if (!ok) {
+                $cb.prop('checked', !payload.IsAllowed);
+                showToast(res?.message || 'Cập nhật phân quyền thất bại.', false);
+                return;
+              }
+
+              const k = key(payload.RoleId, payload.PermissionId);
+              if (payload.IsAllowed) rolePermissions.add(k);
+              else rolePermissions.delete(k);
+              showToast('Đã cập nhật phân quyền.', true);
+            }).fail(xhr => {
+              $cb.prop('checked', !payload.IsAllowed);
+              showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Cập nhật phân quyền thất bại.', false);
+            }).always(() => $cb.prop('disabled', false));
+          });
+
+          $('#btnRefresh').on('click', load);
+          $('#txtSearch, #roleFilter').on('input change', render);
+
+          load();
+        })();
+    </script>
+}

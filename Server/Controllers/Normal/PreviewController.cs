@@ -19,7 +19,7 @@ namespace Server.Controllers.Normal
         [HttpGet("movie")]
         public async Task<IActionResult> Preview_movie([FromQuery] int movieID) { 
         
-        var result = _preView.get_all(movieID);
+        var result =  _preView.get_all(movieID);
         return Ok(result);
         }
 
@@ -33,12 +33,7 @@ namespace Server.Controllers.Normal
 
             var result = _preView.GET_CONTENT_BY_ID(movie);
 
-            Console.WriteLine("=== [Preview] Result From Service ===");
-            Console.WriteLine($"Result Code   = {result.code}");
-            Console.WriteLine($"Success       = {result.Success}");
-            Console.WriteLine($"Message       = {result.message}");
-            Console.WriteLine($"Table count   = {result.Data}");
-
+        
 
             return Ok(result);
         }
