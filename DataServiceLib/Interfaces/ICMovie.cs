@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.Movies;
+using CoreLib.Dtos.Movies;
 using CoreLib.Models;
 
 namespace DataServiceLib.Interfaces
@@ -9,5 +9,7 @@ namespace DataServiceLib.Interfaces
         Task<CResponseMessage> Delete_movie(decimal movieId);
         Task<CResponseMessage> get_all();
         Task<CResponseMessage> Update_movie(UpdateMovieDto updateMovieDto);
+        Task<CResponseMessage> GetCatalogMovies(MovieCatalogFilterDto filter);
+        Task<CResponseMessage> SeedSampleMovies();
     }
 }

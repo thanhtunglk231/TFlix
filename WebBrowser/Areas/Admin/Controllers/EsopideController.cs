@@ -1,12 +1,11 @@
-﻿using CoreLib.Dtos.Episode;
+using CoreLib.Dtos.Episode;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
-    public class EsopideController : Controller
+    public class EsopideController : AdminBaseController
     {
         private readonly IEpisode _episodeService;
 

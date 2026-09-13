@@ -1,4 +1,5 @@
-﻿using CoreLib.Dtos.Preview;
+using CoreLib.Dtos.Preview;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Models.Preview;
@@ -8,7 +9,6 @@ namespace WebBrowser.Controllers
 {
     public class FilmController : Controller
     {
-
         private readonly IPreviewService _previewService;
         public FilmController(IPreviewService previewService)
         {
@@ -20,31 +20,35 @@ namespace WebBrowser.Controllers
             return View();
         }
 
-        public async Task<IActionResult> Watch(int id, string kind)
+        public async Task<IActionResult> Watch(long id, string kind)
         {
+            // Kiểm tra Đăng nhập (Authentication check)
+            var token = HttpContext.Session.GetString("JWToken");
+            if (string.IsNullOrEmpty(token) && (User == null || !User.Identity.IsAuthenticated))
+            {
+                // Chưa đăng nhập -> Chuyển hướng sang trang đăng nhập
+                string returnUrl = Url.Action("Watch", "Film", new { id, kind }) ?? "/Movies";
+                return RedirectToAction("Index", "Auth", new { returnUrl });
+            }
+
             var request = new GETCONTENTByID
             {
                 id = id,
-                kind = kind
+                kind = string.IsNullOrEmpty(kind) ? "movie" : kind
             };
 
-            Console.WriteLine($"[Preview.Details] id={id}, kind={kind}");
+            Console.WriteLine($"[FilmController.Watch] id={id}, kind={kind}");
 
             var resp = await _previewService.get_preview(request);
-            Console.WriteLine("[Preview.Details] resp = " + JsonConvert.SerializeObject(resp));
+            Console.WriteLine("[FilmController.Watch] resp = " + JsonConvert.SerializeObject(resp));
 
-            // resp: ApiResponse<PreviewTableWrapper>
-            if (resp == null || resp.Data == null)
+            if (resp == null || resp.Data == null || resp.Data.Table == null || resp.Data.Table.Count == 0)
             {
-                return NotFound("Không tìm thấy nội dung");
+                return NotFound("Không tìm thấy nội dung xem phim.");
             }
 
             PreviewItem movie = resp.Data.Table[0];
-            Console.WriteLine(JsonConvert.SerializeObject(movie));
-            // View Index.cshtml đang khai báo @model PreviewItem
             return View("Index", movie);
         }
-
-
     }
 }

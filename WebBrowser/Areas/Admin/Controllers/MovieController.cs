@@ -1,12 +1,11 @@
-﻿using CoreLib.Dtos.Movies;
+using CoreLib.Dtos.Movies;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
-    public class MovieController : Controller
+    public class MovieController : AdminBaseController
     {
         private readonly IMovieService _movieService;
         public MovieController(IMovieService movieService)

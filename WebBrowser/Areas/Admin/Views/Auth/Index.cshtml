@@ -1,0 +1,163 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Đăng nhập Quản trị - TFlix Admin";
+    var returnUrl = ViewBag.ReturnUrl as string ?? "";
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" />
+    <style>
+        :root {
+            --brand: #27d3c3;
+            --brand2: #19b3a5;
+            --bg-dark: #0a0d10;
+            --panel-bg: #12161a;
+        }
+        body {
+            background: var(--bg-dark) radial-gradient(circle at 50% 20%, rgba(39, 211, 195, 0.15) 0%, transparent 60%);
+            color: #eaf3f9;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+        .admin-login-card {
+            background: rgba(18, 22, 26, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            width: 100%;
+            max-width: 440px;
+            padding: 2.5rem;
+        }
+        .brand-badge {
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            color: #001014;
+            font-weight: 800;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+        }
+        .form-control-custom {
+            background-color: #181d23 !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            color: #fff !important;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+        }
+        .form-control-custom:focus {
+            border-color: var(--brand) !important;
+            box-shadow: 0 0 0 0.25rem rgba(39, 211, 195, 0.2) !important;
+        }
+        .btn-brand {
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            color: #001014;
+            font-weight: 700;
+            border: none;
+            padding: 0.8rem;
+            border-radius: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-brand:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(39, 211, 195, 0.3);
+            color: #001014;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-login-card text-center">
+        <div class="mb-4">
+            <span class="brand-badge d-inline-block mb-3">
+                <i class="bi bi-shield-lock-fill me-1"></i> ADMIN PORTAL
+            </span>
+            <h2 class="fw-bold text-white mb-1">TFlix Management</h2>
+            <p class="text-secondary small">Đăng nhập tài khoản Quản trị viên hệ thống</p>
+        </div>
+
+        <div id="alertBox" class="alert alert-danger d-none text-start small mb-3"></div>
+
+        <form id="adminLoginForm">
+            <input type="hidden" id="returnUrl" value="@returnUrl" />
+            <div class="mb-3 text-start">
+                <label class="form-label text-secondary small fw-bold">Tên đăng nhập / Email</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-secondary border-opacity-25 text-secondary">
+                        <i class="bi bi-person"></i>
+                    </span>
+                    <input type="text" id="username" class="form-control form-control-custom shadow-none" placeholder="Nhập username admin..." required autofocus />
+                </div>
+            </div>
+
+            <div class="mb-4 text-start">
+                <label class="form-label text-secondary small fw-bold">Mật khẩu</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-secondary border-opacity-25 text-secondary">
+                        <i class="bi bi-key"></i>
+                    </span>
+                    <input type="password" id="password" class="form-control form-control-custom shadow-none" placeholder="Nhập mật khẩu..." required />
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-brand w-100 mb-3" id="btnLogin">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Đăng Nhập Quản Trị
+            </button>
+        </form>
+
+        <div class="text-secondary fs-8 mt-3">
+            <a href="/" class="text-secondary text-decoration-none hover-white">
+                <i class="bi bi-arrow-left me-1"></i> Trở về trang người dùng
+            </a>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        $('#adminLoginForm').on('submit', function (e) {
+            e.preventDefault();
+            const alertBox = $('#alertBox');
+            const btn = $('#btnLogin');
+            alertBox.addClass('d-none').text('');
+
+            const username = $('#username').val().trim();
+            const password = $('#password').val();
+            const returnUrl = $('#returnUrl').val();
+
+            if (!username || !password) {
+                alertBox.removeClass('d-none').text('Vui lòng nhập tên đăng nhập và mật khẩu.');
+                return;
+            }
+
+            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span> Đang xác thực...');
+
+            $.ajax({
+                url: '/Admin/Auth/Login?returnUrl=' + encodeURIComponent(returnUrl),
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ username: username, password: password }),
+                success: function (res) {
+                    btn.html('<i class="bi bi-check-lg me-1"></i> Thành công!');
+                    window.location.href = res.redirectUrl || '/Admin';
+                },
+                error: function (xhr) {
+                    btn.prop('disabled', false).html('<i class="bi bi-box-arrow-in-right me-1"></i> Đăng Nhập Quản Trị');
+                    let msg = 'Đăng nhập thất bại. Kiểm tra lại thông tin tài khoản admin.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    alertBox.removeClass('d-none').text(msg);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

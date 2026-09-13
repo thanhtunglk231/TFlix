@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.Movies;
+using CoreLib.Dtos.Movies;
 using CoreLib.Models;
 using WebBrowser.Models;
 using WebBrowser.Models.Movie;
@@ -12,5 +12,6 @@ namespace WebBrowser.Services.Interfaces
         Task<CResponseMessage> delete_Season(decimal id);
         Task<ApiResponse<MovieTableWrapper>> get_all();
         Task<CResponseMessage> uppdate_Movie(UpdateMovieDto updateDto);
+        Task<CResponseMessage> GetCatalogMovies(MovieCatalogFilterDto filter);
     }
 }

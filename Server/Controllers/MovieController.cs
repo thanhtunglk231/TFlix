@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.Movies;
+using CoreLib.Dtos.Movies;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -56,6 +56,34 @@ namespace Server.Controllers
         {
             if (req == null || req.id <= 0) return BadRequest(new { code = "400", message = "Invalid id." });
             var response = await _cMovie.Delete_movie(req.id);
+            if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+            return Ok(response);
+        }
+
+        [HttpGet("catalog")]
+        public async Task<IActionResult> GetCatalogMovies([FromQuery] MovieCatalogFilterDto filter)
+        {
+            filter ??= new MovieCatalogFilterDto();
+            var response = await _cMovie.GetCatalogMovies(filter);
+            if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+
+            return Ok(response);
+        }
+
+        [HttpPost("catalog")]
+        public async Task<IActionResult> PostCatalogMovies([FromBody] MovieCatalogFilterDto filter)
+        {
+            filter ??= new MovieCatalogFilterDto();
+            var response = await _cMovie.GetCatalogMovies(filter);
+            if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+
+            return Ok(response);
+        }
+
+        [HttpPost("seed")]
+        public async Task<IActionResult> SeedSampleMovies()
+        {
+            var response = await _cMovie.SeedSampleMovies();
             if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
             return Ok(response);
         }

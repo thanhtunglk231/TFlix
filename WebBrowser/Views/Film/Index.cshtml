@@ -1,38 +1,39 @@
-﻿@using WebBrowser.Models.Preview
+@using WebBrowser.Models.Preview
 @model PreviewItem
 
 @{
     Layout = "/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Xem phim";
 
-    // Lấy token giống như trang chủ:
+    // Lấy token đăng nhập
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
 
-    // Lấy các giá trị từ Model (đã gắn Binding từ JSON)
-    var movieTitle = Model.OriginalTitle ?? Model.title ?? "Duty After School – Học Kỳ Sinh Tử";
-    var movieYear = Model.ReleaseOrAirDate?.Year ?? 2024; // Lấy năm từ ReleaseOrAirDate
-    var movieGenres = Model.genres ?? "Hành động · Viễn tưởng · Hàn Quốc"; // genres từ Model
-    var rating = 0.0; // Không có rating trong JSON nhưng có thể thêm vào sau
-    var poster = Model.PrimaryPosterUrl ?? "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=1600&auto=format&fit=crop"; // Lấy Poster từ Model
-    var description = Model.OverviewText ?? "Một lớp học bình thường phải tham gia chiến đấu để sinh tồn. Căng thẳng, kịch tính, và cảm xúc…"; // Lấy mô tả từ Model
+    // Lấy thông tin từ Model
+    var movieTitle = Model.OriginalTitle ?? Model.title ?? "Xem phim TFlix";
+    var movieYear = Model.ReleaseOrAirDate?.Year ?? 2024;
+    var movieGenres = Model.genres ?? "Phim Điện Ảnh";
+    var rating = 8.5;
+    var poster = string.IsNullOrWhiteSpace(Model.PrimaryPosterUrl) 
+        ? "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=1600&auto=format&fit=crop" 
+        : Model.PrimaryPosterUrl;
+    var description = Model.OverviewText ?? "Nội dung phim đang cập nhật...";
 
-    // Nguồn phát: mỗi item gồm (label + url)
-    var sources = new List<(string label, string url)>
+    // Kiểm tra nguồn phát (video source)
+    var hasSource = !string.IsNullOrWhiteSpace(Model.PrimaryStreamUrl);
+    var sources = new List<(string label, string url)>();
+    if (hasSource)
     {
-        ("CDN-1 • 1080p (HLS)", Model.PrimaryStreamUrl ?? "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"),
-        ("CDN-2 • 720p (MP4)",  "https://khgcepyhcwfblvflclvp.supabase.co/storage/v1/object/public/images/products/53995d51-effd-4388-8f5d-7c9d397b4e3e.mp4")
-    };
+        sources.Add(("Server CDN 1 • Full HD", Model.PrimaryStreamUrl!));
+    }
+    var currentSource = sources.FirstOrDefault().url ?? "";
 
-    var currentSource = sources.First().url;
-
-    // Danh sách tập (có thể lấy từ một API khác hoặc lấy từ ViewBag nếu có)
+    // Danh sách tập demo nếu là series/phim bộ
     var episodes = ViewBag.Episodes as IEnumerable<(int ep, string title)> ??
-        Enumerable.Range(1, 12).Select(i => (i, $"Tập {i:00} - Nhiệm vụ #{100 + i}"));
+        Enumerable.Range(1, 1).Select(i => (i, $"Phim Lẻ - Full Movie"));
 
     var currentEp = ViewBag.CurrentEpisode as int? ?? 1;
 
-    // Tạo danh sách chất lượng demo
     var qualities = new[] { "1080p", "720p", "480p" };
     var speeds = new[] { 0.75, 1.0, 1.25, 1.5, 2.0 };
 }
@@ -51,24 +52,26 @@
             position: relative;
             background: #0e1114 url('@poster') center/cover no-repeat;
             border-radius: 18px;
-            min-height: 28vh;
+            min-height: 24vh;
             overflow: hidden;
         }
 
-            .watch-hero::before {
-                content: "";
-                position: absolute;
-                inset: 0;
-                background: linear-gradient(140deg, rgba(0,0,0,.78), rgba(0,0,0,.45) 55%, rgba(0,0,0,.78));
-            }
+        .watch-hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(140deg, rgba(0,0,0,.85), rgba(0,0,0,.55) 55%, rgba(0,0,0,.85));
+        }
 
-            .watch-hero .inner {
-                position: relative;
-                z-index: 2;
-            }
+        .watch-hero .inner {
+            position: relative;
+            z-index: 2;
+        }
 
         .badge-brand {
             background: linear-gradient(135deg,var(--brand),var(--brand2));
+            color: #001014;
+            font-weight: 700;
         }
 
         /* Player shell */
@@ -115,11 +118,11 @@
             cursor: pointer;
         }
 
-            .control-btn:hover {
-                transform: translateY(-2px);
-                border-color: var(--brand);
-                box-shadow: 0 8px 20px rgba(39,211,195,.18);
-            }
+        .control-btn:hover {
+            transform: translateY(-2px);
+            border-color: var(--brand);
+            box-shadow: 0 8px 20px rgba(39,211,195,.18);
+        }
 
         .progress-wrap {
             position: relative;
@@ -163,11 +166,11 @@
             padding: .4rem .7rem;
         }
 
-            .opts-pill:focus {
-                outline: 0;
-                box-shadow: 0 0 0 .15rem rgba(39,211,195,.25);
-                border-color: var(--brand);
-            }
+        .opts-pill:focus {
+            outline: 0;
+            box-shadow: 0 0 0 .15rem rgba(39,211,195,.25);
+            border-color: var(--brand);
+        }
 
         .panel {
             background: #12161a;
@@ -212,16 +215,16 @@
             transition: .18s;
         }
 
-            .ep-item:hover {
-                transform: translateY(-2px);
-                border-color: var(--brand);
-                box-shadow: 0 8px 20px rgba(39,211,195,.12);
-            }
+        .ep-item:hover {
+            transform: translateY(-2px);
+            border-color: var(--brand);
+            box-shadow: 0 8px 20px rgba(39,211,195,.12);
+        }
 
-            .ep-item.active {
-                border-color: var(--brand);
-                background: linear-gradient(135deg, rgba(39,211,195,.08), rgba(0,0,0,.0));
-            }
+        .ep-item.active {
+            border-color: var(--brand);
+            background: linear-gradient(135deg, rgba(39,211,195,.08), rgba(0,0,0,.0));
+        }
 
         .ep-num {
             width: 32px;
@@ -232,7 +235,6 @@
             background: rgba(255,255,255,.08);
         }
 
-        /* Mini sticky (PIP substitute on scroll) */
         .mini {
             position: fixed;
             width: 360px;
@@ -244,27 +246,21 @@
             box-shadow: 0 10px 30px rgba(0,0,0,.45);
         }
 
-            .mini.hide {
-                transform: translateY(140%);
-            }
+        .mini.hide {
+            transform: translateY(140%);
+        }
 
-            .mini .player-wrap {
-                border-radius: 14px;
-            }
+        .mini .player-wrap {
+            border-radius: 14px;
+        }
 
-        /* Skeleton while loading */
         .skeleton {
             animation: pulse 1.2s ease-in-out infinite alternate;
             background: linear-gradient(90deg, #1a1f25, #212832, #1a1f25);
             background-size: 200% 100%;
         }
         @@keyframes pulse {
-            to
-
-        {
-            background-position: 200% 0;
-        }
-
+            to { background-position: 200% 0; }
         }
     </style>
 }
@@ -273,8 +269,10 @@
     <!-- Header info -->
     <div class="watch-hero p-4 p-md-5 mb-4">
         <div class="inner">
-            <span class="badge badge-brand">Đang phát</span>
-            <h1 class="display-6 fw-bold mt-2">@movieTitle</h1>
+            <span class="badge badge-brand">
+                <i class="bi bi-play-circle-fill me-1"></i> @(hasSource ? "Đang phát" : "Thông tin phim")
+            </span>
+            <h1 class="display-6 fw-bold mt-2 text-white">@movieTitle</h1>
             <div class="text-secondary">@movieYear • @movieGenres</div>
             <div class="d-flex align-items-center gap-3 mt-2">
                 <span class="text-warning"><i class="bi bi-star-fill"></i> @rating</span>
@@ -290,116 +288,136 @@
     <div class="row g-4">
         <div class="col-12 col-lg-8">
             <div id="playerBox" class="player-wrap">
-                <video id="video" class="video-el" playsinline preload="metadata" poster="@poster"></video>
+                @if (hasSource)
+                {
+                    <video id="video" class="video-el" playsinline preload="metadata" poster="@poster"></video>
 
-                <!-- Controls -->
-                <div class="player-controls">
-                    <div class="mb-2">
-                        <div id="progress" class="progress-wrap">
-                            <div id="buffered" class="progress-buffer"></div>
-                            <div id="bar" class="progress-bar"></div>
+                    <!-- Controls -->
+                    <div class="player-controls">
+                        <div class="mb-2">
+                            <div id="progress" class="progress-wrap">
+                                <div id="buffered" class="progress-buffer"></div>
+                                <div id="bar" class="progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <button class="control-btn" id="btnPlay"><i class="bi bi-play-fill"></i></button>
+                            <button class="control-btn" id="btnBack"><i class="bi bi-skip-backward-fill"></i></button>
+                            <button class="control-btn" id="btnFwd"><i class="bi bi-skip-forward-fill"></i></button>
+
+                            <div class="d-flex align-items-center ms-2">
+                                <i class="bi bi-volume-up me-2 text-light"></i>
+                                <input type="range" id="vol" min="0" max="1" step="0.01" value="1" class="form-range" style="width:140px">
+                            </div>
+
+                            <div class="ms-auto d-flex align-items-center gap-2">
+                                <span class="time-label" id="time">00:00 / 00:00</span>
+
+                                <select id="selSpeed" class="opts-pill">
+                                    @foreach (var s in speeds)
+                                    {
+                                        <option value="@s" selected="@(s == 1.0)">@s x</option>
+                                    }
+                                </select>
+                                <button class="control-btn" id="btnTheater" title="Rạp tối"><i class="bi bi-aspect-ratio"></i></button>
+                                <button class="control-btn" id="btnPip" title="Picture in Picture"><i class="bi bi-window"></i></button>
+                                <button class="control-btn" id="btnFs"><i class="bi bi-arrows-fullscreen"></i></button>
+                            </div>
                         </div>
                     </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        <button class="control-btn" id="btnPlay"><i class="bi bi-play-fill"></i></button>
-                        <button class="control-btn" id="btnBack"><i class="bi bi-skip-backward-fill"></i></button>
-                        <button class="control-btn" id="btnFwd"><i class="bi bi-skip-forward-fill"></i></button>
-
-                        <div class="d-flex align-items-center ms-2">
-                            <i class="bi bi-volume-up me-2 text-light"></i>
-                            <input type="range" id="vol" min="0" max="1" step="0.01" value="1" class="form-range" style="width:140px">
+                }
+                else
+                {
+                    <!-- Hiển thị thông báo khi phim chưa có source -->
+                    <div class="no-source-container d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 380px; background: radial-gradient(circle at center, #192027 0%, #0e1114 100%); border-radius: 18px;">
+                        <div class="mb-3 p-4 rounded-circle" style="background: rgba(255, 183, 3, 0.1); border: 1px solid rgba(255, 183, 3, 0.25);">
+                            <i class="bi bi-film-off display-2 text-warning"></i>
                         </div>
-
-                        <div class="ms-auto d-flex align-items-center gap-2">
-                            <span class="time-label" id="time">00:00 / 00:00</span>
-
-                            <select id="selSpeed" class="opts-pill">
-                                @foreach (var s in speeds)
-                                {
-                                    <option value="@s" selected="@(s == 1.0)">@s x</option>
-                                }
-                            </select>
-                            <button class="control-btn" id="btnTheater" title="Rạp tối"><i class="bi bi-aspect-ratio"></i></button>
-                            <button class="control-btn" id="btnPip" title="Picture in Picture"><i class="bi bi-window"></i></button>
-                            <button class="control-btn" id="btnFs"><i class="bi bi-arrows-fullscreen"></i></button>
-                        </div>
+                        <h3 class="fw-bold text-white mb-2">Chưa có nội dung này</h3>
+                        <p class="text-secondary max-w-500 mx-auto mb-4 fs-6">Rất tiếc, bộ phim "<strong>@movieTitle</strong>" hiện tại chưa có nguồn phát video. Chúng tôi đang cập nhật, vui lòng quay lại sau.</p>
+                        <a href="/Movies" class="btn px-4 py-2 rounded-pill fw-bold" style="background: linear-gradient(135deg, #27d3c3, #19b3a5); color: #001014; text-decoration: none;">
+                            <i class="bi bi-arrow-left me-1"></i> Khám phá phim khác
+                        </a>
                     </div>
-                </div>
+                }
             </div>
 
             <!-- Source / Quality / Nav -->
-            <div class="d-flex flex-wrap gap-2 mt-3">
-                <select id="selServer" class="opts-pill">
-                    @foreach (var (label, url) in sources)
-                    {
-                        <option value="@url">@label</option>
-                    }
-                </select>
+            <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+                @if (hasSource)
+                {
+                    <select id="selServer" class="opts-pill">
+                        @foreach (var (label, url) in sources)
+                        {
+                            <option value="@url">@label</option>
+                        }
+                    </select>
 
-                <select id="selQuality" class="opts-pill">
-                    @foreach (var q in qualities)
-                    {
-                        <option>@q</option>
-                    }
-                </select>
+                    <select id="selQuality" class="opts-pill">
+                        @foreach (var q in qualities)
+                        {
+                            <option>@q</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <div class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2 fs-7 rounded-pill d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Chưa có nguồn phát video
+                    </div>
+                }
 
                 <div class="ms-auto d-flex gap-2">
-                    <a href="javascript:void(0)" id="btnPrev" class="btn btn-outline-light"><i class="bi bi-arrow-left"></i> Tập trước</a>
-                    <a href="javascript:void(0)" id="btnNext" class="btn btn-primary">Tập tiếp <i class="bi bi-arrow-right"></i></a>
+                    <a href="/Movies" class="btn btn-outline-light"><i class="bi bi-arrow-left"></i> Quay lại</a>
                 </div>
             </div>
 
-            <!-- Ghi chú phím tắt -->
-            <div class="small kp mt-2"><i class="bi bi-keyboard"></i> Phím tắt: <b>Space</b> phát/tạm dừng, <b>←/→</b> tua 10s, <b>↑/↓</b> âm lượng, <b>F</b> full, <b>T</b> rạp tối, <b>P</b> PIP.</div>
+            @if (hasSource)
+            {
+                <div class="small kp mt-2"><i class="bi bi-keyboard"></i> Phím tắt: <b>Space</b> phát/tạm dừng, <b>←/→</b> tua 10s, <b>↑/↓</b> âm lượng, <b>F</b> full, <b>T</b> rạp tối, <b>P</b> PIP.</div>
+            }
 
             <!-- Bình luận -->
             <div class="panel mt-4">
                 <div class="panel-header d-flex align-items-center justify-content-between">
-                    <div class="fw-semibold">Bình luận</div>
+                    <div class="fw-semibold text-white">Bình luận</div>
                     <span class="text-secondary small">Quy tắc cộng đồng áp dụng</span>
                 </div>
                 <div class="panel-body">
                     @if (!isLoggedIn)
                     {
-                        <div class="alert alert-warning">Bạn cần đăng nhập để bình luận.</div>
+                        <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-warning mb-0">
+                            <i class="bi bi-shield-lock-fill me-1"></i> Bạn cần đăng nhập để bình luận.
+                        </div>
                     }
                     else
                     {
                         <div class="d-flex gap-2">
                             <img src="https://i.pravatar.cc/40?u=you" class="rounded-circle" width="40" height="40" />
                             <div class="flex-grow-1">
-                                <textarea id="cmt" class="form-control mb-2" rows="2" placeholder="Viết gì đó…"></textarea>
+                                <textarea id="cmt" class="form-control mb-2 bg-dark text-white border-secondary border-opacity-50" rows="2" placeholder="Viết bình luận của bạn…"></textarea>
                                 <button class="btn btn-sm btn-primary" id="btnCmt"><i class="bi bi-send"></i> Gửi</button>
                             </div>
                         </div>
                     }
                     <div class="mt-3" id="cmtList">
-                        <!-- demo comments -->
                         <div class="d-flex gap-2 mb-3">
                             <img src="https://i.pravatar.cc/36?u=a" class="rounded-circle" width="36" height="36" />
                             <div>
-                                <div class="fw-semibold">UserA <span class="text-secondary small">• 2 giờ trước</span></div>
-                                <div>Phim căng thật, nhạc quá cháy 🔥</div>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <img src="https://i.pravatar.cc/36?u=b" class="rounded-circle" width="36" height="36" />
-                            <div>
-                                <div class="fw-semibold">UserB <span class="text-secondary small">• 1 giờ trước</span></div>
-                                <div>Tập sau chắc bùng nổ 🚀</div>
+                                <div class="fw-semibold text-white">UserA <span class="text-secondary small">• 2 giờ trước</span></div>
+                                <div class="text-light">Phim hay lắm, mong sớm cập nhật đủ tập! 🔥</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
         </div>
 
         <!-- Sidebar: Episode list + Related -->
         <div class="col-12 col-lg-4">
             <div class="panel mb-4">
                 <div class="panel-header d-flex align-items-center justify-content-between">
-                    <div class="fw-semibold">Danh sách tập</div>
+                    <div class="fw-semibold text-white">Danh sách tập</div>
                     <span class="text-secondary small">(@episodes.Count() tập)</span>
                 </div>
                 <div class="panel-body">
@@ -408,10 +426,10 @@
                         {
                             var act = ep == currentEp ? "active" : "";
                             <div class="ep-item @act" data-ep="@ep">
-                                <div class="ep-num">@ep</div>
+                                <div class="ep-num text-white">@ep</div>
                                 <div class="flex-grow-1">
-                                    <div class="fw-semibold small">@title</div>
-                                    <div class="text-secondary small">HD • Vietsub</div>
+                                    <div class="fw-semibold small text-white">@title</div>
+                                    <div class="text-secondary small">HD • @(hasSource ? "Vietsub" : "Chờ cập nhật")</div>
                                 </div>
                                 <i class="bi bi-play-circle fs-5 text-light"></i>
                             </div>
@@ -421,23 +439,22 @@
             </div>
 
             <div class="panel">
-                <div class="panel-header fw-semibold">Có thể bạn thích</div>
+                <div class="panel-header fw-semibold text-white">Có thể bạn thích</div>
                 <div class="panel-body">
                     <div class="row g-2">
-                        @for (int i = 1; i <= 6; i++)
+                        @for (int i = 1; i <= 4; i++)
                         {
                             <div class="col-6">
-                                <a class="text-decoration-none" href="#">
+                                <a class="text-decoration-none" href="/Movies">
                                     <div class="ratio ratio-16x9 skeleton rounded-3 mb-2" style="background-image:url('https://picsum.photos/300/180?random=@(500 + i)'); background-size:cover;"></div>
-                                    <div class="small text-light">Gợi ý @i</div>
-                                    <div class="small text-secondary">8.@i • 202@i</div>
+                                    <div class="small text-light">Phim gợi ý @i</div>
+                                    <div class="small text-secondary">8.@i • 2024</div>
                                 </a>
                             </div>
                         }
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
@@ -464,6 +481,7 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
+        const hasSource = @hasSource.ToString().ToLower();
 
         function guardAuth(action) {
             if (!isLoggedIn) {
@@ -475,242 +493,129 @@
             return typeof action === 'function' ? (action(), true) : true;
         }
 
-        // ====== Player setup ======
-        const video = document.getElementById('video');
-        const bar = document.getElementById('bar');
-        const buffered = document.getElementById('buffered');
-        const progress = document.getElementById('progress');
-        const time = document.getElementById('time');
-        const btnPlay = document.getElementById('btnPlay');
-        const btnBack = document.getElementById('btnBack');
-        const btnFwd = document.getElementById('btnFwd');
-        const btnFs = document.getElementById('btnFs');
-        const btnPip = document.getElementById('btnPip');
-        const btnTheater = document.getElementById('btnTheater');
-        const selSpeed = document.getElementById('selSpeed');
-        const selServer = document.getElementById('selServer');
-        const selQuality = document.getElementById('selQuality');
-        const btnPrev = document.getElementById('btnPrev');
-        const btnNext = document.getElementById('btnNext');
-        const vol = document.getElementById('vol');
-        const playerBox = document.getElementById('playerBox');
+        if (hasSource) {
+            const video = document.getElementById('video');
+            const bar = document.getElementById('bar');
+            const buffered = document.getElementById('buffered');
+            const progress = document.getElementById('progress');
+            const time = document.getElementById('time');
+            const btnPlay = document.getElementById('btnPlay');
+            const btnBack = document.getElementById('btnBack');
+            const btnFwd = document.getElementById('btnFwd');
+            const btnFs = document.getElementById('btnFs');
+            const btnPip = document.getElementById('btnPip');
+            const btnTheater = document.getElementById('btnTheater');
+            const selSpeed = document.getElementById('selSpeed');
+            const selServer = document.getElementById('selServer');
+            const selQuality = document.getElementById('selQuality');
+            const vol = document.getElementById('vol');
+            const playerBox = document.getElementById('playerBox');
 
-        // Persist progress per (movie,episode)
-        const movieKey = "movie:" + @Json.Serialize(movieTitle);
-        let currentEp = @currentEp;
+            const movieKey = "movie:" + @Json.Serialize(movieTitle);
+            let currentEp = @currentEp;
 
-        function fmt(sec){
-            sec = Math.max(sec||0,0);
-            const h = Math.floor(sec/3600);
-            const m = Math.floor((sec%3600)/60);
-            const s = Math.floor(sec%60);
-            return (h>0?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-        }
-
-        function loadSource(url){
-            // Block if not logged in
-            if (!isLoggedIn) {
-                guardAuth();
-                return;
-            }
-            // Save last server choice
-            localStorage.setItem(movieKey + ":server", url);
-
-            // m3u8 via Hls
-            if (url.endsWith(".m3u8") && window.Hls && Hls.isSupported()) {
-                if (video.hlsInstance) { video.hlsInstance.destroy(); }
-                const hls = new Hls({ maxBufferLength: 30 });
-                hls.loadSource(url);
-                hls.attachMedia(video);
-                video.hlsInstance = hls;
-            } else {
-                if (video.hlsInstance) { video.hlsInstance.destroy(); video.hlsInstance = null; }
-                video.src = url;
+            function fmt(sec){
+                sec = Math.max(sec||0,0);
+                const h = Math.floor(sec/3600);
+                const m = Math.floor((sec%3600)/60);
+                const s = Math.floor(sec%60);
+                return (h>0?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
             }
 
-            // resume time
-            const resume = +localStorage.getItem(`${movieKey}:ep:${currentEp}:t`) || 0;
-            video.currentTime = Math.max(0, resume - 2);
-            video.play().catch(()=>{});
-            btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>';
-        }
-
-        // init defaults
-        (function initSelections(){
-            // set server selection & events
-            const last = localStorage.getItem(movieKey + ":server");
-            if (last) [...selServer.options].forEach(o => { if (o.value === last) selServer.value = last; });
-            selServer.addEventListener('change', e => guardAuth(()=> loadSource(e.target.value)));
-
-            // quality is cosmetic demo (hook API switch here)
-            selQuality.addEventListener('change', () => {
-                const q = selQuality.value;
-                // TODO: nếu bạn có nhiều url theo quality, hãy loadSource(url_theo_q);
-                // Hiệu ứng nháy nhẹ báo đổi chất lượng
-                playerBox.classList.add('hide-ui');
-                setTimeout(()=> playerBox.classList.remove('hide-ui'), 200);
-            });
-        })();
-
-        // autoplay first (blocked if guest)
-        (function autoPlay(){
-            const firstUrl = selServer.value || '@currentSource';
-            if (isLoggedIn) loadSource(firstUrl);
-        })();
-
-        // Controls
-        btnPlay.addEventListener('click', () => guardAuth(()=>{
-            if (video.paused) { video.play(); btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>'; }
-            else { video.pause(); btnPlay.innerHTML = '<i class="bi bi-play-fill"></i>'; }
-        }));
-        btnBack.addEventListener('click', () => guardAuth(()=> video.currentTime -= 10));
-        btnFwd.addEventListener('click', () => guardAuth(()=> video.currentTime += 10));
-
-        vol.addEventListener('input', e => video.volume = +e.target.value);
-        selSpeed.addEventListener('change', e => video.playbackRate = +e.target.value);
-
-        btnFs.addEventListener('click', () => guardAuth(()=>{
-            if (!document.fullscreenElement) playerBox.requestFullscreen().catch(()=>{});
-            else document.exitFullscreen();
-        }));
-        btnPip.addEventListener('click', () => guardAuth(()=>{
-            if (document.pictureInPictureElement) document.exitPictureInPicture();
-            else if (document.pictureInPictureEnabled) video.requestPictureInPicture().catch(()=>{});
-        }));
-        btnTheater.addEventListener('click', () => {
-            // Theater không cần login
-            document.body.classList.toggle('theater');
-        });
-
-        // Progress UI
-        video.addEventListener('timeupdate', ()=>{
-            const p = (video.currentTime / (video.duration||1))*100;
-            bar.style.width = p + '%';
-            time.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
-            // save progress each 2s
-            if (Math.floor(video.currentTime)%2===0) {
-                localStorage.setItem(`${movieKey}:ep:${currentEp}:t`, String(Math.floor(video.currentTime)));
-            }
-        });
-        video.addEventListener('progress', ()=>{
-            try {
-                if (video.buffered.length) {
-                    const end = video.buffered.end(video.buffered.length-1);
-                    const b = (end/(video.duration||1))*100;
-                    buffered.style.width = b + '%';
+            function loadSource(url){
+                if (!isLoggedIn) {
+                    guardAuth();
+                    return;
                 }
-            } catch {}
-        });
-        progress.addEventListener('click', e => guardAuth(()=>{
-            const r = progress.getBoundingClientRect();
-            const ratio = (e.clientX - r.left)/r.width;
-            video.currentTime = ratio * (video.duration||0);
-        }));
+                localStorage.setItem(movieKey + ":server", url);
 
-        // Hotkeys
-        window.addEventListener('keydown', (e)=>{
-            const tag = (e.target.tagName||'').toLowerCase();
-            if (['input','textarea'].includes(tag)) return; // don't hijack typing
-            if (e.code === 'Space'){ e.preventDefault(); btnPlay.click(); }
-            else if (e.code === 'ArrowLeft'){ e.preventDefault(); btnBack.click(); }
-            else if (e.code === 'ArrowRight'){ e.preventDefault(); btnFwd.click(); }
-            else if (e.key.toLowerCase()==='f'){ e.preventDefault(); btnFs.click(); }
-            else if (e.key.toLowerCase()==='t'){ e.preventDefault(); btnTheater.click(); }
-            else if (e.key.toLowerCase()==='p'){ e.preventDefault(); btnPip.click(); }
-            else if (e.key === 'ArrowUp'){ e.preventDefault(); vol.value = Math.min(1, (+vol.value + .05)).toFixed(2); vol.dispatchEvent(new Event('input')); }
-            else if (e.key === 'ArrowDown'){ e.preventDefault(); vol.value = Math.max(0, (+vol.value - .05)).toFixed(2); vol.dispatchEvent(new Event('input')); }
-        });
-
-        // Episode navigation
-        const epList = document.getElementById('epList');
-        epList.addEventListener('click', (e)=>{
-            const item = e.target.closest('.ep-item');
-            if (!item) return;
-            const ep = +item.dataset.ep;
-            if (ep === currentEp) return;
-            guardAuth(()=>{
-                // TODO: gọi API lấy url theo tập (ở đây demo đổi poster & reset progress)
-                currentEp = ep;
-                document.querySelectorAll('.ep-item').forEach(i=> i.classList.toggle('active', i===item));
-                const url = selServer.value; // vẫn dùng server hiện tại
-                localStorage.setItem(`${movieKey}:last_ep`, String(currentEp));
-                loadSource(url);
-            });
-        });
-
-        btnPrev.addEventListener('click', ()=>{
-            const prev = Math.max(1, currentEp - 1);
-            const card = document.querySelector(`.ep-item[data-ep="${prev}"]`);
-            card?.click();
-        });
-        btnNext.addEventListener('click', ()=>{
-            const next = Math.min(@episodes.Count(), currentEp + 1);
-            const card = document.querySelector(`.ep-item[data-ep="${next}"]`);
-            card?.click();
-        });
-
-               // Sticky mini-player on scroll when not in PiP/fullscreen
-        let miniEl;
-
-        function ensureMini() {
-            if (miniEl) return;
-
-            miniEl = document.createElement('div');
-            miniEl.className = 'mini hide';
-            miniEl.innerHTML =
-                `<div class="player-wrap">
-                    <video id="mini" class="video-el" muted></video>
-                 </div>`;
-            document.body.appendChild(miniEl);
-
-            const mv = miniEl.querySelector('#mini');
-
-            // THỬ captureStream, NẾU LỖI (cross-origin) thì fallback sang gán src trực tiếp
-            if (video.captureStream) {
-                try {
-                    const stream = video.captureStream();
-                    mv.srcObject = stream;
-                    mv.play().catch(() => {});
-                } catch (err) {
-                    console.warn('captureStream bị chặn, dùng fallback src:', err);
-                    if (video.currentSrc) {
-                        mv.src = video.currentSrc;      // chỉ phát lại từ cùng URL, không mirror time
-                        mv.play().catch(() => {});
-                    }
+                if (url.endsWith(".m3u8") && window.Hls && Hls.isSupported()) {
+                    if (video.hlsInstance) { video.hlsInstance.destroy(); }
+                    const hls = new Hls({ maxBufferLength: 30 });
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                    video.hlsInstance = hls;
+                } else {
+                    if (video.hlsInstance) { video.hlsInstance.destroy(); video.hlsInstance = null; }
+                    video.src = url;
                 }
-            } else if (video.currentSrc) {
-                // Trình duyệt không hỗ trợ captureStream: phát lại từ URL
-                mv.src = video.currentSrc;
-                mv.play().catch(() => {});
+
+                const resume = +localStorage.getItem(`${movieKey}:ep:${currentEp}:t`) || 0;
+                video.currentTime = Math.max(0, resume - 2);
+                video.play().catch(()=>{});
+                btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>';
             }
 
-            miniEl.addEventListener('click', () => {
-                window.scrollTo({
-                    top: playerBox.getBoundingClientRect().top + window.scrollY - 80,
-                    behavior: 'smooth'
+            (function initSelections(){
+                if (selServer) {
+                    const last = localStorage.getItem(movieKey + ":server");
+                    if (last) [...selServer.options].forEach(o => { if (o.value === last) selServer.value = last; });
+                    selServer.addEventListener('change', e => guardAuth(()=> loadSource(e.target.value)));
+                }
+            })();
+
+            (function autoPlay(){
+                const firstUrl = selServer ? selServer.value : '@currentSource';
+                if (isLoggedIn && firstUrl) loadSource(firstUrl);
+            })();
+
+            if (btnPlay) {
+                btnPlay.addEventListener('click', () => guardAuth(()=>{
+                    if (video.paused) { video.play(); btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>'; }
+                    else { video.pause(); btnPlay.innerHTML = '<i class="bi bi-play-fill"></i>'; }
+                }));
+            }
+            if (btnBack) btnBack.addEventListener('click', () => guardAuth(()=> video.currentTime -= 10));
+            if (btnFwd) btnFwd.addEventListener('click', () => guardAuth(()=> video.currentTime += 10));
+
+            if (vol) vol.addEventListener('input', e => video.volume = +e.target.value);
+            if (selSpeed) selSpeed.addEventListener('change', e => video.playbackRate = +e.target.value);
+
+            if (btnFs) {
+                btnFs.addEventListener('click', () => guardAuth(()=>{
+                    if (!document.fullscreenElement) playerBox.requestFullscreen().catch(()=>{});
+                    else document.exitFullscreen();
+                }));
+            }
+            if (btnPip) {
+                btnPip.addEventListener('click', () => guardAuth(()=>{
+                    if (document.pictureInPictureElement) document.exitPictureInPicture();
+                    else if (document.pictureInPictureEnabled) video.requestPictureInPicture().catch(()=>{});
+                }));
+            }
+            if (btnTheater) {
+                btnTheater.addEventListener('click', () => {
+                    document.body.classList.toggle('theater');
                 });
-            });
+            }
+
+            if (video) {
+                video.addEventListener('timeupdate', ()=>{
+                    const p = (video.currentTime / (video.duration||1))*100;
+                    if (bar) bar.style.width = p + '%';
+                    if (time) time.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
+                });
+                video.addEventListener('progress', ()=>{
+                    try {
+                        if (video.buffered.length && buffered) {
+                            const end = video.buffered.end(video.buffered.length-1);
+                            const b = (end/(video.duration||1))*100;
+                            buffered.style.width = b + '%';
+                        }
+                    } catch {}
+                });
+            }
+
+            if (progress) {
+                progress.addEventListener('click', e => guardAuth(()=>{
+                    const r = progress.getBoundingClientRect();
+                    const ratio = (e.clientX - r.left)/r.width;
+                    video.currentTime = ratio * (video.duration||0);
+                }));
+            }
         }
 
-        const onScroll = () => {
-            const rect = playerBox.getBoundingClientRect();
-            const outOfView = rect.bottom < 64 || rect.top < -200;
-            if (document.pictureInPictureElement || document.fullscreenElement) return;
-            if (outOfView) { ensureMini(); miniEl.classList.remove('hide'); }
-            else { miniEl?.classList.add('hide'); }
-        };
-
-        window.addEventListener('scroll', onScroll);
-
-        // UI auto hide (mousemove over player)
-        let fadeTimer;
-        playerBox.addEventListener('mousemove', ()=>{
-            playerBox.classList.remove('hide-ui');
-            clearTimeout(fadeTimer);
-            fadeTimer = setTimeout(()=> playerBox.classList.add('hide-ui'), 2000);
-        });
-
-        // Action buttons (like/save/report) – demo
+        // Common button listeners
         function needLoginToast(){
             const alertEl = document.createElement('div');
             alertEl.className = 'alert alert-warning position-fixed end-0 bottom-0 m-3';
@@ -719,16 +624,8 @@
             document.body.appendChild(alertEl);
             setTimeout(()=> alertEl.remove(), 2000);
         }
-        document.getElementById('btnLike').addEventListener('click',()=> isLoggedIn ? (bootstrap.Toast && 0) : needLoginToast());
-        document.getElementById('btnSave').addEventListener('click',()=> isLoggedIn ? (bootstrap.Toast && 0) : needLoginToast());
-        document.getElementById('btnReport').addEventListener('click',()=> isLoggedIn ? alert('Đã gửi báo cáo!') : needLoginToast());
-
-        // If guest: click player opens login modal
-        playerBox.addEventListener('click', (e)=>{
-            if (!isLoggedIn) {
-                e.preventDefault(); e.stopPropagation();
-                guardAuth();
-            }
-        });
+        document.getElementById('btnLike')?.addEventListener('click',()=> isLoggedIn ? (bootstrap.Toast && 0) : needLoginToast());
+        document.getElementById('btnSave')?.addEventListener('click',()=> isLoggedIn ? (bootstrap.Toast && 0) : needLoginToast());
+        document.getElementById('btnReport')?.addEventListener('click',()=> isLoggedIn ? alert('Đã gửi báo cáo!') : needLoginToast());
     </script>
 }

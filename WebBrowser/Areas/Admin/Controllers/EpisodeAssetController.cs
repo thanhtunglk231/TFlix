@@ -1,13 +1,12 @@
-﻿using CoreLib.Dtos.EpisodeAsset;
+using CoreLib.Dtos.EpisodeAsset;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
     [Route("Admin/[controller]")]
-    public class EpisodeAssetController : Controller
+    public class EpisodeAssetController : AdminBaseController
     {
         private readonly IEpisodeAsset _episodeAsset;
         private readonly ILogger<EpisodeAssetController> _logger;

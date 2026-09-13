@@ -1,11 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
-  
-    public class MovieGenreController : Controller
+    public class MovieGenreController : AdminBaseController
     {
         private readonly IMovieGenreService _movieGenreService;
         public MovieGenreController(IMovieGenreService movieGenreService)
