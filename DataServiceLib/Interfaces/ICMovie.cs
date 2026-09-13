@@ -6,6 +6,7 @@ namespace DataServiceLib.Interfaces
     public interface ICMovie
     {
         Task<CResponseMessage> Add_movie(AddMovieDto addMovieDto);
+        Task<CResponseMessage> Autocomplete(MovieAutocompleteQueryDto request);
         Task<CResponseMessage> Delete_movie(decimal movieId);
         Task<CResponseMessage> get_all();
         Task<CResponseMessage> Update_movie(UpdateMovieDto updateMovieDto);

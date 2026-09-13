@@ -367,7 +367,7 @@
             }
 
             const html = list.map(x=>{
-                const id        = x.movieId ?? x.movie_id ?? x.MovieId;
+                const id        = x.movieId ?? x.movie_id ?? x.MovieId ?? x.moviE_ID;
                 const kind      = x.kind || 'MOVIE';
                 const title     = x.title ?? x.Title ?? 'No title';
                 const poster    = x.posterUrl ?? x.poster_url ?? x.PosterUrl ?? 'https://picsum.photos/640/360?blur=2';

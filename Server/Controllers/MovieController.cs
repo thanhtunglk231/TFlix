@@ -25,6 +25,35 @@ namespace Server.Controllers
             return Ok(new { code = response.code, success = response.Success, message = response.message, Data = response.Data });
         }
 
+        [HttpGet("autocomplete")]
+        public async Task<IActionResult> Autocomplete([FromQuery(Name = "q")] string query, [FromQuery] int limit = 8)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return Ok(new
+                {
+                    code = "200",
+                    success = true,
+                    message = "",
+                    Data = Array.Empty<MovieAutocompleteItemDto>()
+                });
+            }
+
+            var request = new MovieAutocompleteQueryDto
+            {
+                Query = query,
+                Limit = Math.Clamp(limit, 1, 12)
+            };
+            var response = await _cMovie.Autocomplete(request);
+            return Ok(new
+            {
+                code = response.code,
+                success = response.Success,
+                message = response.message,
+                Data = response.Data
+            });
+        }
+
         [HttpPost("add")]
         public async Task<IActionResult> AddMovie([FromBody] AddMovieDto addMovieDto)
         {

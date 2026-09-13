@@ -36,6 +36,13 @@ namespace WebBrowser.Services.Implements.Movies
             return resp!;
         }
 
+        public async Task<ApiResponse<List<MovieAutocompleteItemDto>>> Autocomplete(string query, int limit = 8)
+        {
+            var encodedQuery = Uri.EscapeDataString(query.Trim());
+            var url = $"/api/Movie/autocomplete?q={encodedQuery}&limit={Math.Clamp(limit, 1, 12)}";
+            return await _httpService.GetAsync<ApiResponse<List<MovieAutocompleteItemDto>>>(url);
+        }
+
         public async Task<CResponseMessage> uppdate_Movie(UpdateMovieDto updateDto)
         {
             const string url = "/api/Movie/update";

@@ -121,18 +121,22 @@ namespace DataServiceLib.Implements
                 Console.WriteLine($"Input movie.kind = {movie?.kind}");
                 Console.WriteLine("=================================================");
 
-                var p_movie_id = new SqlParameter("@p_id", SqlDbType.Int) { Value = movie.id };
+                var p_movie_id = new SqlParameter("@p_id", SqlDbType.BigInt) { Value = movie.id };
+                var p_code = new SqlParameter("@p_code", SqlDbType.NVarChar, 50)
+                {
+                    Direction = ParameterDirection.Input,
+                    Value = DBNull.Value
+                };
                 var p_kind = new SqlParameter("@p_kind", SqlDbType.NVarChar, 50) { Value = (object?)movie.kind ?? DBNull.Value };
 
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
-
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new IDbDataParameter[] { p_movie_id, p_kind, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_movie_id, p_code, p_kind, o_code, o_message };
 
                
                 // Gọi SP (SQL Server stored procedure should return a resultset directly)
-                var dataset = _baseProvider.GetDatasetFromSP("SP_GET_CONTENT_BY_ID", parameters, _connectionString);
+                var dataset = _baseProvider.GetDatasetFromSP("dbo.SP_GET_CONTENT_BY_ID", parameters, _connectionString);
 
                 // Debug dataset return
                 if (dataset != null)
@@ -161,7 +165,7 @@ namespace DataServiceLib.Implements
                 return new CResponseMessage
                 {
                     Data = dataset,
-                    code = outCode ?? "400",
+                    code = outCode ?? "-1",
                     message = outMessage ?? "Không lấy được phản hồi",
                     Success = outCode == "200"
                 };

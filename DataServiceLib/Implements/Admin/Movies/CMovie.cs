@@ -62,6 +62,71 @@ namespace DataServiceLib.Implements.Admin.Movies
                 };
             }
         }
+
+        public async Task<CResponseMessage> Autocomplete(MovieAutocompleteQueryDto request)
+        {
+            try
+            {
+                var p_query = new SqlParameter("@p_query", SqlDbType.NVarChar, 200)
+                {
+                    Direction = ParameterDirection.Input,
+                    Value = request.Query.Trim()
+                };
+                var p_limit = new SqlParameter("@p_limit", SqlDbType.Int)
+                {
+                    Direction = ParameterDirection.Input,
+                    Value = request.Limit
+                };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+
+                var parameters = new IDbDataParameter[] { p_query, p_limit, o_code, o_message };
+                var dataset = _baseProvider.GetDatasetFromSP("sp_movie_autocomplete", parameters, _connectionString);
+                var items = new List<MovieAutocompleteItemDto>();
+
+                if (dataset.Tables.Count > 0)
+                {
+                    foreach (DataRow row in dataset.Tables[0].Rows)
+                    {
+                        items.Add(new MovieAutocompleteItemDto
+                        {
+                            MovieId = Convert.ToInt32(row["MovieId"]),
+                            Title = row["Title"] == DBNull.Value ? null : row["Title"].ToString(),
+                            OriginalTitle = row["OriginalTitle"] == DBNull.Value ? null : row["OriginalTitle"].ToString(),
+                            ReleaseDate = row["ReleaseDate"] == DBNull.Value ? null : Convert.ToDateTime(row["ReleaseDate"]),
+                            ProducerName = row["ProducerName"] == DBNull.Value ? null : row["ProducerName"].ToString(),
+                            PosterUrl = row["PosterUrl"] == DBNull.Value ? null : row["PosterUrl"].ToString(),
+                            Kind = row["Kind"] == DBNull.Value ? "MOVIE" : row["Kind"].ToString() ?? "MOVIE"
+                        });
+                    }
+                }
+
+                return new CResponseMessage
+                {
+                    Data = items,
+                    code = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message,
+                    Data = new List<MovieAutocompleteItemDto>()
+                };
+            }
+        }
+
         public async Task<CResponseMessage> Add_movie(AddMovieDto addMovieDto)
         {
             try

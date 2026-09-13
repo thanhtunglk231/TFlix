@@ -63,11 +63,12 @@
             </ul>
 
             <!-- Search -->
-            <form class="d-flex me-3" method="get" asp-controller="Movies" asp-action="Search" role="search">
-                <input class="form-control me-2" type="search" name="q" placeholder="Tìm phim, diễn viên…" value="@q" />
+            <form id="movieSearchForm" class="d-flex me-3 position-relative" method="get" asp-controller="Home" asp-action="Index" role="search" autocomplete="off">
+                <input id="movieSearchInput" class="form-control me-2" type="search" name="q" placeholder="Tìm phim, diễn viên…" value="@q" aria-label="Tìm phim" aria-autocomplete="list" aria-controls="movieSearchSuggestions" />
                 <button class="btn btn-outline-light" type="submit">
                     <i class="bi bi-search"></i>
                 </button>
+                <div id="movieSearchSuggestions" class="movie-search-suggestions d-none" role="listbox"></div>
             </form>
 
             <!-- User area -->
@@ -135,6 +136,56 @@
             transform: scaleX(1);
         }
 
+        .movie-search-suggestions {
+            position: absolute;
+            z-index: 1050;
+            top: calc(100% + .35rem);
+            left: 0;
+            right: 2.75rem;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: .5rem;
+            background: #212529;
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.35);
+        }
+
+        .movie-search-suggestion {
+            display: flex;
+            width: 100%;
+            gap: .65rem;
+            align-items: center;
+            padding: .55rem .7rem;
+            border: 0;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            color: #f8f9fa;
+            background: transparent;
+            text-align: left;
+        }
+
+        .movie-search-suggestion:last-child {
+            border-bottom: 0;
+        }
+
+        .movie-search-suggestion:hover,
+        .movie-search-suggestion:focus {
+            color: #fff;
+            background: rgba(39,211,195,.16);
+            outline: 0;
+        }
+
+        .movie-search-suggestion img {
+            width: 2.25rem;
+            height: 3rem;
+            flex: 0 0 auto;
+            border-radius: .25rem;
+            object-fit: cover;
+        }
+
+        .movie-search-suggestion small {
+            display: block;
+            color: #adb5bd;
+        }
+
     @@media (max-width: 991.98px) {
         .navbar-brand .brand-logo {
             max-height: 34px;
@@ -145,3 +196,106 @@
         }
     }
 </style>
+
+<script>
+    (() => {
+        const initializeMovieSearch = () => {
+        const form = document.getElementById('movieSearchForm');
+        const input = document.getElementById('movieSearchInput');
+        const suggestions = document.getElementById('movieSearchSuggestions');
+        const endpoint = '@Url.Action("MovieAutocomplete", "Home")';
+        let timer;
+        let request;
+
+        if (!form || !input || !suggestions) return;
+
+        const hideSuggestions = () => {
+            suggestions.replaceChildren();
+            suggestions.classList.add('d-none');
+        };
+
+        const goToMovie = movie => {
+            window.location.href = `/Preview/Details?id=${encodeURIComponent(movie.movieId)}&kind=${encodeURIComponent(movie.kind || 'MOVIE')}`;
+        };
+
+        const renderSuggestions = movies => {
+            suggestions.replaceChildren();
+            movies.forEach(movie => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'movie-search-suggestion';
+                button.setAttribute('role', 'option');
+
+                if (movie.posterUrl) {
+                    const image = document.createElement('img');
+                    image.src = movie.posterUrl;
+                    image.alt = '';
+                    button.appendChild(image);
+                }
+
+                const text = document.createElement('span');
+                const title = document.createElement('strong');
+                title.textContent = movie.title || movie.originalTitle || 'Không có tiêu đề';
+                text.appendChild(title);
+
+                if (movie.originalTitle && movie.originalTitle !== movie.title) {
+                    const original = document.createElement('small');
+                    original.textContent = movie.originalTitle;
+                    text.appendChild(original);
+                }
+
+                if (movie.producerName) {
+                    const producer = document.createElement('small');
+                    producer.textContent = `Producer: ${movie.producerName}`;
+                    text.appendChild(producer);
+                }
+
+                button.appendChild(text);
+                button.addEventListener('click', () => goToMovie(movie));
+                suggestions.appendChild(button);
+            });
+
+            suggestions.classList.toggle('d-none', movies.length === 0);
+        };
+
+        const search = async () => {
+            const query = input.value.trim();
+            if (query.length < 1) {
+                hideSuggestions();
+                return;
+            }
+
+            if (request) request.abort();
+            request = new AbortController();
+
+            try {
+                const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}&limit=8`, { signal: request.signal });
+                if (!response.ok) throw new Error(`Autocomplete failed: ${response.status}`);
+                const payload = await response.json();
+                renderSuggestions(payload.data || payload.Data || []);
+            } catch (error) {
+                if (error.name !== 'AbortError') hideSuggestions();
+            }
+        };
+
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(search, 250);
+        });
+
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Escape') hideSuggestions();
+        });
+
+        document.addEventListener('click', event => {
+            if (!form.contains(event.target)) hideSuggestions();
+        });
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeMovieSearch, { once: true });
+        } else {
+            initializeMovieSearch();
+        }
+    })();
+</script>
