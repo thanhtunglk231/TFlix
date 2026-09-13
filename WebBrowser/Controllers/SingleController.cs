@@ -9,12 +9,12 @@ using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Controllers
 {
-    public class MoviesController : Controller
+    public class SingleController : Controller
     {
         private readonly IMovieService _movieService;
         private readonly IGenresService _genresService;
 
-        public MoviesController(IMovieService movieService, IGenresService genresService)
+        public SingleController(IMovieService movieService, IGenresService genresService)
         {
             _movieService = movieService;
             _genresService = genresService;
@@ -29,12 +29,13 @@ namespace WebBrowser.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? q, int? genreId, string? countryCode, int? year, string sortBy = "newest", int page = 1)
         {
-            // Kiểm tra Đăng nhập
+            // Kiểm tra Đăng nhập (Authentication check)
             if (!IsUserAuthenticated())
             {
-                string returnUrl = Url.Action("Index", "Movies", new { q, genreId, countryCode, year, sortBy, page }) ?? "/Movies";
+                string returnUrl = Url.Action("Index", "Single", new { q, genreId, countryCode, year, sortBy, page }) ?? "/Single";
                 return RedirectToAction("Index", "Auth", new { returnUrl });
             }
+
             var filter = new MovieCatalogFilterDto
             {
                 Search = q,
@@ -57,10 +58,10 @@ namespace WebBrowser.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[MoviesController] Lỗi lấy danh sách thể loại: " + ex.Message);
+                Console.WriteLine("[SingleController] Lỗi lấy danh sách thể loại: " + ex.Message);
             }
 
-            // Fetch movie catalog data
+            // Fetch movie catalog data for Single Movies
             MovieCatalogResultDto catalogResult = new MovieCatalogResultDto();
             try
             {
@@ -77,17 +78,11 @@ namespace WebBrowser.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[MoviesController] Lỗi lấy danh sách phim: " + ex.Message);
+                Console.WriteLine("[SingleController] Lỗi lấy danh sách phim lẻ: " + ex.Message);
             }
 
             ViewBag.Filter = filter;
             return View(catalogResult);
-        }
-
-        [HttpGet]
-        public IActionResult Search(string q)
-        {
-            return RedirectToAction("Index", new { q = q });
         }
     }
 }

@@ -1,0 +1,297 @@
+@model CoreLib.Dtos.CMS.NewsCatalogResultDto
+@using CoreLib.Dtos.CMS
+
+@{
+    ViewData["Title"] = "Tin Tức & Sự Kiện Điện Ảnh - TFlix";
+    var filter = ViewBag.Filter as NewsCatalogFilterDto ?? new NewsCatalogFilterDto();
+    var categories = ViewBag.Categories as List<NewsCategoryDto> ?? new List<NewsCategoryDto>();
+    var featuredPost = Model.Items?.FirstOrDefault(x => x.IsFeatured) ?? Model.Items?.FirstOrDefault();
+}
+
+@section Styles {
+    <style>
+        :root {
+            --brand: #27d3c3;
+            --brand2: #19b3a5;
+            --dark-bg: #0e1114;
+            --card-bg: #12161a;
+        }
+
+        .news-hero {
+            position: relative;
+            min-height: 320px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #0e1114;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+        }
+
+        .news-hero-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.45;
+            transition: transform 0.5s ease;
+        }
+
+        .news-hero:hover .news-hero-img {
+            transform: scale(1.05);
+        }
+
+        .news-hero-overlay {
+            position: relative;
+            z-index: 2;
+            background: linear-gradient(135deg, rgba(14,17,20,0.95) 0%, rgba(14,17,20,0.5) 60%, rgba(14,17,20,0.85) 100%);
+            height: 100%;
+        }
+
+        .badge-brand {
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            color: #001014;
+            font-weight: 700;
+        }
+
+        .category-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            background: #14181c;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #c9d1d9;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .category-chip:hover, .category-chip.active {
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            color: #001014;
+            border-color: var(--brand);
+            font-weight: 700;
+            box-shadow: 0 4px 16px rgba(39, 211, 195, 0.25);
+        }
+
+        .news-card {
+            background: #12161a;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            height: 100%;
+        }
+
+        .news-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+            border-color: rgba(39, 211, 195, 0.4);
+        }
+
+        .news-card-img-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .news-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .news-card:hover .news-card-img {
+            transform: scale(1.08);
+        }
+
+        .news-title {
+            color: #fff;
+            font-weight: 700;
+            transition: color 0.2s ease;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .news-card:hover .news-title {
+            color: var(--brand);
+        }
+
+        .news-summary {
+            color: #9fb1bd;
+            font-size: 0.88rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Section Title */
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            margin: 2rem 0 1.25rem;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: #fff;
+        }
+
+        .section-title::after {
+            content: "";
+            height: 2px;
+            flex: 1;
+            background: linear-gradient(90deg, var(--brand), transparent);
+        }
+    </style>
+}
+
+<div class="container my-4">
+    <!-- Featured Hero Post -->
+    @if (featuredPost != null)
+    {
+        <div class="news-hero mb-4">
+            <img src="@featuredPost.ThumbnailUrl" alt="@featuredPost.Title" class="news-hero-img" />
+            <div class="news-hero-overlay p-4 p-md-5 d-flex flex-column justify-content-end">
+                <div class="max-w-700">
+                    <span class="badge badge-brand mb-2 px-3 py-2 fs-7">
+                        <i class="bi bi-star-fill me-1"></i> TIÊU ĐIỂM TIN TỨC
+                    </span>
+                    <h1 class="display-6 fw-bold text-white mb-3">
+                        <a href="/News/Detail/@featuredPost.PostId" class="text-white text-decoration-none hover-brand">
+                            @featuredPost.Title
+                        </a>
+                    </h1>
+                    <p class="lead text-light-50 mb-3 d-none d-md-block">@featuredPost.Summary</p>
+                    <div class="d-flex align-items-center gap-3 text-secondary small">
+                        <span><i class="bi bi-tag-fill text-info me-1"></i> @featuredPost.CategoryName</span>
+                        <span><i class="bi bi-calendar3 me-1"></i> @featuredPost.CreatedAt.ToString("dd/MM/yyyy")</span>
+                        <span><i class="bi bi-eye-fill me-1"></i> @featuredPost.ViewsCount lượt xem</span>
+                        <a href="/News/Detail/@featuredPost.PostId" class="btn btn-sm btn-outline-info rounded-pill ms-auto px-3">
+                            Đọc tiếp <i class="bi bi-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Search & Category Filters -->
+    <div class="mb-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <!-- Category Chips -->
+            <div class="d-flex flex-wrap gap-2">
+                <a href="/News" class="category-chip @(!filter.CategoryId.HasValue ? "active" : "")">
+                    <i class="bi bi-grid-fill me-1"></i> Tất cả
+                </a>
+                @foreach (var c in categories)
+                {
+                    <a href="/News?categoryId=@c.CategoryId" class="category-chip @(filter.CategoryId == c.CategoryId ? "active" : "")">
+                        @c.CategoryName
+                    </a>
+                }
+            </div>
+
+            <!-- Search Form -->
+            <form method="get" action="/News" class="d-flex" style="max-width: 300px;">
+                @if (filter.CategoryId.HasValue)
+                {
+                    <input type="hidden" name="categoryId" value="@filter.CategoryId" />
+                }
+                <div class="input-group">
+                    <input type="text" name="q" value="@filter.Search" class="form-control bg-dark border-secondary text-white shadow-none" placeholder="Tìm bài viết..." />
+                    <button type="submit" class="btn btn-outline-secondary text-white">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Section Title -->
+    <div class="section-title">
+        <span>Bài Viết Mới Nhất</span>
+        <span class="badge bg-dark border border-secondary text-secondary rounded-pill px-3 py-1 fs-7">@Model.TotalCount tin tức</span>
+    </div>
+
+    <!-- News Grid -->
+    @if (Model.Items != null && Model.Items.Count > 0)
+    {
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+            @foreach (var item in Model.Items)
+            {
+                <div class="col">
+                    <div class="card news-card">
+                        <a href="/News/Detail/@item.PostId" class="text-decoration-none">
+                            <div class="news-card-img-wrap">
+                                <img src="@item.ThumbnailUrl" alt="@item.Title" class="news-card-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop';" />
+                                <span class="position-absolute top-0 start-0 m-3 badge bg-dark bg-opacity-75 text-info border border-info border-opacity-25 px-2 py-1 fs-8">
+                                    @item.CategoryName
+                                </span>
+                            </div>
+                        </a>
+                        <div class="card-body d-flex flex-column justify-content-between p-3">
+                            <div>
+                                <h5 class="news-title fs-6 mb-2">
+                                    <a href="/News/Detail/@item.PostId" class="text-white text-decoration-none">
+                                        @item.Title
+                                    </a>
+                                </h5>
+                                <p class="news-summary mb-3">@item.Summary</p>
+                            </div>
+                            <div class="pt-2 border-top border-secondary border-opacity-25 d-flex justify-content-between text-secondary fs-8">
+                                <span><i class="bi bi-calendar3 me-1"></i> @item.CreatedAt.ToString("dd/MM/yyyy")</span>
+                                <span><i class="bi bi-eye me-1"></i> @item.ViewsCount lượt xem</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Pagination -->
+        @if (Model.TotalPages > 1)
+        {
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center custom-pagination">
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" href="/News?q=@filter.Search&categoryId=@filter.CategoryId&page=@(Model.Page - 1)">
+                            <i class="bi bi-chevron-left"></i> Trước
+                        </a>
+                    </li>
+
+                    @for (int p = 1; p <= Model.TotalPages; p++)
+                    {
+                        <li class="page-item @(p == Model.Page ? "active" : "")">
+                            <a class="page-link" href="/News?q=@filter.Search&categoryId=@filter.CategoryId&page=@p">@p</a>
+                        </li>
+                    }
+
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="/News?q=@filter.Search&categoryId=@filter.CategoryId&page=@(Model.Page + 1)">
+                            Sau <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    }
+    else
+    {
+        <div class="text-center py-5 my-4 rounded-4 bg-dark border border-secondary border-opacity-25">
+            <i class="bi bi-newspaper display-1 text-secondary mb-3 d-block"></i>
+            <h4 class="text-white fw-bold mb-2">Chưa có bài viết nào</h4>
+            <p class="text-secondary max-w-500 mx-auto mb-4">Không tìm thấy bài viết phù hợp với từ khóa hoặc danh mục của bạn.</p>
+            <a href="/News" class="btn btn-brand px-4 py-2 rounded-pill">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Tất cả bài viết
+            </a>
+        </div>
+    }
+</div>

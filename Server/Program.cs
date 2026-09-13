@@ -1,5 +1,6 @@
 using DataServiceLib.Implements;
 using DataServiceLib.Implements.Admin;
+using DataServiceLib.Implements.Admin.CMS;
 using DataServiceLib.Implements.Admin.Episodes;
 using DataServiceLib.Implements.Admin.Movies;
 using DataServiceLib.Implements.Admin.Series;
@@ -37,9 +38,9 @@ builder.Services.AddScoped<ICMovieGenre, CMovieGenre>();
 builder.Services.AddScoped<ICSeriesGenres, CSeriesGenres>();
 builder.Services.AddScoped<IPreView, PreView>();
 builder.Services.AddScoped<ICHome, CHome>();
+builder.Services.AddScoped<ICNews, CNews>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-
 var config = builder.Configuration;
 var connStr = config.GetConnectionString("SqlServer");
 
@@ -82,8 +83,6 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
-
-// app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
