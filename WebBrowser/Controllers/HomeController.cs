@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using WebBrowser.Models.Home;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Controllers
@@ -14,7 +15,15 @@ namespace WebBrowser.Controllers
             _movieService = movieService;
         }
 
-        public IActionResult Index() => View();
+        public async Task<IActionResult> Index()
+        {
+            var response = await _movieService.get_all();
+
+            return View(new HomeViewModel
+            {
+                Movies = response?.Data?.Table ?? new()
+            });
+        }
 
         // Ajax endpoint cho jQuery � KH�NG nh?n limit
         [HttpGet]
@@ -33,6 +42,13 @@ namespace WebBrowser.Controllers
             }
 
             var result = await _movieService.Autocomplete(q, limit);
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> MoviesCatalog()
+        {
+            var result = await _movieService.get_all();
             return Json(result);
         }
 

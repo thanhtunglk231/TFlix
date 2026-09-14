@@ -1,5 +1,5 @@
-﻿@using WebBrowser.Models.Preview
-@model PreviewItem
+﻿@using WebBrowser.Models.Film
+@model WatchViewModel
 
 @{
     Layout = "/Views/Shared/_Layout.cshtml";
@@ -9,28 +9,30 @@
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
 
-    // Lấy các giá trị từ Model (đã gắn Binding từ JSON)
-    var movieTitle = Model.OriginalTitle ?? Model.title ?? "Duty After School – Học Kỳ Sinh Tử";
-    var movieYear = Model.ReleaseOrAirDate?.Year ?? 2024; // Lấy năm từ ReleaseOrAirDate
-    var movieGenres = Model.genres ?? "Hành động · Viễn tưởng · Hàn Quốc"; // genres từ Model
+    var content = Model.Content;
+    var movieTitle = content.OriginalTitle ?? content.title ?? "Đang cập nhật";
+    var movieYear = content.ReleaseOrAirDate?.Year ?? 0;
+    var movieGenres = content.genres ?? "Đang cập nhật";
     var rating = 0.0; // Không có rating trong JSON nhưng có thể thêm vào sau
-    var poster = Model.PrimaryPosterUrl ?? "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=1600&auto=format&fit=crop"; // Lấy Poster từ Model
-    var description = Model.OverviewText ?? "Một lớp học bình thường phải tham gia chiến đấu để sinh tồn. Căng thẳng, kịch tính, và cảm xúc…"; // Lấy mô tả từ Model
+    var poster = content.PrimaryPosterUrl ?? "https://placehold.co/1600x900?text=No+Poster";
+    var description = content.OverviewText ?? "Chưa có nội dung mô tả.";
 
-    // Nguồn phát: mỗi item gồm (label + url)
-    var sources = new List<(string label, string url)>
-    {
-        ("CDN-1 • 1080p (HLS)", Model.PrimaryStreamUrl ?? "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"),
-        ("CDN-2 • 720p (MP4)",  "https://khgcepyhcwfblvflclvp.supabase.co/storage/v1/object/public/images/products/53995d51-effd-4388-8f5d-7c9d397b4e3e.mp4")
-    };
+    var currentEpisodeId = Model.CurrentEpisodeId;
+    var currentEpisode = Model.Episodes.FirstOrDefault(x => x.EpisodeId == currentEpisodeId);
+    var currentSources = Model.Sources
+        .Where(x => currentEpisodeId.HasValue
+            ? x.EpisodeId == currentEpisodeId
+            : x.MovieId == (int)content.ContentId)
+        .ToList();
+    var sources = currentSources
+        .Select(x => (label: $"{x.ServerName ?? x.Provider ?? "CDN"} • {x.Quality ?? "Auto"}", url: x.StreamUrl))
+        .Where(x => !string.IsNullOrWhiteSpace(x.url))
+        .ToList();
 
-    var currentSource = sources.First().url;
+    var currentSource = sources.FirstOrDefault().url ?? content.PrimaryStreamUrl ?? "";
 
-    // Danh sách tập (có thể lấy từ một API khác hoặc lấy từ ViewBag nếu có)
-    var episodes = ViewBag.Episodes as IEnumerable<(int ep, string title)> ??
-        Enumerable.Range(1, 12).Select(i => (i, $"Tập {i:00} - Nhiệm vụ #{100 + i}"));
-
-    var currentEp = ViewBag.CurrentEpisode as int? ?? 1;
+    var episodes = Model.Episodes;
+    var currentEp = currentEpisode?.EpisodeId ?? 0;
 
     // Tạo danh sách chất lượng demo
     var qualities = new[] { "1080p", "720p", "480p" };
@@ -404,14 +406,20 @@
                 </div>
                 <div class="panel-body">
                     <div class="vstack gap-2" id="epList">
-                        @foreach (var (ep, title) in episodes)
+                        @foreach (var episode in episodes)
                         {
-                            var act = ep == currentEp ? "active" : "";
-                            <div class="ep-item @act" data-ep="@ep">
-                                <div class="ep-num">@ep</div>
+                            var act = episode.EpisodeId == currentEp ? "active" : "";
+                            var episodeSource = Model.Sources
+                                .Where(x => x.EpisodeId == episode.EpisodeId)
+                                .OrderByDescending(x => x.IsPrimary)
+                                .FirstOrDefault();
+                            <div class="ep-item @act"
+                                 data-ep="@episode.EpisodeId"
+                                 data-source-url="@episodeSource?.StreamUrl">
+                                <div class="ep-num">@episode.EpisodeNo</div>
                                 <div class="flex-grow-1">
-                                    <div class="fw-semibold small">@title</div>
-                                    <div class="text-secondary small">HD • Vietsub</div>
+                                    <div class="fw-semibold small">@episode.EpisodeTitle</div>
+                                    <div class="text-secondary small">Mùa @episode.SeasonNo • @(episode.DurationMin ?? 0) phút</div>
                                 </div>
                                 <i class="bi bi-play-circle fs-5 text-light"></i>
                             </div>
@@ -629,24 +637,26 @@
             const ep = +item.dataset.ep;
             if (ep === currentEp) return;
             guardAuth(()=>{
-                // TODO: gọi API lấy url theo tập (ở đây demo đổi poster & reset progress)
                 currentEp = ep;
                 document.querySelectorAll('.ep-item').forEach(i=> i.classList.toggle('active', i===item));
-                const url = selServer.value; // vẫn dùng server hiện tại
+                const url = item.dataset.sourceUrl;
                 localStorage.setItem(`${movieKey}:last_ep`, String(currentEp));
-                loadSource(url);
+                if (url) {
+                    selServer.value = url;
+                    loadSource(url);
+                }
             });
         });
 
         btnPrev.addEventListener('click', ()=>{
-            const prev = Math.max(1, currentEp - 1);
-            const card = document.querySelector(`.ep-item[data-ep="${prev}"]`);
-            card?.click();
+            const items = [...document.querySelectorAll('.ep-item')];
+            const currentIndex = items.findIndex(item => +item.dataset.ep === currentEp);
+            items[currentIndex - 1]?.click();
         });
         btnNext.addEventListener('click', ()=>{
-            const next = Math.min(@episodes.Count(), currentEp + 1);
-            const card = document.querySelector(`.ep-item[data-ep="${next}"]`);
-            card?.click();
+            const items = [...document.querySelectorAll('.ep-item')];
+            const currentIndex = items.findIndex(item => +item.dataset.ep === currentEp);
+            items[currentIndex + 1]?.click();
         });
 
                // Sticky mini-player on scroll when not in PiP/fullscreen

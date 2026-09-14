@@ -1,6 +1,7 @@
 ﻿using CoreLib.Dtos.Preview;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using WebBrowser.Models.Film;
 using WebBrowser.Models.Preview;
 using WebBrowser.Services.Interfaces;
 
@@ -10,9 +11,20 @@ namespace WebBrowser.Controllers
     {
 
         private readonly IPreviewService _previewService;
-        public FilmController(IPreviewService previewService)
+        private readonly IEpisode _episodeService;
+        private readonly IVideoSoureService _videoSourceService;
+        private readonly ISeriesService _seriesService;
+
+        public FilmController(
+            IPreviewService previewService,
+            IEpisode episodeService,
+            IVideoSoureService videoSourceService,
+            ISeriesService seriesService)
         {
             _previewService = previewService;
+            _episodeService = episodeService;
+            _videoSourceService = videoSourceService;
+            _seriesService = seriesService;
         }
 
         public IActionResult Index()
@@ -30,19 +42,66 @@ namespace WebBrowser.Controllers
 
             Console.WriteLine($"[Preview.Details] id={id}, kind={kind}");
 
-            var resp = await _previewService.get_preview(request);
-            Console.WriteLine("[Preview.Details] resp = " + JsonConvert.SerializeObject(resp));
-
-            // resp: ApiResponse<PreviewTableWrapper>
-            if (resp == null || resp.Data == null)
+            PreviewItem? movie = null;
+            if (string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase))
             {
-                return NotFound("Không tìm thấy nội dung");
+                var seriesResponse = await _seriesService.get_all();
+                var series = seriesResponse?.Data?.Table?.FirstOrDefault(x => x.SeriesId == id);
+                if (series == null) return NotFound("Không tìm thấy series");
+
+                movie = new PreviewItem
+                {
+                    ContentId = series.SeriesId,
+                    kind = "SERIES",
+                    title = series.Title,
+                    OriginalTitle = series.OriginalTitle,
+                    ReleaseOrAirDate = series.FirstAirDate,
+                    CountryCode = series.CountryCode,
+                    LanguageCode = series.LanguageCode,
+                    status = series.Status,
+                    IsPremium = series.IsPremium,
+                    genres = series.Genres,
+                    PrimaryPosterUrl = series.PosterUrl
+                };
+            }
+            else
+            {
+                var resp = await _previewService.get_preview(request);
+                Console.WriteLine("[Preview.Details] resp = " + JsonConvert.SerializeObject(resp));
+                if (resp == null || resp.Data?.Table == null || resp.Data.Table.Count == 0)
+                    return NotFound("Không tìm thấy nội dung");
+                movie = resp.Data.Table[0];
             }
 
-            PreviewItem movie = resp.Data.Table[0];
             Console.WriteLine(JsonConvert.SerializeObject(movie));
-            // View Index.cshtml đang khai báo @model PreviewItem
-            return View("Index", movie);
+
+            var episodesResponse = await _episodeService.get_all();
+            var sourcesResponse = await _videoSourceService.get_all();
+            var episodes = episodesResponse?.Data?.Table?
+                .Where(x => x.SeriesId == id && string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(x => x.SeasonNo)
+                .ThenBy(x => x.EpisodeNo)
+                .ToList() ?? new List<WebBrowser.Models.Episode.EpisodeItem>();
+
+            var episodeIds = episodes.Select(x => x.EpisodeId).ToHashSet();
+            var sources = sourcesResponse?.Data?.Table?
+                .Where(x => string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase)
+                    ? x.EpisodeId.HasValue && episodeIds.Contains(x.EpisodeId.Value)
+                    : x.MovieId == id)
+                .Where(x => string.Equals(x.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
+                .ToList() ?? new List<WebBrowser.Models.VideoSoure.SourceItem>();
+
+            var currentEpisodeId = episodes
+                .FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId))?.EpisodeId
+                ?? episodes.FirstOrDefault()?.EpisodeId;
+
+            return View("Index", new WatchViewModel
+            {
+                Content = movie,
+                Episodes = episodes,
+                Sources = sources,
+                CurrentEpisodeId = currentEpisodeId
+            });
         }
 
 
