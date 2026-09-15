@@ -1,4 +1,4 @@
-﻿    using CoreLib.Models;
+    using CoreLib.Models;
     using Newtonsoft.Json;
     using System.Data;
     using System.Text;
@@ -27,7 +27,23 @@
 
             private void AddBearerToken()
             {
-                var token = _httpContextAccessor.HttpContext?.Session.GetString("JWToken");
+                var httpContext = _httpContextAccessor.HttpContext;
+                string? token = null;
+
+                if (httpContext != null)
+                {
+                    var path = httpContext.Request.Path.Value ?? "";
+                    if (path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        token = httpContext.Session.GetString("AdminJWToken");
+                    }
+
+                    if (string.IsNullOrEmpty(token))
+                    {
+                        token = httpContext.Session.GetString("JWToken") ?? httpContext.Session.GetString("AdminJWToken");
+                    }
+                }
+
                 if (!string.IsNullOrEmpty(token))
                 {
                     _client.DefaultRequestHeaders.Authorization =

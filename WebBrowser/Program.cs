@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using WebBrowser.Services.Implements;
 using WebBrowser.Services.Implements.Episodes;
 using WebBrowser.Services.Implements.Movies;
@@ -42,6 +42,8 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IHomeService,
 
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPreviewService,
                            PreviewService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.INewsService,
+                           NewsService>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>
     {

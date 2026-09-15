@@ -1,12 +1,11 @@
-﻿using CoreLib.Dtos.Season;
+using CoreLib.Dtos.Season;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
-    public class SeasonController : Controller
+    public class SeasonController : AdminBaseController
     {
         private readonly ISesonService _seasonService;
         public SeasonController(ISesonService seasonService)

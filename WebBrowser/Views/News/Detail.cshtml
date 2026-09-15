@@ -1,0 +1,213 @@
+@model CoreLib.Dtos.CMS.NewsDetailDto
+@using CoreLib.Dtos.CMS
+
+@{
+    ViewData["Title"] = Model.Title + " - Tin Tức TFlix";
+    var categories = ViewBag.Categories as List<NewsCategoryDto> ?? new List<NewsCategoryDto>();
+}
+
+@section Styles {
+    <style>
+        :root {
+            --brand: #27d3c3;
+            --brand2: #19b3a5;
+            --panel-bg: #12161a;
+        }
+
+        .article-banner-wrap {
+            position: relative;
+            width: 100%;
+            max-height: 440px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+        }
+
+        .article-banner-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            max-height: 440px;
+        }
+
+        .article-body {
+            background: #12161a;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 2rem;
+            color: #dbe6ee;
+            font-size: 1.05rem;
+            line-height: 1.8;
+        }
+
+        .article-body h2 {
+            color: #fff;
+            font-weight: 700;
+            margin-top: 1.8rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            border-left: 4px solid var(--brand);
+            padding-left: 0.8rem;
+        }
+
+        .article-body h3 {
+            color: #fff;
+            font-weight: 600;
+            margin-top: 1.4rem;
+            margin-bottom: 0.8rem;
+            font-size: 1.25rem;
+        }
+
+        .article-body p {
+            margin-bottom: 1.2rem;
+        }
+
+        .article-body ul, .article-body ol {
+            margin-bottom: 1.2rem;
+            padding-left: 1.5rem;
+        }
+
+        .article-body li {
+            margin-bottom: 0.5rem;
+        }
+
+        .badge-brand {
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            color: #001014;
+            font-weight: 700;
+        }
+
+        .related-card {
+            background: #12161a;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+
+        .related-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--brand);
+        }
+    </style>
+}
+
+<div class="container my-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="/" class="text-secondary text-decoration-none">Trang chủ</a></li>
+            <li class="breadcrumb-item"><a href="/News" class="text-secondary text-decoration-none">Tin tức</a></li>
+            <li class="breadcrumb-item active text-info" aria-current="page">@Model.CategoryName</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- Main Article Column -->
+        <div class="col-12 col-lg-8">
+            <!-- Article Header -->
+            <div class="mb-4">
+                <span class="badge badge-brand px-3 py-2 fs-7 mb-2">
+                    <i class="bi bi-tag-fill me-1"></i> @Model.CategoryName
+                </span>
+                <h1 class="display-6 fw-bold text-white mb-3">@Model.Title</h1>
+
+                <div class="d-flex flex-wrap align-items-center gap-3 text-secondary small pb-3 border-bottom border-secondary border-opacity-25">
+                    <span><i class="bi bi-calendar3 me-1"></i> @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                    <span><i class="bi bi-eye-fill me-1"></i> @Model.ViewsCount lượt xem</span>
+                    <span class="ms-auto"><i class="bi bi-shield-check text-success me-1"></i> Bản quyền TFlix</span>
+                </div>
+            </div>
+
+            <!-- Banner Image -->
+            @if (!string.IsNullOrEmpty(Model.ThumbnailUrl))
+            {
+                <div class="article-banner-wrap mb-4">
+                    <img src="@Model.ThumbnailUrl" alt="@Model.Title" class="article-banner-img" />
+                </div>
+            }
+
+            <!-- Summary Box -->
+            @if (!string.IsNullOrEmpty(Model.Summary))
+            {
+                <div class="alert bg-dark border border-secondary border-opacity-25 text-light-50 rounded-4 p-3 mb-4 fs-6 fst-italic">
+                    <i class="bi bi-quote fs-3 text-info me-2 align-middle"></i> @Model.Summary
+                </div>
+            }
+
+            <!-- Main Content HTML -->
+            <div class="article-body mb-4">
+                @if (!string.IsNullOrEmpty(Model.ContentHtml))
+                {
+                    @Html.Raw(Model.ContentHtml)
+                }
+                else
+                {
+                    <p>@Model.Summary</p>
+                }
+            </div>
+
+            <!-- Share & Navigation -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 bg-dark border border-secondary border-opacity-25 rounded-4 mb-4">
+                <div class="d-flex align-items-center gap-2 text-white small">
+                    <i class="bi bi-share-fill text-info"></i> Chia sẻ bài viết:
+                    <button class="btn btn-sm btn-outline-light rounded-circle" onclick="navigator.clipboard.writeText(window.location.href); alert('Đã sao chép liên kết bài viết!');" title="Sao chép link">
+                        <i class="bi bi-link-45deg"></i>
+                    </button>
+                </div>
+                <a href="/News" class="btn btn-sm btn-outline-info rounded-pill px-3">
+                    <i class="bi bi-arrow-left me-1"></i> Quay lại Tin tức
+                </a>
+            </div>
+        </div>
+
+        <!-- Sidebar Column -->
+        <div class="col-12 col-lg-4">
+            <!-- Categories Widget -->
+            <div class="panel p-3 mb-4 bg-dark border border-secondary border-opacity-25 rounded-4">
+                <h5 class="fw-bold text-white mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-grid-fill text-info"></i> Danh Mục Tin Tức
+                </h5>
+                <div class="vstack gap-2">
+                    <a href="/News" class="text-decoration-none text-light p-2 rounded hover-dark d-flex justify-content-between">
+                        <span><i class="bi bi-chevron-right text-secondary me-1"></i> Tất cả bài viết</span>
+                    </a>
+                    @foreach (var c in categories)
+                    {
+                        <a href="/News?categoryId=@c.CategoryId" class="text-decoration-none text-light p-2 rounded hover-dark d-flex justify-content-between">
+                            <span><i class="bi bi-chevron-right text-secondary me-1"></i> @c.CategoryName</span>
+                        </a>
+                    }
+                </div>
+            </div>
+
+            <!-- Related Posts Widget -->
+            @if (Model.RelatedPosts != null && Model.RelatedPosts.Count > 0)
+            {
+                <div class="panel p-3 bg-dark border border-secondary border-opacity-25 rounded-4">
+                    <h5 class="fw-bold text-white mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-newspaper text-info"></i> Bài Viết Liên Quan
+                    </h5>
+                    <div class="vstack gap-3">
+                        @foreach (var r in Model.RelatedPosts)
+                        {
+                            <div class="related-card p-2">
+                                <a href="/News/Detail/@r.PostId" class="text-decoration-none">
+                                    <div class="d-flex gap-2">
+                                        <img src="@r.ThumbnailUrl" alt="@r.Title" class="rounded object-fit-cover" style="width: 80px; height: 60px;" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&auto=format&fit=crop';" />
+                                        <div class="flex-grow-1">
+                                            <h6 class="text-white small fw-bold mb-1 text-truncate-2" title="@r.Title">@r.Title</h6>
+                                            <span class="text-secondary fs-8"><i class="bi bi-calendar3 me-1"></i> @r.CreatedAt.ToString("dd/MM/yyyy")</span>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

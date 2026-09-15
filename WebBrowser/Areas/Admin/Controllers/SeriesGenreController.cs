@@ -1,11 +1,10 @@
-﻿using CoreLib.Dtos.SeriesGenre;
+using CoreLib.Dtos.SeriesGenre;
 using Microsoft.AspNetCore.Mvc;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
-    public class SeriesGenreController : Controller
+    public class SeriesGenreController : AdminBaseController
     {
         private readonly ISerireGenreService _seriesGenreService;
 

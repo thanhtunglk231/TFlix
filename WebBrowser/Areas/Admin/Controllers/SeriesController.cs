@@ -1,12 +1,11 @@
-﻿using CoreLib.Dtos.Series;
+using CoreLib.Dtos.Series;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
-    public class SeriesController : Controller
+    public class SeriesController : AdminBaseController
     {
         private readonly ISeriesService _seriesService;
         public SeriesController(ISeriesService seriesService) => _seriesService = seriesService;

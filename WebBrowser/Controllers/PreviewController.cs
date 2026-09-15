@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.Preview;
+using CoreLib.Dtos.Preview;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Models.Preview;
@@ -16,13 +16,28 @@ namespace WebBrowser.Controllers
             _previewService = previewService;
         }
 
+        private bool IsUserAuthenticated()
+        {
+            var token = HttpContext.Session.GetString("JWToken");
+            return !string.IsNullOrEmpty(token) || (User != null && User.Identity != null && User.Identity.IsAuthenticated);
+        }
+
         public IActionResult Index()
         {
+            if (!IsUserAuthenticated())
+            {
+                return RedirectToAction("Index", "Auth", new { returnUrl = "/Movies" });
+            }
             return View();
         }
 
         public async Task<IActionResult> Details(int id, string kind)
         {
+            if (!IsUserAuthenticated())
+            {
+                string returnUrl = Url.Action("Details", "Preview", new { id, kind }) ?? "/Movies";
+                return RedirectToAction("Index", "Auth", new { returnUrl });
+            }
             var request = new GETCONTENTByID
             {
                 id = id,

@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.Movies;
+using CoreLib.Dtos.Movies;
 using CoreLib.Dtos.Season;
 using CoreLib.Models;
 using Newtonsoft.Json;
@@ -79,6 +79,16 @@ namespace WebBrowser.Services.Implements.Movies
             Console.WriteLine("[MovieService] <- get_all EXIT: " + JsonConvert.SerializeObject(resp));
             resp.success = resp.success || resp.code == "200";
             return resp;
+        }
+
+        public async Task<CResponseMessage> GetCatalogMovies(MovieCatalogFilterDto filter)
+        {
+            const string url = "/api/Movie/catalog";
+            Console.WriteLine("[MovieService] -> GetCatalogMovies ENTER url=" + url);
+
+            var resp = await _httpService.PostAsync<CResponseMessage>(url, filter);
+            Console.WriteLine("[MovieService] <- GetCatalogMovies EXIT: " + JsonConvert.SerializeObject(resp));
+            return resp!;
         }
     }
 }

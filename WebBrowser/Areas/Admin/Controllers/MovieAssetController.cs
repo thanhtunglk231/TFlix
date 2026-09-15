@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.EpisodeAsset;
+using CoreLib.Dtos.EpisodeAsset;
 using CoreLib.Dtos.MovieAsset;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -6,9 +6,8 @@ using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
     [Route("Admin/[controller]")]
-    public class MovieAssetController : Controller
+    public class MovieAssetController : AdminBaseController
     {
         private readonly IMovieAssetService _episodeAsset;
         private readonly ILogger<EpisodeAssetController> _logger;

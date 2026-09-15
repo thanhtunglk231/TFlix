@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.VideSoure;
+using CoreLib.Dtos.VideSoure;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
@@ -6,8 +6,7 @@ using WebBrowser.Services.Interfaces;
 namespace WebBrowser.Areas.Admin.Controllers
 {
 
-    [Area("Admin")]
-    public class VideoSoureController : Controller
+    public class VideoSoureController : AdminBaseController
     {
         private readonly IVideoSoureService _videoSoureService;
 

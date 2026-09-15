@@ -5,8 +5,7 @@ using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
-    public class PermissionController : Controller
+    public class PermissionController : AdminBaseController
     {
         private readonly IPermissionService _permissionService;
 

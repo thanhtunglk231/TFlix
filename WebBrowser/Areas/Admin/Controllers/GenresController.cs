@@ -1,12 +1,11 @@
-﻿using CoreLib.Dtos.Genres;
+using CoreLib.Dtos.Genres;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
 {
-    [Area("Admin")]
-    public class GenresController : Controller
+    public class GenresController : AdminBaseController
     {
         private readonly IGenresService _genresService;
 
