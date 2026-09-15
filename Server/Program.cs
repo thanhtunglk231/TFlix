@@ -5,7 +5,6 @@ using DataServiceLib.Implements.Admin.Movies;
 using DataServiceLib.Implements.Admin.Series;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Data.SqlClient;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -39,24 +38,6 @@ builder.Services.AddScoped<IPreView, PreView>();
 builder.Services.AddScoped<ICHome, CHome>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-
-var config = builder.Configuration;
-var connStr = config.GetConnectionString("SqlServer");
-
-// test kết nối
-using (SqlConnection conn = new SqlConnection(connStr))
-{
-    try
-    {
-        conn.Open();
-        Console.WriteLine("✅ SQL Server connected successfully!");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("❌ Connection failed:");
-        Console.WriteLine(ex.Message);
-    }
-}
 
 builder.Services.AddAuthentication(options =>
 {
