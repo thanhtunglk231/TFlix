@@ -491,8 +491,8 @@ dotnet run --project Server/Server.csproj --launch-profile http
 URL Server:
 
 ```text
-http://localhost:5035
-http://localhost:5035/swagger
+http://localhost:5036
+http://localhost:5036/swagger
 ```
 
 2. Chạy WebBrowser MVC:
@@ -504,7 +504,7 @@ dotnet run --project WebBrowser/WebBrowser.csproj --launch-profile http
 URL WebBrowser:
 
 ```text
-http://localhost:5121
+http://localhost:5122
 ```
 
 Quy tắc:
