@@ -1,3 +1,5 @@
+using Microsoft.Data.SqlClient;
+using CommonLib.Logging;
 using DataServiceLib.Implements;
 using DataServiceLib.Implements.Admin;
 using DataServiceLib.Implements.Admin.CMS;
@@ -10,6 +12,15 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Cấu hình File Logger ghi lỗi ra file txt
+builder.Logging.AddFileLogger(options =>
+{
+    options.LogDirectory = "Logs";
+    options.FileNamePrefix = "server_error";
+    options.MinLevel = LogLevel.Error;
+    options.RetainDays = 30;
+});
 
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>

@@ -30,6 +30,7 @@
         .ToList();
 
     var currentSource = sources.FirstOrDefault().url ?? content.PrimaryStreamUrl ?? "";
+    var hasSource = !string.IsNullOrWhiteSpace(currentSource);
 
     var episodes = Model.Episodes;
     var currentEp = currentEpisode?.EpisodeId ?? 0;
