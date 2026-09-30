@@ -1,10 +1,20 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using CommonLib.Logging;
 using WebBrowser.Services.Implements;
 using WebBrowser.Services.Implements.Episodes;
 using WebBrowser.Services.Implements.Movies;
 using WebBrowser.Services.Implements.Series;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Cấu hình File Logger ghi lỗi ra file txt
+builder.Logging.AddFileLogger(options =>
+{
+    options.LogDirectory = "Logs";
+    options.FileNamePrefix = "web_error";
+    options.MinLevel = LogLevel.Error;
+    options.RetainDays = 30;
+});
 
 // ? ??ng ký HttpClientFactory (fix l?i IHttpClientFactory)
 builder.Services.AddHttpClient();
