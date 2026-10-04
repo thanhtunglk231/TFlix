@@ -482,7 +482,7 @@ Khi người dùng yêu cầu push code hoặc merge vào nhánh khác:
 
 - Kiểm tra nhánh hiện tại, remote, trạng thái worktree và các commit chưa có trên remote trước khi stage hoặc push.
 - Chỉ stage các thay đổi thuộc phạm vi yêu cầu; không stage toàn bộ worktree nếu có thay đổi không liên quan.
-- Không push các file `launchSettings.json`, `appsettings*.json`, hoặc database changes trong `Database/**` hay `dbchanges/**`, trừ khi người dùng cho phép rõ ràng.
+- Không push các file `launchSettings.json`, `appsettings*.json`,file logging, hoặc database changes trong `Database/**` hay `dbchanges/**`, trừ khi người dùng cho phép rõ ràng.
 - Trước khi push, kiểm tra danh sách file trong commit/diff sắp gửi và xác nhận các đường dẫn bị loại trừ không xuất hiện.
 - Nếu commit chưa push đã chứa file bị loại trừ, không push nhánh đó nguyên trạng. Tạo commit sạch dựa trên remote hoặc hỏi người dùng trước khi viết lại lịch sử.
 - Không force-push hoặc ghi đè lịch sử remote nếu chưa được người dùng yêu cầu rõ ràng.
