@@ -1,5 +1,6 @@
     using CoreLib.Models;
     using Newtonsoft.Json;
+    using Microsoft.Extensions.Logging;
     using System.Data;
     using System.Text;
     using WebBrowser.Services.HttpSevice.Interfaces;
@@ -9,23 +10,28 @@
         public class HttpService : IHttpService
         {
             private readonly HttpClient _client;
+            private readonly HttpClient _longRunningClient;
             private readonly IHttpContextAccessor _httpContextAccessor;
+            private readonly ILogger<HttpService> _logger;
 
-            public HttpService(IHttpClientFactory httpClientFactory, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+            public HttpService(IHttpClientFactory httpClientFactory, IConfiguration config, IHttpContextAccessor httpContextAccessor, ILogger<HttpService> logger)
             {
                 _httpContextAccessor = httpContextAccessor;
+                _logger = logger;
                 _client = httpClientFactory.CreateClient();
                 _client.BaseAddress = new Uri(config["PathStrings:Url"]);
+                _longRunningClient = httpClientFactory.CreateClient("VideoUpload");
+                _longRunningClient.BaseAddress = _client.BaseAddress;
             }
 
             // ===== Helpers logging =====
-            private static void Log(string message)
-                => Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [HttpService] {message}");
+            private void Log(string message)
+                => _logger.LogInformation("{HttpServiceMessage}", message);
 
-            private static void LogObject(string label, object? data)
-                => Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [HttpService] {label}: {JsonConvert.SerializeObject(data)}");
+            private void LogObject(string label, object? data)
+                => _logger.LogDebug("{Operation} payload type {PayloadType}", label, data?.GetType().Name);
 
-            private void AddBearerToken()
+            private void AddBearerToken(HttpClient? client = null)
             {
                 var httpContext = _httpContextAccessor.HttpContext;
                 string? token = null;
@@ -46,7 +52,7 @@
 
                 if (!string.IsNullOrEmpty(token))
                 {
-                    _client.DefaultRequestHeaders.Authorization =
+                    (client ?? _client).DefaultRequestHeaders.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                 }
             }
@@ -118,11 +124,10 @@
                     Log($"GET Status: {(int)response.StatusCode} {response.StatusCode}");
 
                     var json = await response.Content.ReadAsStringAsync();
-                    Log($"GET Content: {json}");
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        var errorMsg = $"Lỗi API: {response.StatusCode} - {json}";
+                        var errorMsg = $"Lỗi API: {response.StatusCode}";
                         Log($"Error: {errorMsg}");
                         throw new Exception(errorMsg);
                     }
@@ -133,7 +138,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception GET: {ex}");
+                    _logger.LogError(ex, "HTTP GET {Url} failed", url);
                     throw;
                 }
             }
@@ -146,7 +151,7 @@
                     LogObject("POST body", data);
 
                     AddBearerToken();
-                    Console.WriteLine($"POST to: {new Uri(_client.BaseAddress!, url)}");
+                    Log($"POST to: {new Uri(_client.BaseAddress!, url)}");
 
                     var jsonContent = CreateJsonContent(data);
                     var response = await _client.PostAsync(url, jsonContent);
@@ -154,7 +159,6 @@
                     Log($"POST Status: {(int)response.StatusCode} {response.StatusCode}");
 
                     var json = await response.Content.ReadAsStringAsync();
-                    Log($"POST Content: {json}");
 
                     var result = JsonConvert.DeserializeObject<T>(json);
                     Log($"POST Deserialized -> {typeof(T).Name}");
@@ -162,7 +166,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception POST: {ex}");
+                    _logger.LogError(ex, "HTTP POST {Url} failed", url);
 
                     if (typeof(T) == typeof(CResponseMessage))
                     {
@@ -172,6 +176,41 @@
                             Success = false,
                             code = "500",
                             message = "Lỗi hệ thống: " + ex.Message
+                        };
+                    }
+
+                    return default!;
+                }
+            }
+
+            public async Task<T> PostLongRunningAsync<T>(string url, object data)
+            {
+                AddBearerToken(_longRunningClient);
+                Log($"Long-running POST -> {url}");
+
+                try
+                {
+                    using var content = CreateJsonContent(data);
+                    using var response = await _longRunningClient.PostAsync(url, content);
+                    var json = await response.Content.ReadAsStringAsync();
+                    Log($"Long-running POST Status: {(int)response.StatusCode} {response.StatusCode}");
+
+                    var result = JsonConvert.DeserializeObject<T>(json);
+                    if (!response.IsSuccessStatusCode)
+                        _logger.LogWarning("Long-running HTTP POST {Url} returned status {StatusCode}", url, (int)response.StatusCode);
+
+                    return result!;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Long-running HTTP POST {Url} failed", url);
+                    if (typeof(T) == typeof(CResponseMessage))
+                    {
+                        return (T)(object)new CResponseMessage
+                        {
+                            Success = false,
+                            code = "500",
+                            message = "Lỗi xử lý upload video: " + ex.Message
                         };
                     }
 
@@ -211,7 +250,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception GetDataSetFromResponseAsync: {ex}");
+                    _logger.LogError(ex, "Failed to convert API response from {Url} to a data set", url);
                 }
 
                 return new DataSet();
@@ -232,7 +271,6 @@
                     var json = await response.Content.ReadAsStringAsync();
 
                     Log($"PUT Status: {(int)response.StatusCode} {response.StatusCode}");
-                    Log($"PUT Content: {json}");
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -255,7 +293,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception PUT: {ex}");
+                    _logger.LogError(ex, "HTTP PUT {Url} failed", url);
                     return new CResponseMessage
                     {
                         Success = false,
@@ -284,7 +322,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception GetTableFromCResponseAsync: {ex}");
+                    _logger.LogError(ex, "Failed to convert API response from {Url} to a table", url);
                     return new List<T>();
                 }
             }
@@ -307,7 +345,6 @@
                     var json = await response.Content.ReadAsStringAsync();
 
                     Log($"DELETE(body) Status: {(int)response.StatusCode} {response.StatusCode}");
-                    Log($"DELETE(body) Content: {json}");
 
                     var rootObj = JsonConvert.DeserializeObject<dynamic>(json);
                     var resultToken = rootObj?.result;
@@ -322,7 +359,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception DELETE(body): {ex}");
+                    _logger.LogError(ex, "HTTP DELETE with body to {Url} failed", url);
                     return new CResponseMessage
                     {
                         Success = false,
@@ -343,7 +380,6 @@
                     var json = await response.Content.ReadAsStringAsync();
 
                     Log($"DELETE Status: {(int)response.StatusCode} {response.StatusCode}");
-                    Log($"DELETE Content: {json}");
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -372,7 +408,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception DELETE: {ex}");
+                    _logger.LogError(ex, "HTTP DELETE {Url} failed", url);
                     return new CResponseMessage
                     {
                         Success = false,
@@ -388,22 +424,21 @@
 
                 try
                 {
-                    Console.WriteLine($"POST(multipart) to: {new Uri(_client.BaseAddress!, url)}");
+                    Log($"POST multipart to: {new Uri(_client.BaseAddress!, url)}");
                     var response = await _client.PostAsync(url, content);
 
                     Log($"POST(multipart) Status: {(int)response.StatusCode} {response.StatusCode}");
                     var json = await response.Content.ReadAsStringAsync();
-                    Log($"POST(multipart) Content: {json}");
 
                     if (!response.IsSuccessStatusCode)
-                        throw new Exception($"Lỗi API: {response.StatusCode} - {json}");
+                        throw new HttpRequestException($"Lỗi API: {response.StatusCode}");
 
                     var result = JsonConvert.DeserializeObject<T>(json);
                     return result!;
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception POST(multipart): {ex}");
+                    _logger.LogError(ex, "HTTP multipart POST {Url} failed", url);
                     if (typeof(T) == typeof(CResponseMessage))
                     {
                         return (T)(object)new CResponseMessage
@@ -429,17 +464,16 @@
 
                     Log($"PUT(multipart) Status: {(int)response.StatusCode} {response.StatusCode}");
                     var json = await response.Content.ReadAsStringAsync();
-                    Log($"PUT(multipart) Content: {json}");
 
                     if (!response.IsSuccessStatusCode)
-                        throw new Exception($"Lỗi API: {response.StatusCode} - {json}");
+                        throw new HttpRequestException($"Lỗi API: {response.StatusCode}");
 
                     var result = JsonConvert.DeserializeObject<T>(json);
                     return result!;
                 }
                 catch (Exception ex)
                 {
-                    Log($"Exception PUT(multipart): {ex}");
+                    _logger.LogError(ex, "HTTP multipart PUT {Url} failed", url);
                     if (typeof(T) == typeof(CResponseMessage))
                     {
                         return (T)(object)new CResponseMessage

@@ -1,4 +1,3 @@
-using Microsoft.Data.SqlClient;
 using CommonLib.Logging;
 using DataServiceLib.Implements;
 using DataServiceLib.Implements.Admin;
@@ -9,6 +8,9 @@ using DataServiceLib.Implements.Admin.Series;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Server.Services;
+using System.Diagnostics;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,9 +18,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Cấu hình File Logger ghi lỗi ra file txt
 builder.Logging.AddFileLogger(options =>
 {
-    options.LogDirectory = "Logs";
-    options.FileNamePrefix = "server_error";
-    options.MinLevel = LogLevel.Error;
+    options.LogDirectory = Path.Combine(builder.Environment.ContentRootPath, "Logs");
+    options.FileNamePrefix = "server";
+    options.MinLevel = LogLevel.Information;
     options.RetainDays = 30;
 });
 
@@ -40,6 +42,9 @@ builder.Services.AddScoped<ICEpisode, CEpisode>();
 builder.Services.AddScoped<ICSeason, CSeason>();
 builder.Services.AddScoped<ICSeries, CSeries>();
 builder.Services.AddScoped<ICVideoSoure, CVideoSoure>();
+builder.Services.AddSingleton<IVideoTranscodingService, FfmpegVideoTranscodingService>();
+builder.Services.AddSingleton<VideoUploadProgressTracker>();
+builder.Services.AddSingleton<ICloudflareR2Service, CloudflareR2Service>();
 builder.Services.AddSingleton<ISupabaseService, SupabaseService>();
 builder.Services.AddScoped<ICEpisodeAssets, CEpisodeAssets>();
 builder.Services.AddScoped<ICMovieAsset, CMovieAsset>();
@@ -52,23 +57,6 @@ builder.Services.AddScoped<ICNews, CNews>();
 builder.Services.AddScoped<ICComment, CComment>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var config = builder.Configuration;
-var connStr = config.GetConnectionString("SqlServer");
-
-// test kết nối
-using (SqlConnection conn = new SqlConnection(connStr))
-{
-    try
-    {
-        conn.Open();
-        Console.WriteLine("✅ SQL Server connected successfully!");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("❌ Connection failed:");
-        Console.WriteLine(ex.Message);
-    }
-}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -91,9 +79,55 @@ builder.Services.AddAuthentication(options =>
 });
 
 var app = builder.Build();
+var requestLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ControllerRequest");
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalException");
+        logger.LogError(ex, "Unhandled exception in Server");
+        throw;
+    }
+});
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseRouting();
+app.Use(async (context, next) =>
+{
+    var action = context.GetEndpoint()?.Metadata.GetMetadata<ControllerActionDescriptor>();
+    if (action == null)
+    {
+        await next();
+        return;
+    }
+
+    var stopwatch = Stopwatch.StartNew();
+    var statusCode = StatusCodes.Status500InternalServerError;
+    try
+    {
+        await next();
+        statusCode = context.Response.StatusCode;
+    }
+    finally
+    {
+        stopwatch.Stop();
+        requestLogger.LogInformation(
+            "Controller {Controller}.{Action} handled {Method} {Path} with status {StatusCode} in {ElapsedMilliseconds} ms",
+            action.ControllerName,
+            action.ActionName,
+            context.Request.Method,
+            context.Request.Path,
+            statusCode,
+            stopwatch.ElapsedMilliseconds);
+    }
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

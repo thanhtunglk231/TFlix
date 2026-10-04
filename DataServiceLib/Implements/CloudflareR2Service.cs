@@ -5,6 +5,7 @@ using System.Text;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace DataServiceLib.Implements
 {
@@ -12,6 +13,7 @@ namespace DataServiceLib.Implements
     {
         private const string Region = "auto";
         private const string Service = "s3";
+        private const int UploadMaxAttempts = 4;
 
         private readonly HttpClient _client;
         private readonly string _accountId;
@@ -20,36 +22,41 @@ namespace DataServiceLib.Implements
         private readonly string _bucketName;
         private readonly string _publicBaseUrl;
         private readonly string _storageHost;
+        private readonly bool _isConfigured;
+        private readonly ILogger<CloudflareR2Service> _logger;
 
-        public CloudflareR2Service(IConfiguration configuration)
+        public CloudflareR2Service(IConfiguration configuration, ILogger<CloudflareR2Service> logger)
         {
+            _logger = logger;
             _accountId = configuration["CloudflareR2:AccountId"] ?? string.Empty;
             _accessKey = configuration["CloudflareR2:AccessKey"] ?? string.Empty;
             _secretKey = configuration["CloudflareR2:SecretKey"] ?? string.Empty;
             _bucketName = configuration["CloudflareR2:BucketName"] ?? string.Empty;
             _publicBaseUrl = (configuration["CloudflareR2:PublicBaseUrl"] ?? string.Empty).TrimEnd('/');
 
-            if (string.IsNullOrWhiteSpace(_accountId))
-                throw new InvalidOperationException("CloudflareR2:AccountId chưa được cấu hình.");
-            if (string.IsNullOrWhiteSpace(_accessKey))
-                throw new InvalidOperationException("CloudflareR2:AccessKey chưa được cấu hình.");
-            if (string.IsNullOrWhiteSpace(_secretKey))
-                throw new InvalidOperationException("CloudflareR2:SecretKey chưa được cấu hình.");
-            if (string.IsNullOrWhiteSpace(_bucketName))
-                throw new InvalidOperationException("CloudflareR2:BucketName chưa được cấu hình.");
-            if (string.IsNullOrWhiteSpace(_publicBaseUrl))
-                throw new InvalidOperationException("CloudflareR2:PublicBaseUrl chưa được cấu hình.");
+            _isConfigured = !string.IsNullOrWhiteSpace(_accountId)
+                && !string.IsNullOrWhiteSpace(_accessKey)
+                && !string.IsNullOrWhiteSpace(_secretKey)
+                && !string.IsNullOrWhiteSpace(_bucketName)
+                && !string.IsNullOrWhiteSpace(_publicBaseUrl);
 
-            _storageHost = $"{_accountId}.r2.cloudflarestorage.com";
-            _client = new HttpClient
-            {
-                BaseAddress = new Uri($"https://{_storageHost}")
-            };
+            _storageHost = string.IsNullOrWhiteSpace(_accountId)
+                ? string.Empty
+                : $"{_accountId}.r2.cloudflarestorage.com";
+            _client = new HttpClient();
+
+            if (_isConfigured)
+                _client.BaseAddress = new Uri($"https://{_storageHost}");
+            else
+                _logger.LogWarning("Cloudflare R2 is not fully configured; video uploads will use the fallback provider");
         }
 
         public async Task<string?> UploadFileAsync(IFormFile file, string objectPath)
         {
             if (file == null || file.Length == 0)
+                return null;
+
+            if (!_isConfigured)
                 return null;
 
             if (string.IsNullOrWhiteSpace(objectPath))
@@ -68,26 +75,52 @@ namespace DataServiceLib.Implements
                 ? GetContentType(file.FileName)
                 : file.ContentType;
 
-            using var request = new HttpRequestMessage(HttpMethod.Put, requestPath)
+            for (var attempt = 1; attempt <= UploadMaxAttempts; attempt++)
             {
-                Content = new ByteArrayContent(bytes)
-            };
-            request.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                using var request = new HttpRequestMessage(HttpMethod.Put, requestPath)
+                {
+                    Content = new ByteArrayContent(bytes)
+                };
+                request.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
 
-            SignRequest(request, requestPath, bytes);
+                try
+                {
+                    SignRequest(request, requestPath, bytes);
+                    using var response = await _client.SendAsync(request);
+                    if (response.IsSuccessStatusCode)
+                        return $"{_publicBaseUrl}/{encodedPath}";
 
-            var response = await _client.SendAsync(request);
-            if (response.IsSuccessStatusCode)
-                return $"{_publicBaseUrl}/{encodedPath}";
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                    var retryable = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
+                        || (int)response.StatusCode >= 500;
+                    _logger.LogWarning(
+                        "Cloudflare R2 upload attempt {Attempt}/{MaxAttempts} returned status {StatusCode}: {ResponseBody}",
+                        attempt,
+                        UploadMaxAttempts,
+                        (int)response.StatusCode,
+                        Truncate(responseBody, 512));
 
-            var error = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Cloudflare R2 Upload Error: {(int)response.StatusCode} - {error}");
+                    if (!retryable || attempt == UploadMaxAttempts)
+                        return null;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Cloudflare R2 upload attempt {Attempt}/{MaxAttempts} failed", attempt, UploadMaxAttempts);
+                    if (attempt == UploadMaxAttempts)
+                        return null;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1)));
+            }
+
             return null;
         }
 
         public async Task<bool> DeleteFileAsync(string pathOrUrl)
         {
             if (string.IsNullOrWhiteSpace(pathOrUrl))
+                return false;
+            if (!_isConfigured)
                 return false;
 
             var objectPath = NormalizeObjectPath(pathOrUrl);
@@ -100,13 +133,20 @@ namespace DataServiceLib.Implements
             using var request = new HttpRequestMessage(HttpMethod.Delete, requestPath);
             SignRequest(request, requestPath, Array.Empty<byte>());
 
-            var response = await _client.SendAsync(request);
-            if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return true;
+            try
+            {
+                using var response = await _client.SendAsync(request);
+                if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    return true;
 
-            var error = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Cloudflare R2 Delete Error: {(int)response.StatusCode} - {error}");
-            return false;
+                _logger.LogWarning("Cloudflare R2 delete returned status {StatusCode}", (int)response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Cloudflare R2 delete failed");
+                return false;
+            }
         }
 
         private void SignRequest(HttpRequestMessage request, string canonicalUri, byte[] payload)
@@ -144,7 +184,8 @@ namespace DataServiceLib.Implements
             var signingKey = GetSignatureKey(_secretKey, dateStamp, Region, Service);
             var signature = ToHex(HmacSha256(signingKey, stringToSign));
 
-            request.Headers.Authorization = AuthenticationHeaderValue.Parse(
+            request.Headers.TryAddWithoutValidation(
+                "Authorization",
                 $"AWS4-HMAC-SHA256 Credential={_accessKey}/{credentialScope}, SignedHeaders={signedHeaders}, Signature={signature}");
         }
 
@@ -203,6 +244,11 @@ namespace DataServiceLib.Implements
         private static string ToHex(byte[] bytes)
         {
             return Convert.ToHexString(bytes).ToLowerInvariant();
+        }
+
+        private static string Truncate(string value, int maxLength)
+        {
+            return value.Length <= maxLength ? value : value[..maxLength];
         }
     }
 }

@@ -381,5 +381,48 @@ namespace DataServiceLib.Implements.Admin
                 };
             }
         }
+
+        public async Task<CResponseMessage> Replace_video_source_parts(decimal sourceId, IReadOnlyList<AddVideoSourcePartDto> parts)
+        {
+            try
+            {
+                var p_source_id = new SqlParameter("@p_source_id", SqlDbType.Decimal) { Value = sourceId };
+                var p_parts_json = new SqlParameter("@p_parts_json", SqlDbType.NVarChar, -1)
+                {
+                    Value = System.Text.Json.JsonSerializer.Serialize(parts)
+                };
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+                var parameters = new IDbDataParameter[] { p_source_id, p_parts_json, o_code, o_message };
+
+                var dataset = _baseProvider.GetDatasetFromSP("sp_video_source_parts_replace", parameters, _connectionString);
+                var oldPartUrls = new List<string>();
+                if (dataset.Tables.Count > 0 && dataset.Tables[0].Columns.Contains("OldUrl"))
+                {
+                    foreach (DataRow row in dataset.Tables[0].Rows)
+                    {
+                        if (row["OldUrl"] != DBNull.Value)
+                            oldPartUrls.Add(Convert.ToString(row["OldUrl"]) ?? string.Empty);
+                    }
+                }
+
+                return new CResponseMessage
+                {
+                    Success = o_code.Value?.ToString() == "200",
+                    code = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Data = oldPartUrls
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
+            }
+        }
     }
 }

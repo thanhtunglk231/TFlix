@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using CommonLib.Logging;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using System.Diagnostics;
 using WebBrowser.Services.Implements;
 using WebBrowser.Services.Implements.Episodes;
 using WebBrowser.Services.Implements.Movies;
@@ -10,14 +12,15 @@ var builder = WebApplication.CreateBuilder(args);
 // Cấu hình File Logger ghi lỗi ra file txt
 builder.Logging.AddFileLogger(options =>
 {
-    options.LogDirectory = "Logs";
-    options.FileNamePrefix = "web_error";
-    options.MinLevel = LogLevel.Error;
+    options.LogDirectory = Path.Combine(builder.Environment.ContentRootPath, "Logs");
+    options.FileNamePrefix = "web";
+    options.MinLevel = LogLevel.Information;
     options.RetainDays = 30;
 });
 
 // ? ??ng ký HttpClientFactory (fix l?i IHttpClientFactory)
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("VideoUpload", client => client.Timeout = TimeSpan.FromHours(8));
 
 // ? DI cho services
 builder.Services.AddScoped<WebBrowser.Services.HttpSevice.Interfaces.IHttpService,
@@ -86,6 +89,21 @@ builder.Services.AddSession(o =>
 });
 
 var app = builder.Build();
+var requestLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ControllerRequest");
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalException");
+        logger.LogError(ex, "Unhandled exception in WebBrowser");
+        throw;
+    }
+});
 
 if (!app.Environment.IsDevelopment())
 {
@@ -96,6 +114,35 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 app.UseRouting();
+app.Use(async (context, next) =>
+{
+    var action = context.GetEndpoint()?.Metadata.GetMetadata<ControllerActionDescriptor>();
+    if (action == null)
+    {
+        await next();
+        return;
+    }
+
+    var stopwatch = Stopwatch.StartNew();
+    var statusCode = StatusCodes.Status500InternalServerError;
+    try
+    {
+        await next();
+        statusCode = context.Response.StatusCode;
+    }
+    finally
+    {
+        stopwatch.Stop();
+        requestLogger.LogInformation(
+            "Controller {Controller}.{Action} handled {Method} {Path} with status {StatusCode} in {ElapsedMilliseconds} ms",
+            action.ControllerName,
+            action.ActionName,
+            context.Request.Method,
+            context.Request.Path,
+            statusCode,
+            stopwatch.ElapsedMilliseconds);
+    }
+});
 
 // ?? NH? b?t Session trong pipeline
 app.UseSession();

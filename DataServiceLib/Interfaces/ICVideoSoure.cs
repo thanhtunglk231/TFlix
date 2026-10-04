@@ -12,5 +12,6 @@ namespace DataServiceLib.Interfaces
         CResponseMessage get_all();
         CResponseMessage get_bu_id(int id);
         Task<CResponseMessage> Add_video_source_part(AddVideoSourcePartDto dto);
+        Task<CResponseMessage> Replace_video_source_parts(decimal sourceId, IReadOnlyList<AddVideoSourcePartDto> parts);
     }
 }

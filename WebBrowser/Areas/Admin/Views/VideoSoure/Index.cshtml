@@ -5,6 +5,11 @@
     // MVC endpoints (Areas/Admin)
     var urlGetAll = Url.Action("GetAll", "VideoSoure", new { area = "Admin" });
     var urlAdd = Url.Action("Add", "VideoSoure", new { area = "Admin" });
+    var urlAddHls = Url.Action("AddHls", "VideoSoure", new { area = "Admin" });
+    var urlUploadMp4Chunk = Url.Action("UploadMp4Chunk", "VideoSoure", new { area = "Admin" });
+    var urlMp4UploadStatus = Url.Action("GetMp4UploadStatus", "VideoSoure", new { area = "Admin" });
+    var urlCompleteMp4Upload = Url.Action("CompleteMp4Upload", "VideoSoure", new { area = "Admin" });
+    var urlCancelMp4Upload = Url.Action("CancelMp4Upload", "VideoSoure", new { area = "Admin" });
     var urlUpdate = Url.Action("Update", "VideoSoure", new { area = "Admin" });
 
     // Nguồn dữ liệu tham chiếu
@@ -19,8 +24,8 @@
         inset: 0;
         display: none;
         z-index: 1100;
-        background: rgba(0,0,0,.25);
-        backdrop-filter: blur(1px)
+      background: rgba(0,0,0,.48);
+      backdrop-filter: blur(2px)
     }
 
         .loading-overlay .spinner-wrap {
@@ -41,6 +46,61 @@
         border-radius: 50%;
         animation: spin 1s linear infinite
     }
+
+      .upload-progress {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: min(520px, calc(100vw - 32px));
+        padding: 24px;
+        transform: translate(-50%, -50%);
+        color: var(--bs-body-color);
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, .24);
+      }
+
+      .upload-progress-percent {
+        min-width: 76px;
+        color: var(--bs-primary);
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .upload-progress-track {
+        height: 10px;
+        overflow: hidden;
+        background: var(--bs-secondary-bg);
+        border-radius: 5px;
+      }
+
+      .upload-progress-bar {
+        height: 100%;
+        width: 0;
+        background: var(--bs-primary);
+        transition: width .18s ease-out;
+      }
+
+      .upload-progress.is-processing .upload-progress-bar {
+        width: 100%;
+        background: repeating-linear-gradient(45deg, var(--bs-primary), var(--bs-primary) 10px, var(--bs-info) 10px, var(--bs-info) 20px);
+        background-size: 28px 28px;
+        animation: progress-stripes .8s linear infinite;
+      }
+
+      @@keyframes progress-stripes {
+        to { background-position: 28px 0; }
+      }
+
+      @@media (prefers-reduced-motion: reduce) {
+        .upload-progress-bar { transition: none; }
+        .upload-progress.is-processing .upload-progress-bar { animation: none; }
+      }
+
     @@keyframes spin {
         from
 
@@ -128,6 +188,22 @@
 
 <div class="loading-overlay" id="__loadingOverlay">
     <div class="spinner-wrap"><div class="spinner"></div></div>
+  <section class="upload-progress d-none" id="uploadProgressPanel" role="status" aria-live="polite" aria-atomic="true">
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+      <div class="min-w-0">
+        <div class="fw-semibold" id="uploadProgressTitle">Đang tải MP4</div>
+        <div class="small text-secondary mt-1" id="uploadProgressDetail">Chuẩn bị tải lên...</div>
+      </div>
+      <div class="upload-progress-percent" id="uploadProgressPercent">0%</div>
+    </div>
+    <div class="upload-progress-track" role="progressbar" aria-label="Tiến độ upload MP4" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="upload-progress-bar" id="uploadProgressBar"></div>
+    </div>
+    <div class="d-none align-items-center gap-2 small text-secondary mt-3" id="uploadProcessingStatus">
+      <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+      <span>Đang xử lý video trên máy chủ...</span>
+    </div>
+  </section>
 </div>
 <div class="toastx" id="__toastMessage"></div>
 
@@ -213,7 +289,7 @@
                     <label class="form-label">Kiểu nguồn video *</label>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="InputMode" id="modeFile" value="file" checked>
-                        <label class="form-check-label" for="modeFile">Upload file (MP4/1 file)</label>
+                        <label class="form-check-label" for="modeFile">Upload MP4 (tự chuyển HLS)</label>
                     </div>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="InputMode" id="modeUrl" value="url">
@@ -302,7 +378,7 @@
                     <!-- block upload 1 file cũ -->
                     <div class="col-12" id="blockFile">
                         <label class="form-label">Upload file video (1 file)</label>
-                        <input id="File" type="file" class="form-control" accept="video/*" />
+                        <input id="File" type="file" class="form-control" accept=".mp4,video/mp4" />
                     </div>
 
                     <!-- block upload HLS -->
@@ -359,6 +435,11 @@
           const urls = {
             getAll:  '@urlGetAll',
             add:     '@urlAdd',
+            addHls:  '@urlAddHls',
+            uploadMp4Chunk: '@urlUploadMp4Chunk',
+            mp4UploadStatus: '@urlMp4UploadStatus',
+            completeMp4Upload: '@urlCompleteMp4Upload',
+            cancelMp4Upload: '@urlCancelMp4Upload',
             update:  '@urlUpdate',
             movies:  '@urlGetAllMovies',
             eps:     '@urlGetAllEpisodes'
@@ -366,6 +447,8 @@
 
           // ===== Elements & State =====
           const $overlay = $("#__loadingOverlay");
+          const $loadingSpinner = $overlay.find('.spinner-wrap');
+          const $uploadProgress = $('#uploadProgressPanel');
           const $toast   = $("#__toastMessage");
           const $tbody   = $('#tblSources tbody');
           const $pager   = $("#pagerWrap");
@@ -380,8 +463,30 @@
           let page = 1;
 
           // ===== Helpers =====
-          function showLoading(){ $overlay.fadeIn(80); }
-          function hideLoading(){ $overlay.fadeOut(120); }
+          function showLoading(){
+            $uploadProgress.addClass('d-none').removeClass('is-processing');
+            $loadingSpinner.removeClass('d-none');
+            $overlay.fadeIn(80);
+          }
+          function showUploadProgress(title, detail, percent, processing=false){
+            const value = Math.max(0, Math.min(100, Math.round(percent)));
+            $loadingSpinner.addClass('d-none');
+            $uploadProgress.toggleClass('is-processing', processing).removeClass('d-none');
+            $('#uploadProgressTitle').text(title);
+            $('#uploadProgressDetail').text(detail);
+            $('#uploadProgressPercent').text(`${value}%`);
+            $('#uploadProgressBar').css('width', `${value}%`)
+              .parent().attr('aria-valuenow', value);
+            $('#uploadProcessingStatus').toggleClass('d-flex', processing).toggleClass('d-none', !processing);
+            $overlay.stop(true, true).show();
+          }
+          function hideLoading(){
+            $overlay.fadeOut(120, ()=>{
+              $uploadProgress.addClass('d-none').removeClass('is-processing');
+              $loadingSpinner.removeClass('d-none');
+              $('#uploadProcessingStatus').removeClass('d-flex').addClass('d-none');
+            });
+          }
           function showToast(msg, ok=true, ms=2600){
             $toast.text(msg||"").removeClass("success error").addClass(ok?"success":"error").fadeIn(120);
             setTimeout(()=> $toast.fadeOut(150), ms);
@@ -603,6 +708,8 @@
             $('#SourceId').val('');
             $('#OldStreamUrl').val('');
             $('#File').prop('disabled', false);
+            $('#modeFile').prop('checked', true);
+            toggleInputMode();
 
             $('#SourceType').val('movie');
             toggleTypeUI();
@@ -645,10 +752,240 @@
             $('#Status').val(gv(it,'status','Status')||'ACTIVE');
 
             $('#File').val('').prop('disabled', false);
+            $('#modeFile').prop('checked', true);
+            toggleInputMode();
             $('#fileNote').removeClass('text-muted').addClass('text-warning')
-              .text('Sửa nguồn cần chọn file mới (API replace-file).');
+              .text('Chọn MP4 để tự chuyển HLS hoặc chọn bộ playlist và segments HLS mới.');
 
             sourceModal.show();
+          }
+
+          async function createMp4Fingerprint(file){
+            const sampleSize = 1024 * 1024;
+            const headEnd = Math.min(sampleSize, file.size);
+            const tailStart = Math.max(headEnd, file.size - sampleSize);
+            const [head, tail] = await Promise.all([
+              file.slice(0, headEnd).arrayBuffer(),
+              file.slice(tailStart).arrayBuffer()
+            ]);
+            const metadata = new TextEncoder().encode(`${file.name}\n${file.size}\n${file.lastModified}\n`);
+            const combined = new Uint8Array(metadata.length + head.byteLength + tail.byteLength);
+            combined.set(metadata, 0);
+            combined.set(new Uint8Array(head), metadata.length);
+            combined.set(new Uint8Array(tail), metadata.length + head.byteLength);
+            const digest = await crypto.subtle.digest('SHA-256', combined);
+            return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+          }
+
+          async function uploadMp4AsHls(file, payload, antiForgeryToken, sourceId=null, oldStreamUrl=null){
+            const chunkSize = 8 * 1024 * 1024;
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            const $button = $('#btnSave');
+            $button.prop('disabled', true);
+            let uploadId = null;
+            let sessionKey = null;
+            let uploadedChunks = new Set();
+            let stopProgressPolling = false;
+            let progressPollTask = null;
+
+            try {
+              const fileFingerprint = await createMp4Fingerprint(file);
+              sessionKey = `tflix:mp4-upload:${fileFingerprint}`;
+              uploadId = localStorage.getItem(sessionKey) || crypto.randomUUID();
+              localStorage.setItem(sessionKey, uploadId);
+
+              const getStatus = async currentUploadId => $.ajax({
+                url: `${urls.mp4UploadStatus}?uploadId=${encodeURIComponent(currentUploadId)}&fileFingerprint=${encodeURIComponent(fileFingerprint)}`,
+                type: 'GET'
+              });
+
+              let uploadStatus;
+              try {
+                uploadStatus = await getStatus(uploadId);
+              } catch (xhr){
+                if (xhr?.status !== 409) throw xhr;
+                await $.ajax({
+                  url: `${urls.cancelMp4Upload}?uploadId=${encodeURIComponent(uploadId)}`,
+                  type: 'POST',
+                  headers: antiForgeryToken ? { 'RequestVerificationToken': antiForgeryToken } : {}
+                }).catch(()=>{});
+                uploadId = crypto.randomUUID();
+                localStorage.setItem(sessionKey, uploadId);
+                uploadStatus = await getStatus(uploadId);
+              }
+
+              if (uploadStatus.resumeAvailable || uploadStatus.ResumeAvailable){
+                const savedTotal = uploadStatus.totalChunks ?? uploadStatus.TotalChunks;
+                if (savedTotal !== totalChunks){
+                  throw new Error('Phiên upload đã lưu không khớp số lượng phần của file này.');
+                }
+                uploadedChunks = new Set(uploadStatus.uploadedChunks ?? uploadStatus.UploadedChunks ?? []);
+              }
+
+              const updateChunkProgress = () => {
+                const sentBytes = Array.from(uploadedChunks).reduce((total, chunkIndex) =>
+                  total + Math.max(0, Math.min(chunkSize, file.size - chunkIndex * chunkSize)), 0);
+                const percent = totalChunks === 0 ? 0 : Math.floor(uploadedChunks.size * 100 / totalChunks);
+                showUploadProgress(
+                  'Đang tải MP4',
+                  `${uploadedChunks.size}/${totalChunks} phần đã lưu (${(sentBytes / (1024 * 1024)).toFixed(1)} / ${(file.size / (1024 * 1024)).toFixed(1)} MiB)`,
+                  percent);
+                $button.html(`<span class="spinner-border spinner-border-sm me-2"></span>Đang tải ${percent}%`);
+              };
+
+              updateChunkProgress();
+              for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++){
+                if (uploadedChunks.has(chunkIndex)) continue;
+
+                const start = chunkIndex * chunkSize;
+                const chunk = file.slice(start, Math.min(start + chunkSize, file.size));
+                const formData = new FormData();
+                formData.append('Chunk', chunk, file.name + '.part');
+                formData.append('fileFingerprint', fileFingerprint);
+
+                const chunkUrl = `${urls.uploadMp4Chunk}?uploadId=${encodeURIComponent(uploadId)}&chunkIndex=${chunkIndex}&totalChunks=${totalChunks}`;
+                await $.ajax({
+                  url: chunkUrl,
+                  type: 'POST',
+                  data: formData,
+                  processData: false,
+                  contentType: false,
+                  headers: antiForgeryToken ? { 'RequestVerificationToken': antiForgeryToken } : {}
+                });
+
+                uploadedChunks.add(chunkIndex);
+                updateChunkProgress();
+              }
+
+              showUploadProgress('Đang xử lý HLS', 'Đang ghép MP4 và tạo playlist/segments.', 0, true);
+              $button.html('<span class="spinner-border spinner-border-sm me-2"></span>Đang tạo HLS...');
+              progressPollTask = (async () => {
+                while (!stopProgressPolling){
+                  try {
+                    const status = await getStatus(uploadId);
+                    const progress = status.progress ?? status.Progress ?? {};
+                    const stage = progress.stage ?? progress.Stage ?? '';
+                    const message = progress.message ?? progress.Message ?? '';
+                    const segmentsUploaded = progress.segmentsUploaded ?? progress.SegmentsUploaded ?? 0;
+                    const totalSegments = progress.totalSegments ?? progress.TotalSegments ?? 0;
+                    const percent = progress.percent ?? progress.Percent ?? 0;
+
+                    if (stage === 'uploading-segments' && totalSegments > 0){
+                      showUploadProgress(
+                        'Đang upload HLS segments',
+                        `Đã lưu ${segmentsUploaded}/${totalSegments} segments lên storage`,
+                        percent);
+                    } else if (stage === 'saving'){
+                      showUploadProgress('Đang lưu nguồn HLS', message || `Đã lưu ${segmentsUploaded}/${totalSegments} segments`, percent, true);
+                    } else if (stage === 'packaging'){
+                      showUploadProgress('Đang tạo HLS', message || 'FFmpeg đang đóng gói video', 0, true);
+                    }
+                  } catch {
+                    // Keep polling through brief network interruptions.
+                  }
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+              })();
+
+              const completeUrl = `${urls.completeMp4Upload}?uploadId=${encodeURIComponent(uploadId)}`;
+              const completePayload = { ...payload, FileName: file.name, TotalChunks: totalChunks };
+              if (sourceId) completePayload.SourceId = sourceId;
+              if (oldStreamUrl) completePayload.OldStreamUrl = oldStreamUrl;
+              const result = await $.ajax({
+                url: completeUrl,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(completePayload),
+                headers: antiForgeryToken ? { 'RequestVerificationToken': antiForgeryToken } : {}
+              });
+
+              const ok = result && (result.success === true || result.code === '200' || result.Success === true);
+              if (!ok){
+                showToast(result?.message || result?.Message || 'Chuyển MP4 sang HLS thất bại.', false, 6000);
+                return;
+              }
+
+              localStorage.removeItem(sessionKey);
+              showUploadProgress('Hoàn tất', `Đã upload ${result.segmentsCount ?? result.SegmentsCount ?? 0} HLS segments`, 100);
+              showToast(sourceId ? 'Đã thay nguồn bằng HLS mới.' : 'Đã upload MP4 và tạo nguồn HLS.', true);
+              sourceModal.hide();
+              loadAll();
+            } catch (xhr){
+              const uploadedCount = uploadedChunks.size;
+              const detail = xhr?.responseJSON?.message || xhr?.responseText || xhr?.message || 'Mạng bị ngắt hoặc server gặp lỗi.';
+              const resumeMessage = uploadId && uploadedCount > 0
+                ? `${detail} Đã giữ ${uploadedCount}/${totalChunks} phần trên server; chọn lại đúng file và bấm Lưu để tiếp tục.`
+                : detail;
+              showToast(resumeMessage, false, 9000);
+            } finally {
+              stopProgressPolling = true;
+              if (progressPollTask) await progressPollTask;
+              hideLoading();
+              $button.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
+            }
+          }
+
+          function uploadHlsForUpdate(playlist, segments, payload, antiForgeryToken, sourceId, oldStreamUrl){
+            const formData = new FormData();
+            formData.append('Playlist', playlist);
+            segments.forEach(segment => formData.append('Segments', segment));
+            formData.append('SourceId', String(sourceId));
+            if (oldStreamUrl) formData.append('OldStreamUrl', oldStreamUrl);
+            Object.entries(payload).forEach(([key, value]) => {
+              if (value !== null && value !== undefined && value !== '')
+                formData.append(key, String(value));
+            });
+
+            const totalBytes = playlist.size + segments.reduce((total, segment) => total + segment.size, 0);
+            const $button = $('#btnSave');
+            $button.prop('disabled', true);
+            showUploadProgress('Đang tải HLS', 'Đang gửi playlist và segments...', 0);
+
+            $.ajax({
+              url: urls.addHls,
+              type: 'POST',
+              data: formData,
+              processData: false,
+              contentType: false,
+              headers: antiForgeryToken ? { 'RequestVerificationToken': antiForgeryToken } : {},
+              xhr(){
+                const xhr = $.ajaxSettings.xhr();
+                if (xhr.upload){
+                  xhr.upload.addEventListener('progress', event => {
+                    if (!event.lengthComputable) return;
+                    const percent = Math.round(event.loaded * 100 / event.total);
+                    if (percent >= 100){
+                      showUploadProgress('Đang lưu HLS', 'Đã nhận file; đang tải playlist và segments lên storage.', 100, true);
+                    } else {
+                      showUploadProgress(
+                        'Đang tải HLS',
+                        `${(event.loaded / (1024 * 1024)).toFixed(1)} / ${(totalBytes / (1024 * 1024)).toFixed(1)} MiB`,
+                        percent);
+                    }
+                    $button.html(`<span class="spinner-border spinner-border-sm me-2"></span>Đang tải ${percent}%`);
+                  });
+                }
+                return xhr;
+              },
+              success(response){
+                const ok = response && (response.success === true || response.Success === true || response.code === '200');
+                if (!ok){
+                  showToast(response?.message || response?.Message || 'Cập nhật HLS thất bại.', false, 6000);
+                  return;
+                }
+                showUploadProgress('Hoàn tất', 'Đã thay playlist và HLS segments.', 100);
+                showToast('Đã cập nhật nguồn HLS.', true);
+                sourceModal.hide();
+                loadAll();
+              },
+              error(xhr){
+                showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi upload HLS.', false, 9000);
+              },
+              complete(){
+                hideLoading();
+                $button.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
+              }
+            });
           }
 
           // ===== Save (Add/Update) =====
@@ -688,12 +1025,41 @@
             if (!isEdit){
               // ADD
               const fd = new FormData();
+              const inputMode = $('input[name="InputMode"]:checked').val();
               const fileObj = document.getElementById('File').files?.[0] || null;
-              if (!payload.StreamUrl && !fileObj){
-                showToast("Thêm mới: cần Stream URL hoặc chọn file video.", false);
+              let addUrl = urls.add;
+
+              if (inputMode === 'file'){
+                if (!fileObj){
+                  showToast('Vui lòng chọn file MP4.', false);
+                  return;
+                }
+                uploadMp4AsHls(fileObj, payload, anti);
                 return;
               }
-              if (fileObj) fd.append('File', fileObj);
+
+              if (inputMode === 'hls'){
+                const playlist = document.getElementById('HlsPlaylist').files?.[0] || null;
+                const segments = Array.from(document.getElementById('HlsSegments').files || []);
+                if (!playlist || segments.length === 0){
+                  showToast("HLS cần playlist và ít nhất một segment.", false);
+                  return;
+                }
+                addUrl = urls.addHls;
+                fd.append('Playlist', playlist);
+                segments.forEach(segment => fd.append('Segments', segment));
+              } else if (inputMode === 'url'){
+                if (!payload.StreamUrl){
+                  showToast("Vui lòng nhập Stream URL.", false);
+                  return;
+                }
+              } else {
+                if (!fileObj){
+                  showToast("Vui lòng chọn file video.", false);
+                  return;
+                }
+                fd.append('File', fileObj);
+              }
 
               Object.entries(payload).forEach(([k,v])=>{
                 if (v === null || v === undefined || v === '') return;
@@ -702,7 +1068,7 @@
 
               showLoading();
               $.ajax({
-                url: urls.add, type: 'POST',
+                url: addUrl, type: 'POST',
                 data: fd, processData: false, contentType: false,
                 headers: anti ? { "RequestVerificationToken": anti } : {},
                 success(res){
@@ -715,44 +1081,29 @@
               });
 
             } else {
-              // UPDATE (replace file)
+              // UPDATE existing source as HLS
               const fileObj = document.getElementById('File').files?.[0] || null;
-              if (!fileObj){ showToast("Sửa nguồn: vui lòng chọn file mới để thay thế.", false); return; }
+              const inputMode = $('input[name="InputMode"]:checked').val();
+              const oldStreamUrl = ($('#OldStreamUrl').val() || '').trim();
 
-              const meta = {
-                SourceId: Number(id),
-                MovieId: payload.MovieId ?? null,
-                EpisodeId: payload.EpisodeId ?? null,
-                Provider: payload.Provider,
-                ServerName: payload.ServerName,
-                Quality: payload.Quality,
-                Format: payload.Format,
-                DrmType: payload.DrmType,
-                DrmLicenseUrl: payload.DrmLicenseUrl,
-                IsPrimary: payload.IsPrimary,
-                Status: payload.Status,
-                OldStreamUrl: ($('#OldStreamUrl').val()||'').trim() || null
-              };
+              if (inputMode === 'file'){
+                if (!fileObj){ showToast('Vui lòng chọn file MP4 mới.', false); return; }
+                uploadMp4AsHls(fileObj, payload, anti, Number(id), oldStreamUrl);
+                return;
+              }
 
-              const fd = new FormData();
-              fd.append('File', fileObj);
-              Object.entries(meta).forEach(([k,v])=>{ if (v !== null && v !== undefined) fd.append(k, String(v)); });
+              if (inputMode === 'hls'){
+                const playlist = document.getElementById('HlsPlaylist').files?.[0] || null;
+                const segments = Array.from(document.getElementById('HlsSegments').files || []);
+                if (!playlist || segments.length === 0){
+                  showToast('HLS cần playlist và ít nhất một segment.', false);
+                  return;
+                }
+                uploadHlsForUpdate(playlist, segments, payload, anti, Number(id), oldStreamUrl);
+                return;
+              }
 
-              const updateUrl = urls.update + '?sourceId=' + encodeURIComponent(id);
-
-              showLoading();
-              $.ajax({
-                url: updateUrl, type: 'POST',
-                data: fd, processData: false, contentType: false,
-                headers: anti ? { "RequestVerificationToken": anti } : {},
-                success(res){
-                  const ok = res && (res.success===true || res.code==="200" || res.Success===true);
-                  if (ok){ showToast("Đã cập nhật nguồn.", true); sourceModal.hide(); loadAll(); }
-                  else    { showToast(res?.message || res?.Message || "Cập nhật thất bại.", false); }
-                },
-                error(xhr){ showToast(xhr?.responseJSON?.message || xhr?.responseText || "Lỗi cập nhật.", false); },
-                complete(){ hideLoading(); }
-              });
+              showToast('Chọn MP4 hoặc bộ playlist và segments HLS để thay nguồn.', false);
             }
           }
 
