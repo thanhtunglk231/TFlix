@@ -478,6 +478,7 @@
 
 <!-- TOAST NOTIFICATION CONTAINER -->
 <div class="tflix-toast-container" id="toastContainer" aria-live="polite"></div>
+<form id="favoriteTokenForm" class="d-none">@Html.AntiForgeryToken()</form>
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
@@ -572,36 +573,43 @@
             modal.show();
         }
 
-        // Favorite Toggle with LocalStorage & Toast
-        window.toggleFavoriteMovie = function(id, title, btn) {
-            const key = `tflix_fav_${id}`;
-            const isFav = localStorage.getItem(key) === 'true';
-
-            if (isFav) {
-                localStorage.removeItem(key);
-                if (btn) btn.classList.remove('active');
-                window.showTFlixToast(`Đã xóa "${title}" khỏi danh sách yêu thích.`, 'bi-heartbreak');
-            } else {
-                localStorage.setItem(key, 'true');
-                if (btn) btn.classList.add('active');
-                window.showTFlixToast(`Đã thêm "${title}" vào danh sách yêu thích!`, 'bi-heart-fill text-danger');
+        window.toggleFavoriteMovie = async function(id, title, btn) {
+            if (btn?.disabled) return;
+            const oldHtml = btn?.innerHTML;
+            if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+            try {
+                const token = document.querySelector('#favoriteTokenForm input[name="__RequestVerificationToken"]')?.value || '';
+                const body = new URLSearchParams({ movieId: id, __RequestVerificationToken: token });
+                const response = await fetch('@Url.Action("ToggleMovie", "Favorite")', {
+                    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body
+                });
+                const result = await response.json();
+                if (response.status === 401) {
+                    window.location.href = result.loginUrl || '@Url.Action("Index", "Auth")';
+                    return;
+                }
+                if (!response.ok || !result.success) throw new Error(result.message || 'Không thể cập nhật yêu thích.');
+                const active = result.data?.isFavorite ?? result.data?.IsFavorite ?? false;
+                document.querySelectorAll(`.movie-card-item[data-id="${id}"] .btn-card-fav`).forEach(b => b.classList.toggle('active', active));
+                if (btn) btn.classList.toggle('active', active);
+                window.showTFlixToast(active ? `Đã thêm "${title}" vào phim yêu thích!` : `Đã xóa "${title}" khỏi phim yêu thích.`, active ? 'bi-heart-fill text-danger' : 'bi-heartbreak');
+            } catch (error) {
+                window.showTFlixToast(error.message || 'Có lỗi xảy ra.', 'bi-exclamation-circle');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
             }
-
-            // Sync all favorite buttons on page with same id
-            document.querySelectorAll(`.movie-card-item[data-id="${id}"] .btn-card-fav`).forEach(b => {
-                b.classList.toggle('active', !isFav);
-            });
         };
 
-        // Restore favorite button states
-        function syncFavoriteButtons() {
-            document.querySelectorAll('.movie-card-item').forEach(card => {
-                const id = card.dataset.id;
-                if (id && localStorage.getItem(`tflix_fav_${id}`) === 'true') {
-                    const btn = card.querySelector('.btn-card-fav');
-                    if (btn) btn.classList.add('active');
-                }
-            });
+        async function syncFavoriteButtons() {
+            try {
+                const response = await fetch('@Url.Action("MovieIds", "Favorite")');
+                if (!response.ok) return;
+                const result = await response.json();
+                const ids = new Set((result.data || []).map(String));
+                document.querySelectorAll('.movie-card-item').forEach(card => {
+                    card.querySelector('.btn-card-fav')?.classList.toggle('active', ids.has(card.dataset.id));
+                });
+            } catch { }
         }
 
         // Render Phim lẻ mới nhất with error retry
