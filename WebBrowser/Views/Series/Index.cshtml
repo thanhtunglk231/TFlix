@@ -1,14 +1,14 @@
-@model CoreLib.Dtos.Movies.MovieCatalogResultDto
-@using CoreLib.Dtos.Movies
+@model WebBrowser.Models.Series.SeriesCatalogViewModel
 @using WebBrowser.Models.Genres
+@using WebBrowser.Models.Series
 
 @{
-    ViewData["Title"] = "Phim Lẻ - TFlix Streaming";
-    var filter = ViewBag.Filter as MovieCatalogFilterDto ?? new MovieCatalogFilterDto();
+    ViewData["Title"] = "Phim Bộ - TFlix Streaming";
+    var filter = Model?.Filter ?? new SeriesCatalogFilter();
     var genres = ViewBag.Genres as List<GenreItem> ?? new List<GenreItem>();
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token) || (User?.Identity?.IsAuthenticated ?? false);
-    const string fallbackPoster = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
+    const string fallbackPoster = "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=500&auto=format&fit=crop";
 }
 
 @section Styles {
@@ -23,7 +23,7 @@
         }
 
         /* Hero Banner */
-        .single-hero {
+        .series-hero {
             position: relative;
             border-radius: 20px;
             overflow: hidden;
@@ -34,7 +34,7 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
         }
 
-        .single-hero::before {
+        .series-hero::before {
             content: '';
             position: absolute;
             top: 0;
@@ -46,7 +46,7 @@
             pointer-events: none;
         }
 
-        .single-badge {
+        .series-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
@@ -62,7 +62,7 @@
         }
 
         /* Filter Panel */
-        .single-filter-panel {
+        .series-filter-panel {
             background: var(--dark-card);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
@@ -152,8 +152,8 @@
             border-radius: 4px;
         }
 
-        /* Movie Card */
-        .single-card {
+        /* Series Card */
+        .series-card {
             background: #11141d;
             border: 1px solid var(--dark-border);
             border-radius: 16px;
@@ -166,13 +166,13 @@
             cursor: pointer;
         }
 
-        .single-card:hover {
+        .series-card:hover {
             transform: translateY(-7px);
             border-color: rgba(0, 210, 196, 0.4);
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 210, 196, 0.2);
         }
 
-        .single-poster-box {
+        .series-poster-box {
             position: relative;
             width: 100%;
             aspect-ratio: 2/3;
@@ -180,18 +180,18 @@
             background: #090b10;
         }
 
-        .single-poster-img {
+        .series-poster-img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transition: transform 0.45s ease;
         }
 
-        .single-card:hover .single-poster-img {
+        .series-card:hover .series-poster-img {
             transform: scale(1.08);
         }
 
-        .single-overlay {
+        .series-overlay {
             position: absolute;
             inset: 0;
             background: linear-gradient(to top, rgba(10, 14, 23, 0.95) 0%, rgba(10, 14, 23, 0.2) 60%, rgba(0,0,0,0.4) 100%);
@@ -202,7 +202,7 @@
             transition: opacity 0.3s ease;
         }
 
-        .single-card:hover .single-overlay {
+        .series-card:hover .series-overlay {
             opacity: 1;
         }
 
@@ -221,7 +221,7 @@
             text-decoration: none;
         }
 
-        .single-card:hover .play-circle-btn {
+        .series-card:hover .play-circle-btn {
             transform: translateY(0) scale(1);
         }
 
@@ -253,7 +253,7 @@
             border-radius: 6px;
         }
 
-        .badge-hd {
+        .badge-episodes {
             background: rgba(0, 0, 0, 0.75);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #e2e8f0;
@@ -264,7 +264,7 @@
         }
 
         /* Card Content */
-        .single-body {
+        .series-body {
             padding: 1rem;
             display: flex;
             flex-direction: column;
@@ -272,7 +272,7 @@
             justify-content: space-between;
         }
 
-        .single-title {
+        .series-title {
             color: #fff;
             font-weight: 700;
             font-size: 0.96rem;
@@ -283,11 +283,20 @@
             transition: color 0.2s ease;
         }
 
-        .single-card:hover .single-title {
+        .series-card:hover .series-title {
             color: var(--brand-primary);
         }
 
-        .single-meta {
+        .series-original-title {
+            color: #64748b;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 8px;
+        }
+
+        .series-meta {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -298,7 +307,7 @@
             border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .single-genres {
+        .series-genres {
             font-size: 0.76rem;
             color: #00d2c4;
             white-space: nowrap;
@@ -307,7 +316,7 @@
         }
 
         /* Custom Pagination */
-        .single-pagination .page-link {
+        .series-pagination .page-link {
             background-color: #11141d;
             border-color: rgba(255, 255, 255, 0.1);
             color: #cbd5e1;
@@ -318,20 +327,20 @@
             transition: all 0.2s ease;
         }
 
-        .single-pagination .page-link:hover {
+        .series-pagination .page-link:hover {
             background-color: rgba(0, 210, 196, 0.15);
             border-color: var(--brand-primary);
             color: #00e5d4;
         }
 
-        .single-pagination .page-item.active .page-link {
+        .series-pagination .page-item.active .page-link {
             background: var(--brand-gradient);
             border-color: transparent;
             color: #050b14;
             box-shadow: 0 4px 16px rgba(0, 210, 196, 0.4);
         }
 
-        .single-pagination .page-item.disabled .page-link {
+        .series-pagination .page-item.disabled .page-link {
             background-color: rgba(255, 255, 255, 0.02);
             border-color: rgba(255, 255, 255, 0.04);
             color: #475569;
@@ -341,36 +350,29 @@
 
 <div class="container my-4">
     <!-- Hero Banner -->
-    <div class="single-hero">
+    <div class="series-hero">
         <div class="row align-items-center position-relative" style="z-index: 2;">
             <div class="col-lg-8">
-                <span class="single-badge mb-3">
+                <span class="series-badge mb-3">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-                        <line x1="7" y1="2" x2="7" y2="22"></line>
-                        <line x1="17" y1="2" x2="17" y2="22"></line>
-                        <line x1="2" y1="12" x2="22" y2="12"></line>
-                        <line x1="2" y1="7" x2="7" y2="7"></line>
-                        <line x1="2" y1="17" x2="7" y2="17"></line>
-                        <line x1="17" y1="17" x2="22" y2="17"></line>
-                        <line x1="17" y1="7" x2="22" y2="7"></line>
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>
-                    Siêu Phẩm Điện Ảnh Chọn Lọc
+                    Tuyển Tập Phim Bộ Đặc Sắc
                 </span>
-                <h1 class="display-6 fw-extrabold text-white mb-2">Thư Viện Phim Lẻ TFlix</h1>
+                <h1 class="display-6 fw-extrabold text-white mb-2">Thế Giới Phim Bộ TFlix</h1>
                 <p class="lead text-secondary mb-0" style="font-size: 1.05rem; max-width: 620px;">
-                    Tuyển tập những siêu phẩm phim điện ảnh bom tấn, phim chiếu rạp hấp dẫn nhất thế giới với chất lượng hình ảnh 4K HDR và âm thanh sống động.
+                    Thưởng thức hàng ngàn tập phim truyền hình dài tập, series độc quyền từ Hàn Quốc, Trung Quốc, Âu Mỹ với phụ đề tiếng Việt & âm thanh vòm sống động.
                 </p>
             </div>
             <div class="col-lg-4 d-none d-lg-flex justify-content-end">
                 <div class="d-flex gap-3 text-center">
                     <div class="p-3 rounded-4" style="background: rgba(255,255,255,0.04); border: 1px solid var(--dark-border); min-width: 100px;">
                         <div class="h3 fw-bold text-white mb-0" style="color: #00d2c4 !important;">@Model.TotalCount+</div>
-                        <div class="small text-secondary">Phim Lẻ</div>
+                        <div class="small text-secondary">Bộ Series</div>
                     </div>
                     <div class="p-3 rounded-4" style="background: rgba(255,255,255,0.04); border: 1px solid var(--dark-border); min-width: 100px;">
-                        <div class="h3 fw-bold text-white mb-0" style="color: #0084ff !important;">Cinema</div>
-                        <div class="small text-secondary">Chuẩn Rạp</div>
+                        <div class="h3 fw-bold text-white mb-0" style="color: #0084ff !important;">4K</div>
+                        <div class="small text-secondary">Ultra HD</div>
                     </div>
                 </div>
             </div>
@@ -378,12 +380,12 @@
     </div>
 
     <!-- Filter Bar -->
-    <div class="single-filter-panel mb-4">
-        <form method="get" asp-controller="Single" asp-action="Index" class="row g-3 align-items-center">
+    <div class="series-filter-panel mb-4">
+        <form method="get" asp-controller="Series" asp-action="Index" class="row g-3 align-items-center">
             <!-- Tìm kiếm -->
             <div class="col-12 col-md-4 col-lg-3">
                 <div class="input-group">
-                    <input type="text" name="q" value="@filter.Search" class="form-control filter-input" placeholder="Tìm tên phim lẻ..." />
+                    <input type="text" name="q" value="@filter.Search" class="form-control filter-input" placeholder="Tìm tên phim bộ..." />
                 </div>
             </div>
 
@@ -403,9 +405,9 @@
                 <select name="countryCode" class="form-select filter-input shadow-none">
                     <option value="">-- Tất cả quốc gia --</option>
                     <option value="VN" selected="@(filter.CountryCode == "VN" ? "selected" : null)">Việt Nam</option>
-                    <option value="US" selected="@(filter.CountryCode == "US" ? "selected" : null)">Mỹ (Hollywood)</option>
                     <option value="KR" selected="@(filter.CountryCode == "KR" ? "selected" : null)">Hàn Quốc</option>
                     <option value="CN" selected="@(filter.CountryCode == "CN" ? "selected" : null)">Trung Quốc</option>
+                    <option value="US" selected="@(filter.CountryCode == "US" ? "selected" : null)">Mỹ & Âu Mỹ</option>
                     <option value="JP" selected="@(filter.CountryCode == "JP" ? "selected" : null)">Nhật Bản</option>
                     <option value="TH" selected="@(filter.CountryCode == "TH" ? "selected" : null)">Thái Lan</option>
                 </select>
@@ -426,6 +428,8 @@
             <div class="col-6 col-md-3 col-lg-2">
                 <select name="sortBy" class="form-select filter-input shadow-none">
                     <option value="newest" selected="@(filter.SortBy == "newest" ? "selected" : null)">Mới nhất</option>
+                    <option value="rating" selected="@(filter.SortBy == "rating" ? "selected" : null)">Đánh giá cao</option>
+                    <option value="episodes" selected="@(filter.SortBy == "episodes" ? "selected" : null)">Nhiều tập nhất</option>
                     <option value="oldest" selected="@(filter.SortBy == "oldest" ? "selected" : null)">Cũ nhất</option>
                     <option value="title" selected="@(filter.SortBy == "title" ? "selected" : null)">Tên A-Z</option>
                 </select>
@@ -441,7 +445,7 @@
                 </button>
                 @if (!string.IsNullOrEmpty(filter.Search) || filter.GenreId.HasValue || !string.IsNullOrEmpty(filter.CountryCode) || filter.Year.HasValue || filter.SortBy != "newest")
                 {
-                    <a href="/Single" class="btn btn-filter-reset" title="Đặt lại bộ lọc">
+                    <a href="/Series" class="btn btn-filter-reset" title="Đặt lại bộ lọc">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -454,34 +458,35 @@
 
     <!-- Tiêu đề danh mục -->
     <div class="catalog-header">
-        <h2 class="catalog-title">Danh Sách Phim Lẻ</h2>
+        <h2 class="catalog-title">Danh Sách Phim Bộ</h2>
         <span class="badge" style="background: rgba(255,255,255,0.06); border: 1px solid var(--dark-border); color: #94a3b8; padding: 7px 14px; border-radius: 30px; font-weight: 600;">
             @Model.TotalCount bộ phim
         </span>
     </div>
 
-    <!-- Grid danh sách Phim lẻ -->
+    <!-- Grid danh sách Phim bộ -->
     @if (Model.Items != null && Model.Items.Count > 0)
     {
         <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-3 g-md-4 mb-4">
-            @foreach (var movie in Model.Items)
+            @foreach (var series in Model.Items)
             {
-                long mId = Convert.ToInt64(movie.MovieId);
-                string posterSrc = string.IsNullOrWhiteSpace(movie.PosterUrl) ? fallbackPoster : movie.PosterUrl;
-                string watchUrl = $"/Film/Watch?id={mId}&kind=movie";
+                int sId = series.SeriesId;
+                string posterSrc = string.IsNullOrWhiteSpace(series.PosterUrl) ? fallbackPoster : series.PosterUrl;
+                string watchUrl = $"/Film/Watch?id={sId}&kind=series";
+                bool isVip = string.Equals(series.IsPremium, "Y", StringComparison.OrdinalIgnoreCase);
 
                 <div class="col">
-                    <div class="single-card" data-id="@mId" data-url="@watchUrl">
-                        <div class="single-poster-box">
-                            <img class="single-poster-img"
+                    <div class="series-card" data-id="@sId" data-url="@watchUrl">
+                        <div class="series-poster-box">
+                            <img class="series-poster-img"
                                  src="@posterSrc"
-                                 alt="@movie.Title"
+                                 alt="@series.Title"
                                  loading="lazy"
                                  onerror="this.onerror=null;this.src='@fallbackPoster';" />
 
                             <!-- Top Badges Overlay -->
                             <div class="position-absolute top-0 start-0 p-2 w-100 d-flex justify-content-between align-items-center" style="z-index: 2;">
-                                @if (movie.IsPremium)
+                                @if (isVip)
                                 {
                                     <span class="badge-premium">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -495,12 +500,23 @@
                                     <span class="badge-free">Miễn phí</span>
                                 }
 
-                                <span class="badge-hd">HD</span>
+                                @if (series.EpisodeCount > 0)
+                                {
+                                    <span class="badge-episodes">@series.EpisodeCount Tập</span>
+                                }
+                                else if (series.SeasonCount > 0)
+                                {
+                                    <span class="badge-episodes">@series.SeasonCount Mùa</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-episodes">HD</span>
+                                }
                             </div>
 
                             <!-- Hover Overlay -->
-                            <div class="single-overlay">
-                                <a href="@watchUrl" class="play-circle-btn single-link-btn" data-url="@watchUrl" title="Xem phim ngay">
+                            <div class="series-overlay">
+                                <a href="@watchUrl" class="play-circle-btn series-link-btn" data-url="@watchUrl" title="Xem phim ngay">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="6 4 20 12 6 20 6 4"></polygon>
                                     </svg>
@@ -508,30 +524,32 @@
                             </div>
                         </div>
 
-                        <div class="single-body">
+                        <div class="series-body">
                             <div>
-                                <h3 class="single-title" title="@movie.Title">
-                                    <a href="@watchUrl" class="text-white text-decoration-none single-link-btn" data-url="@watchUrl">
-                                        @movie.Title
+                                <h3 class="series-title" title="@series.Title">
+                                    <a href="@watchUrl" class="text-white text-decoration-none series-link-btn" data-url="@watchUrl">
+                                        @series.Title
                                     </a>
                                 </h3>
-                                @if (!string.IsNullOrWhiteSpace(movie.OriginalTitle) && movie.OriginalTitle != movie.Title)
+                                @if (!string.IsNullOrWhiteSpace(series.OriginalTitle) && series.OriginalTitle != series.Title)
                                 {
-                                    <div class="text-secondary small text-truncate mb-1" title="@movie.OriginalTitle">@movie.OriginalTitle</div>
+                                    <div class="series-original-title" title="@series.OriginalTitle">@series.OriginalTitle</div>
                                 }
-                                <div class="single-genres" title="@movie.Genres">
-                                    @(string.IsNullOrWhiteSpace(movie.Genres) ? "Phim Lẻ" : movie.Genres)
+                                <div class="series-genres" title="@series.Genres">
+                                    @(string.IsNullOrWhiteSpace(series.Genres) ? "Phim Bộ" : series.Genres)
                                 </div>
                             </div>
 
-                            <div class="single-meta">
+                            <div class="series-meta">
                                 <span class="d-flex align-items-center gap-1 text-warning fw-bold">
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b">
                                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                                     </svg>
-                                    8.5
+                                    @(series.AvgRating.HasValue && series.AvgRating.Value > 0 ? series.AvgRating.Value.ToString("0.0") : "8.8")
                                 </span>
-                                <span>@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : (movie.ReleaseDate.HasValue ? movie.ReleaseDate.Value.Year.ToString() : "2024"))</span>
+                                <span>
+                                    @(series.FirstAirDate.HasValue ? series.FirstAirDate.Value.Year.ToString() : (series.CreatedAt != DateTime.MinValue ? series.CreatedAt.Year.ToString() : "2024"))
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -543,9 +561,9 @@
         @if (Model.TotalPages > 1)
         {
             <nav aria-label="Page navigation" class="mt-4">
-                <ul class="pagination justify-content-center single-pagination">
+                <ul class="pagination justify-content-center series-pagination">
                     <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
-                        <a class="page-link" href="@Url.Action("Index", "Single", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = Model.Page - 1 })">
+                        <a class="page-link" href="@Url.Action("Index", "Series", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = Model.Page - 1 })">
                             &laquo; Trước
                         </a>
                     </li>
@@ -555,7 +573,7 @@
                         if (p == 1 || p == Model.TotalPages || (p >= Model.Page - 2 && p <= Model.Page + 2))
                         {
                             <li class="page-item @(p == Model.Page ? "active" : "")">
-                                <a class="page-link" href="@Url.Action("Index", "Single", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = p })">@p</a>
+                                <a class="page-link" href="@Url.Action("Index", "Series", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = p })">@p</a>
                             </li>
                         }
                         else if (p == Model.Page - 3 || p == Model.Page + 3)
@@ -565,7 +583,7 @@
                     }
 
                     <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
-                        <a class="page-link" href="@Url.Action("Index", "Single", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = Model.Page + 1 })">
+                        <a class="page-link" href="@Url.Action("Index", "Series", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = Model.Page + 1 })">
                             Sau &raquo;
                         </a>
                     </li>
@@ -579,15 +597,13 @@
         <div class="text-center py-5 my-4 rounded-4" style="background: var(--dark-card); border: 1px solid var(--dark-border);">
             <div class="mb-3">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-                    <line x1="7" y1="2" x2="7" y2="22"></line>
-                    <line x1="17" y1="2" x2="17" y2="22"></line>
-                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+                    <polyline points="17 2 12 7 7 2"></polyline>
                 </svg>
             </div>
-            <h4 class="text-white fw-bold mb-2">Không tìm thấy bộ phim lẻ nào</h4>
-            <p class="text-secondary max-w-500 mx-auto mb-4">Không tìm thấy kết quả phù hợp với tìm kiếm của bạn. Hãy thử thay đổi từ khóa hoặc bộ lọc.</p>
-            <a href="/Single" class="btn btn-filter-action px-4 py-2 rounded-pill">
+            <h4 class="text-white fw-bold mb-2">Không tìm thấy bộ phim bộ nào</h4>
+            <p class="text-secondary max-w-500 mx-auto mb-4">Không tìm thấy kết quả phù hợp với tiêu chí tìm kiếm. Hãy thử từ khóa khác hoặc xóa bộ lọc.</p>
+            <a href="/Series" class="btn btn-filter-action px-4 py-2 rounded-pill">
                 Đặt lại bộ lọc
             </a>
         </div>
@@ -599,11 +615,11 @@
     <script>
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
 
-        $(document).on('click', '.single-card, .single-link-btn', function (e) {
+        $(document).on('click', '.series-card, .series-link-btn', function (e) {
             e.preventDefault();
             e.stopPropagation();
 
-            const targetUrl = $(this).data('url') || $(this).attr('href') || $(this).closest('.single-card').data('url');
+            const targetUrl = $(this).data('url') || $(this).attr('href') || $(this).closest('.series-card').data('url');
             if (!targetUrl) return;
 
             if (!isLoggedIn) {
