@@ -17,6 +17,7 @@ namespace CoreLib.Dtos.AuthDtos
         public string? LanguageCode { get; set; }
         public bool IsEmailVerified { get; set; }
         public string Status { get; set; }
+        public List<string> Roles { get; set; } = new();
     }
 
 }

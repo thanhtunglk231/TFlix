@@ -6,15 +6,28 @@
     Layout = "/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Xem phim";
 
-    // Lấy token đăng nhập
+    // Lấy token đăng nhập & user
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
+    var currentUserJson = Context.Session.GetString("CurrentUser");
+    WebBrowser.Models.AuthModels.UserInfo? currentUser = null;
+    if (!string.IsNullOrEmpty(currentUserJson))
+    {
+        try { currentUser = Newtonsoft.Json.JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson); }
+        catch {}
+    }
+    var currentUserName = currentUser?.fullName ?? "Người dùng TFlix";
+    var currentUserAvatar = !string.IsNullOrEmpty(currentUser?.avatarUrl) ? currentUser.avatarUrl : $"https://i.pravatar.cc/40?u={currentUser?.userId ?? 0}";
+    var currentUserId = currentUser?.userId ?? 0;
 
     var content = Model.Content;
+    var contentId = Model.ContentId > 0
+        ? Model.ContentId
+        : content.MovieId > 0 ? content.MovieId : (long)content.ContentId;
     var movieTitle = content.OriginalTitle ?? content.title ?? "Đang cập nhật";
     var movieYear = content.ReleaseOrAirDate?.Year ?? 0;
     var movieGenres = content.genres ?? "Đang cập nhật";
-    var rating = 0.0; // Không có rating trong JSON nhưng có thể thêm vào sau
+    var rating = 0.0;
     var poster = content.PrimaryPosterUrl ?? "https://placehold.co/1600x900?text=No+Poster";
     var description = content.OverviewText ?? "Chưa có nội dung mô tả.";
 
@@ -23,7 +36,7 @@
     var currentSources = Model.Sources
         .Where(x => currentEpisodeId.HasValue
             ? x.EpisodeId == currentEpisodeId
-            : x.MovieId == (int)content.ContentId)
+            : x.MovieId == contentId)
         .ToList();
     bool IsHlsSource(SourceItem source)
     {
@@ -38,7 +51,7 @@
     var sources = currentSources
         .OrderByDescending(IsHlsSource)
         .ThenByDescending(x => x.IsPrimary)
-        .Select(x => (label: $"{x.ServerName ?? x.Provider ?? "CDN"} • {x.Quality ?? "Auto"}", url: x.StreamUrl))
+        .Select(x => (label: $"{x.ServerName ?? x.Provider ?? "CDN"} • {x.Quality ?? "Auto"}", url: x.StreamUrl, quality: x.Quality ?? "Auto"))
         .Where(x => !string.IsNullOrWhiteSpace(x.url))
         .ToList();
 
@@ -48,7 +61,6 @@
     var episodes = Model.Episodes;
     var currentEp = currentEpisode?.EpisodeId ?? 0;
 
-    var qualities = new[] { "1080p", "720p", "480p" };
     var speeds = new[] { 0.75, 1.0, 1.25, 1.5, 2.0 };
 }
 
@@ -100,6 +112,7 @@
         .video-el {
             width: 100%;
             background: #000;
+            display: block;
         }
 
         .player-controls {
@@ -107,10 +120,11 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(180deg, rgba(0,0,0,0) 0, rgba(0,0,0,.65) 45%, rgba(0,0,0,.8));
+            background: linear-gradient(180deg, rgba(0,0,0,0) 0, rgba(0,0,0,.65) 45%, rgba(0,0,0,.85));
             padding: .75rem .85rem;
             opacity: 1;
             transition: .25s;
+            z-index: 10;
         }
 
         .player-wrap.hide-ui .player-controls {
@@ -169,18 +183,21 @@
         .time-label {
             font-variant-numeric: tabular-nums;
             color: #d0e0ea;
-            font-size: .9rem;
+            font-size: .85rem;
         }
 
         .opts-pill {
             background: #14181c;
-            border: 1px solid rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.12);
             color: #d6e7f2;
-            border-radius: 14px;
-            padding: .4rem .7rem;
+            border-radius: 12px;
+            padding: .38rem .65rem;
+            font-size: .85rem;
+            cursor: pointer;
+            transition: .2s;
         }
 
-        .opts-pill:focus {
+        .opts-pill:hover, .opts-pill:focus {
             outline: 0;
             box-shadow: 0 0 0 .15rem rgba(39,211,195,.25);
             border-color: var(--brand);
@@ -237,7 +254,7 @@
 
         .ep-item.active {
             border-color: var(--brand);
-            background: linear-gradient(135deg, rgba(39,211,195,.08), rgba(0,0,0,.0));
+            background: linear-gradient(135deg, rgba(39,211,195,.12), rgba(0,0,0,.0));
         }
 
         .ep-num {
@@ -247,6 +264,7 @@
             display: grid;
             place-items: center;
             background: rgba(255,255,255,.08);
+            font-weight: 600;
         }
 
         .mini {
@@ -276,6 +294,82 @@
         @@keyframes pulse {
             to { background-position: 200% 0; }
         }
+
+        /* Quality Toast Badge */
+        .quality-toast {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(18, 22, 26, 0.9);
+            color: #27d3c3;
+            border: 1px solid rgba(39, 211, 195, 0.4);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: .85rem;
+            font-weight: 600;
+            z-index: 20;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+        }
+        .quality-toast.hide {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        /* SignalR pulse dot */
+        .signalr-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #2ecc71;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
+            animation: pulse-green 1.8s infinite;
+        }
+        @@keyframes pulse-green {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 7px rgba(46, 204, 113, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
+            }
+        }
+
+        /* Realtime Comment items */
+        .cmt-item {
+            background: #14191f;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 1rem;
+            transition: all 0.25s ease;
+        }
+        .cmt-item:hover {
+            border-color: rgba(39, 211, 195, 0.2);
+            background: #171d24;
+        }
+        .cmt-item.new-arrival {
+            animation: cmtFlash 2.5s ease;
+        }
+        @@keyframes cmtFlash {
+            0% {
+                background: rgba(39, 211, 195, 0.2);
+                border-color: var(--brand);
+                transform: translateY(-4px);
+            }
+            100% {
+                background: #14191f;
+                border-color: rgba(255, 255, 255, 0.05);
+                transform: translateY(0);
+            }
+        }
     </style>
 }
 
@@ -304,7 +398,24 @@
             <div id="playerBox" class="player-wrap">
                 @if (hasSource)
                 {
-                    <video id="video" class="video-el" playsinline preload="metadata" poster="@poster"></video>
+                    <video id="video"
+                           class="video-el"
+                           playsinline
+                           preload="none"
+                           poster="@poster"
+                           controlslist="nodownload noremoteplayback"
+                           disablepictureinpicture
+                           disableremoteplayback></video>
+
+                    <div id="playerError" class="position-absolute top-50 start-50 translate-middle text-center text-white d-none px-3" role="alert">
+                        <i class="bi bi-exclamation-triangle fs-2"></i>
+                        <div id="playerErrorText" class="mt-2">Không thể tải video.</div>
+                    </div>
+
+                    <!-- Quality notification toast on player -->
+                    <div id="qualityToast" class="quality-toast hide">
+                        <i class="bi bi-badge-hd me-1"></i> <span id="qualityToastText">Auto</span>
+                    </div>
 
                     <!-- Controls -->
                     <div class="player-controls">
@@ -315,27 +426,32 @@
                             </div>
                         </div>
                         <div class="d-flex flex-wrap align-items-center gap-2">
-                            <button class="control-btn" id="btnPlay"><i class="bi bi-play-fill"></i></button>
-                            <button class="control-btn" id="btnBack"><i class="bi bi-skip-backward-fill"></i></button>
-                            <button class="control-btn" id="btnFwd"><i class="bi bi-skip-forward-fill"></i></button>
+                            <button class="control-btn" id="btnPlay" title="Phát/Tạm dừng"><i class="bi bi-play-fill"></i></button>
+                            <button class="control-btn" id="btnBack" title="Tua lùi 10s"><i class="bi bi-skip-backward-fill"></i></button>
+                            <button class="control-btn" id="btnFwd" title="Tua tới 10s"><i class="bi bi-skip-forward-fill"></i></button>
 
                             <div class="d-flex align-items-center ms-2">
                                 <i class="bi bi-volume-up me-2 text-light"></i>
-                                <input type="range" id="vol" min="0" max="1" step="0.01" value="1" class="form-range" style="width:140px">
+                                <input type="range" id="vol" min="0" max="1" step="0.01" value="1" class="form-range" style="width:120px">
                             </div>
 
                             <div class="ms-auto d-flex align-items-center gap-2">
-                                <span class="time-label" id="time">00:00 / 00:00</span>
+                                <span class="time-label me-1" id="time">00:00 / 00:00</span>
 
-                                <select id="selSpeed" class="opts-pill">
+                                <!-- Quick Quality Selector inside player -->
+                                <select id="selQualityInPlayer" class="opts-pill" title="Điều chỉnh chất lượng video">
+                                    <option value="-1">Auto</option>
+                                </select>
+
+                                <!-- Speed -->
+                                <select id="selSpeed" class="opts-pill" title="Tốc độ phát">
                                     @foreach (var s in speeds)
                                     {
                                         <option value="@s" selected="@(s == 1.0)">@s x</option>
                                     }
                                 </select>
                                 <button class="control-btn" id="btnTheater" title="Rạp tối"><i class="bi bi-aspect-ratio"></i></button>
-                                <button class="control-btn" id="btnPip" title="Picture in Picture"><i class="bi bi-window"></i></button>
-                                <button class="control-btn" id="btnFs"><i class="bi bi-arrows-fullscreen"></i></button>
+                                <button class="control-btn" id="btnFs" title="Toàn màn hình"><i class="bi bi-arrows-fullscreen"></i></button>
                             </div>
                         </div>
                     </div>
@@ -356,23 +472,30 @@
                 }
             </div>
 
-            <!-- Source / Quality / Nav -->
-            <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+            <!-- Source / Quality / Navigation Bar below player -->
+            <div class="d-flex flex-wrap gap-3 mt-3 align-items-center">
                 @if (hasSource)
                 {
-                    <select id="selServer" class="opts-pill">
-                        @foreach (var (label, url) in sources)
-                        {
-                            <option value="@url">@label</option>
-                        }
-                    </select>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-secondary small d-flex align-items-center gap-1">
+                            <i class="bi bi-hdd-network text-info"></i> Server:
+                        </span>
+                        <select id="selServer" class="opts-pill">
+                            @foreach (var (label, url, quality) in sources)
+                            {
+                                <option value="@url">@label</option>
+                            }
+                        </select>
+                    </div>
 
-                    <select id="selQuality" class="opts-pill">
-                        @foreach (var q in qualities)
-                        {
-                            <option>@q</option>
-                        }
-                    </select>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-secondary small d-flex align-items-center gap-1">
+                            <i class="bi bi-badge-hd-fill text-warning"></i> Chất lượng:
+                        </span>
+                        <select id="selQuality" class="opts-pill">
+                            <option value="-1">Tự động (Auto)</option>
+                        </select>
+                    </div>
                 }
                 else
                 {
@@ -382,45 +505,67 @@
                 }
 
                 <div class="ms-auto d-flex gap-2">
-                    <a href="/Movies" class="btn btn-outline-light"><i class="bi bi-arrow-left"></i> Quay lại</a>
+                    <a href="/Movies" class="btn btn-outline-light btn-sm rounded-pill px-3"><i class="bi bi-arrow-left me-1"></i> Quay lại</a>
                 </div>
             </div>
 
             @if (hasSource)
             {
-                <div class="small kp mt-2"><i class="bi bi-keyboard"></i> Phím tắt: <b>Space</b> phát/tạm dừng, <b>←/→</b> tua 10s, <b>↑/↓</b> âm lượng, <b>F</b> full, <b>T</b> rạp tối, <b>P</b> PIP.</div>
+                <div class="small kp mt-2"><i class="bi bi-keyboard"></i> Phím tắt: <b>Space</b> phát/tạm dừng, <b>←/→</b> tua 10s, <b>↑/↓</b> âm lượng, <b>F</b> toàn màn hình, <b>T</b> rạp tối, <b>P</b> PIP.</div>
             }
 
-            <!-- Bình luận -->
+            <!-- Phần Bình luận Realtime với SignalR -->
             <div class="panel mt-4">
-                <div class="panel-header d-flex align-items-center justify-content-between">
-                    <div class="fw-semibold text-white">Bình luận</div>
-                    <span class="text-secondary small">Quy tắc cộng đồng áp dụng</span>
+                <div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-chat-dots-fill text-brand fs-5"></i>
+                        <span class="fw-semibold text-white">Bình luận</span>
+                        <span class="badge rounded-pill bg-dark border border-secondary text-info px-2" id="cmtCount">0</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 small px-2 py-1 d-flex align-items-center gap-2">
+                            <span class="signalr-dot"></span> Realtime SignalR
+                        </span>
+                    </div>
                 </div>
+
                 <div class="panel-body">
                     @if (!isLoggedIn)
                     {
-                        <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-warning mb-0">
-                            <i class="bi bi-shield-lock-fill me-1"></i> Bạn cần đăng nhập để bình luận.
+                        <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-warning mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 rounded-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-shield-lock-fill fs-5"></i>
+                                <span>Bạn cần đăng nhập để tham gia bình luận trực tiếp.</span>
+                            </div>
+                            <a asp-controller="Auth" asp-action="Index" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập ngay
+                            </a>
                         </div>
                     }
                     else
                     {
-                        <div class="d-flex gap-2">
-                            <img src="https://i.pravatar.cc/40?u=you" class="rounded-circle" width="40" height="40" />
+                        <div class="d-flex gap-3 mb-4">
+                            <img src="@currentUserAvatar" class="rounded-circle border border-info border-opacity-25" width="44" height="44" style="object-fit:cover" />
                             <div class="flex-grow-1">
-                                <textarea id="cmt" class="form-control mb-2 bg-dark text-white border-secondary border-opacity-50" rows="2" placeholder="Viết bình luận của bạn…"></textarea>
-                                <button class="btn btn-sm btn-primary" id="btnCmt"><i class="bi bi-send"></i> Gửi</button>
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <span class="text-white small fw-bold">@currentUserName</span>
+                                    <span class="text-secondary small" id="cmtCharCount">0 / 500</span>
+                                </div>
+                                <textarea id="cmt" class="form-control mb-2 bg-dark text-white border-secondary border-opacity-50" rows="3" maxlength="500" placeholder="Viết bình luận của bạn về bộ phim này..."></textarea>
+                                <div class="d-flex justify-content-end">
+                                    <button class="btn btn-sm btn-primary px-4 py-2 rounded-pill fw-semibold d-flex align-items-center gap-2" id="btnCmt">
+                                        <i class="bi bi-send-fill"></i> <span>Gửi bình luận</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     }
-                    <div class="mt-3" id="cmtList">
-                        <div class="d-flex gap-2 mb-3">
-                            <img src="https://i.pravatar.cc/36?u=a" class="rounded-circle" width="36" height="36" />
-                            <div>
-                                <div class="fw-semibold text-white">UserA <span class="text-secondary small">• 2 giờ trước</span></div>
-                                <div class="text-light">Phim hay lắm, mong sớm cập nhật đủ tập! 🔥</div>
-                            </div>
+
+                    <!-- Danh sách bình luận -->
+                    <div id="cmtList" class="vstack gap-3">
+                        <div class="text-center py-4 text-secondary" id="cmtLoading">
+                            <div class="spinner-border spinner-border-sm text-info mb-2" role="status"></div>
+                            <div>Đang tải bình luận...</div>
                         </div>
                     </div>
                 </div>
@@ -488,10 +633,10 @@
                 <h5 class="modal-title"><i class="bi bi-shield-lock-fill me-2 text-warning"></i>Cần đăng nhập</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">Bạn cần đăng nhập để xem nội dung này.</div>
+            <div class="modal-body">Bạn cần đăng nhập để thực hiện chức năng này.</div>
             <div class="modal-footer border-0">
-                <a class="btn btn-primary" asp-controller="Auth" asp-action="Index"><i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập</a>
-                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Để sau</button>
+                <a class="btn btn-primary rounded-pill px-4" asp-controller="Auth" asp-action="Index"><i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập</a>
+                <button type="button" class="btn btn-outline-light rounded-pill px-3" data-bs-dismiss="modal">Để sau</button>
             </div>
         </div>
     </div>
@@ -500,9 +645,42 @@
 @section Scripts {
     <!-- HLS for m3u8 -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Microsoft SignalR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+
     <script>
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
         const hasSource = @hasSource.ToString().ToLower();
+        const movieId = @contentId;
+        const currentUserId = @currentUserId;
+        const currentUserName = @Json.Serialize(currentUserName);
+        const currentUserAvatar = @Json.Serialize(currentUserAvatar);
+        const allSources = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Sources));
+
+        console.groupCollapsed('[TFlix Player Debug] Dữ liệu nguồn từ Server');
+        console.log('contentId:', movieId);
+        console.log('sourceCount:', allSources.length);
+        console.table(allSources.map(source => ({
+            sourceId: sourceValue(source, 'source_id', 'sourceId', 'SourceId'),
+            movieId: sourceValue(source, 'movie_id', 'movieId', 'MovieId', 'moviE_ID'),
+            episodeId: sourceValue(source, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID'),
+            format: sourceValue(source, 'format', 'Format'),
+            status: sourceValue(source, 'status', 'Status'),
+            streamUrl: sourceValue(source, 'stream_url', 'streamUrl', 'StreamUrl', 'streaM_URL')
+        })));
+        console.groupEnd();
+
+        function sourceValue(source, ...names) {
+            for (const name of names) {
+                if (source && source[name] !== undefined && source[name] !== null) {
+                    return source[name];
+                }
+            }
+            return null;
+        }
+
+        let currentEp = @currentEp;
+        const movieKey = "movie:" + @Json.Serialize(movieTitle);
 
         function guardAuth(action) {
             if (!isLoggedIn) {
@@ -514,8 +692,124 @@
             return typeof action === 'function' ? (action(), true) : true;
         }
 
-        if (hasSource) {
-            const video = document.getElementById('video');
+        // ==========================================
+        // 1. VIDEO PLAYER & QUALITY ADJUSTMENT LOGIC
+        // ==========================================
+        const video = document.getElementById('video');
+        const selQuality = document.getElementById('selQuality');
+        const selQualityInPlayer = document.getElementById('selQualityInPlayer');
+        const selServer = document.getElementById('selServer');
+        const qualityToast = document.getElementById('qualityToast');
+        const qualityToastText = document.getElementById('qualityToastText');
+        const playerError = document.getElementById('playerError');
+        const playerErrorText = document.getElementById('playerErrorText');
+
+        let toastTimer = null;
+        function showQualityToast(text) {
+            if (!qualityToast || !qualityToastText) return;
+            qualityToastText.textContent = text;
+            qualityToast.classList.remove('hide');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                qualityToast.classList.add('hide');
+            }, 2500);
+        }
+
+        // Cập nhật danh sách chất lượng khi stream Hls có nhiều level
+        function populateHlsQualities(hls) {
+            const levels = hls.levels || [];
+            const qualitySelects = [selQuality, selQualityInPlayer].filter(Boolean);
+
+            qualitySelects.forEach(sel => {
+                sel.innerHTML = '';
+                const autoOpt = document.createElement('option');
+                autoOpt.value = '-1';
+                autoOpt.textContent = 'Tự động (Auto)';
+                sel.appendChild(autoOpt);
+
+                levels.forEach((lvl, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = idx;
+                    const res = lvl.height ? `${lvl.height}p` : `Level ${idx + 1}`;
+                    const label = lvl.height >= 1080 ? `${res} Full HD` : (lvl.height >= 720 ? `${res} HD` : res);
+                    opt.textContent = label;
+                    sel.appendChild(opt);
+                });
+
+                sel.value = hls.currentLevel;
+            });
+        }
+
+        // Cập nhật chất lượng từ danh sách source của phim/tập nếu không dùng multi-level HLS
+        function populateFallbackQualities() {
+            const matchingSources = allSources.filter(s => currentEp
+                ? sourceValue(s, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID') == currentEp
+                : sourceValue(s, 'movie_id', 'movieId', 'MovieId', 'moviE_ID') == movieId);
+            const qualitySelects = [selQuality, selQualityInPlayer].filter(Boolean);
+
+            const quals = [...new Set(matchingSources.map(s => s.quality).filter(Boolean))];
+            if (quals.length > 0) {
+                qualitySelects.forEach(sel => {
+                    sel.innerHTML = '';
+                    const autoOpt = document.createElement('option');
+                    autoOpt.value = 'Auto';
+                    autoOpt.textContent = 'Tự động (Auto)';
+                    sel.appendChild(autoOpt);
+
+                    quals.forEach(q => {
+                        const opt = document.createElement('option');
+                        opt.value = q;
+                        opt.textContent = q;
+                        sel.appendChild(opt);
+                    });
+                });
+            }
+        }
+
+        // Xử lý đổi chất lượng
+        function handleQualityChange(newVal) {
+            if (video && video.hlsInstance && video.hlsInstance.levels && video.hlsInstance.levels.length > 0) {
+                const levelIdx = parseInt(newVal);
+                video.hlsInstance.currentLevel = levelIdx;
+                let qualityText = 'Tự động (Auto)';
+                if (levelIdx >= 0 && video.hlsInstance.levels[levelIdx]) {
+                    const lvl = video.hlsInstance.levels[levelIdx];
+                    qualityText = (lvl.height ? lvl.height + 'p' : 'Level ' + (levelIdx + 1));
+                }
+                showQualityToast('Chất lượng: ' + qualityText);
+            } else {
+                // Fallback đổi source theo quality
+                if (newVal !== 'Auto') {
+                    const matching = allSources.filter(s => currentEp
+                        ? sourceValue(s, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID') == currentEp
+                        : sourceValue(s, 'movie_id', 'movieId', 'MovieId', 'moviE_ID') == movieId);
+                    const target = matching.find(s => s.quality === newVal);
+                    const targetUrl = sourceValue(target, 'stream_url', 'streamUrl', 'StreamUrl', 'streaM_URL');
+                    if (targetUrl) {
+                        const curTime = video.currentTime;
+                        const isPaused = video.paused;
+                        loadSource(targetUrl);
+                        video.currentTime = curTime;
+                        if (!isPaused) video.play().catch(()=>{});
+                        showQualityToast('Chất lượng: ' + newVal);
+                    }
+                }
+            }
+
+            // Đồng bộ giữa 2 select
+            [selQuality, selQualityInPlayer].forEach(s => {
+                if (s) s.value = newVal;
+            });
+        }
+
+        if (selQuality) {
+            selQuality.addEventListener('change', e => handleQualityChange(e.target.value));
+        }
+        if (selQualityInPlayer) {
+            selQualityInPlayer.addEventListener('change', e => handleQualityChange(e.target.value));
+        }
+
+        if (hasSource && video) {
             const bar = document.getElementById('bar');
             const buffered = document.getElementById('buffered');
             const progress = document.getElementById('progress');
@@ -527,13 +821,8 @@
             const btnPip = document.getElementById('btnPip');
             const btnTheater = document.getElementById('btnTheater');
             const selSpeed = document.getElementById('selSpeed');
-            const selServer = document.getElementById('selServer');
-            const selQuality = document.getElementById('selQuality');
             const vol = document.getElementById('vol');
             const playerBox = document.getElementById('playerBox');
-
-            const movieKey = "movie:" + @Json.Serialize(movieTitle);
-            let currentEp = @currentEp;
 
             function fmt(sec){
                 sec = Math.max(sec||0,0);
@@ -552,11 +841,36 @@
                 }
             }
 
+            function showPlayerError(message) {
+                if (!playerError || !playerErrorText) return;
+                playerErrorText.textContent = message || 'Không thể tải video.';
+                playerError.classList.remove('d-none');
+            }
+
+            function clearPlayerError() {
+                playerError?.classList.add('d-none');
+            }
+
+            function restorePlaybackPosition() {
+                const resume = +localStorage.getItem(`${movieKey}:ep:${currentEp}:t`) || 0;
+                if (resume > 0 && Number.isFinite(video.duration)) {
+                    video.currentTime = Math.min(Math.max(0, resume - 2), Math.max(0, video.duration - 1));
+                }
+            }
+
             function loadSource(url){
                 if (!isLoggedIn) {
                     guardAuth();
                     return;
                 }
+                if (!url || typeof url !== 'string') {
+                    showPlayerError('Nguồn video không hợp lệ.');
+                    return;
+                }
+
+                clearPlayerError();
+                console.info('[TFlix Player Debug] loadSource nhận URL:', url);
+                console.info('[TFlix Player Debug] Loại nguồn:', isHlsSource(url) ? 'HLS' : 'MP4/Direct');
                 localStorage.setItem(movieKey + ":server", url);
 
                 if (video.hlsInstance) {
@@ -571,18 +885,26 @@
                     const hls = new Hls({
                         enableWorker: true,
                         lowLatencyMode: false,
-                        maxBufferLength: 30,
-                        maxMaxBufferLength: 60,
-                        backBufferLength: 30
+                        // Chỉ giữ một lượng nhỏ segment ở phía trước và phía sau,
+                        // tránh tải/buffer một lúc quá nhiều nội dung phim.
+                        maxBufferLength: 12,
+                        maxMaxBufferLength: 24,
+                        backBufferLength: 10,
+                        maxBufferSize: 32 * 1024 * 1024,
+                        maxBufferHole: 0.5,
+                        startFragPrefetch: false
                     });
                     hls.on(Hls.Events.ERROR, (_event, data) => {
+                        console.error('[TFlix Player Debug] HLS error:', data);
                         if (!data.fatal) return;
                         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                            showPlayerError('Không tải được dữ liệu HLS. Hãy kiểm tra CORS hoặc kết nối Cloudflare.');
                             hls.startLoad();
                         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                             hls.recoverMediaError();
                         } else {
                             console.error('Fatal HLS playback error:', data.type, data.details);
+                            showPlayerError('Nguồn HLS không hợp lệ hoặc trình duyệt không hỗ trợ.');
                             hls.destroy();
                             video.hlsInstance = null;
                         }
@@ -590,18 +912,72 @@
                     hls.loadSource(url);
                     hls.attachMedia(video);
                     video.hlsInstance = hls;
+
+                    hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+                        console.info('[TFlix Player Debug] HLS manifest đã tải:', data);
+                        clearPlayerError();
+                        restorePlaybackPosition();
+                        populateHlsQualities(hls);
+                        video.play().catch(() => {});
+                    });
+
+                    hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+                        const lvl = hls.levels[data.level];
+                        if (lvl) {
+                            const resText = (lvl.height ? lvl.height + 'p' : 'Auto');
+                            showQualityToast('Đang phát: ' + resText);
+                        }
+                    });
                 } else if (isHlsSource(url) && video.canPlayType('application/vnd.apple.mpegurl')) {
                     video.src = url;
+                    video.addEventListener('loadedmetadata', restorePlaybackPosition, { once: true });
+                    video.load();
+                    video.play().catch(() => {});
                 } else {
                     video.src = url;
+                    populateFallbackQualities();
+                    video.addEventListener('loadedmetadata', restorePlaybackPosition, { once: true });
+                    video.load();
+                    video.play().catch(() => {});
                 }
 
-                const resume = +localStorage.getItem(`${movieKey}:ep:${currentEp}:t`) || 0;
-                video.currentTime = Math.max(0, resume - 2);
-                video.play().catch(()=>{});
-                btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>';
+                if (btnPlay) btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>';
             }
 
+            video.addEventListener('canplay', clearPlayerError);
+            video.addEventListener('loadstart', () => console.info('[TFlix Player Debug] video loadstart:', video.currentSrc || video.src));
+            video.addEventListener('loadedmetadata', () => console.info('[TFlix Player Debug] loadedmetadata:', {
+                currentSrc: video.currentSrc,
+                duration: video.duration,
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight
+            }));
+            video.addEventListener('canplay', () => console.info('[TFlix Player Debug] video canplay:', video.currentSrc));
+            video.addEventListener('error', () => {
+                const code = video.error?.code;
+                console.error('[TFlix Player Debug] video error:', {
+                    code,
+                    message: video.error?.message,
+                    currentSrc: video.currentSrc || video.src
+                });
+                const message = code === 4
+                    ? 'Trình duyệt không hỗ trợ nguồn video hoặc Cloudflare trả sai Content-Type.'
+                    : 'Không thể tải video từ máy chủ lưu trữ.';
+                showPlayerError(message);
+            });
+
+            // Hạn chế các thao tác tải xuống phổ biến trên giao diện trình phát.
+            playerBox.addEventListener('contextmenu', event => event.preventDefault());
+            video.addEventListener('dragstart', event => event.preventDefault());
+            document.addEventListener('keydown', event => {
+                if ((document.fullscreenElement === playerBox || playerBox.contains(document.activeElement))
+                    && (event.ctrlKey || event.metaKey)
+                    && event.key.toLowerCase() === 's') {
+                    event.preventDefault();
+                }
+            });
+
+            // Gán source đầu tiên
             (function initSelections(){
                 if (selServer) {
                     const last = localStorage.getItem(movieKey + ":server");
@@ -611,7 +987,7 @@
             })();
 
             (function autoPlay(){
-                const firstUrl = selServer ? selServer.value : '@currentSource';
+                const firstUrl = selServer ? selServer.value : @Json.Serialize(currentSource);
                 if (isLoggedIn && firstUrl) loadSource(firstUrl);
             })();
 
@@ -645,119 +1021,315 @@
                 });
             }
 
-        // Progress UI
-        video.addEventListener('timeupdate', ()=>{
-            const p = (video.currentTime / (video.duration||1))*100;
-            bar.style.width = p + '%';
-            time.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
-            // save progress each 2s
-            if (Math.floor(video.currentTime)%2===0) {
-                localStorage.setItem(`${movieKey}:ep:${currentEp}:t`, String(Math.floor(video.currentTime)));
-            }
-        });
-        video.addEventListener('progress', ()=>{
-            try {
-                if (video.buffered.length) {
-                    const end = video.buffered.end(video.buffered.length-1);
-                    const b = (end/(video.duration||1))*100;
-                    buffered.style.width = b + '%';
-                }
-            } catch {}
-        });
-        progress.addEventListener('click', e => guardAuth(()=>{
-            const r = progress.getBoundingClientRect();
-            const ratio = (e.clientX - r.left)/r.width;
-            video.currentTime = ratio * (video.duration||0);
-        }));
-
-        // Hotkeys
-        window.addEventListener('keydown', (e)=>{
-            const tag = (e.target.tagName||'').toLowerCase();
-            if (['input','textarea'].includes(tag)) return; // don't hijack typing
-            if (e.code === 'Space'){ e.preventDefault(); btnPlay.click(); }
-            else if (e.code === 'ArrowLeft'){ e.preventDefault(); btnBack.click(); }
-            else if (e.code === 'ArrowRight'){ e.preventDefault(); btnFwd.click(); }
-            else if (e.key.toLowerCase()==='f'){ e.preventDefault(); btnFs.click(); }
-            else if (e.key.toLowerCase()==='t'){ e.preventDefault(); btnTheater.click(); }
-            else if (e.key.toLowerCase()==='p'){ e.preventDefault(); btnPip.click(); }
-            else if (e.key === 'ArrowUp'){ e.preventDefault(); vol.value = Math.min(1, (+vol.value + .05)).toFixed(2); vol.dispatchEvent(new Event('input')); }
-            else if (e.key === 'ArrowDown'){ e.preventDefault(); vol.value = Math.max(0, (+vol.value - .05)).toFixed(2); vol.dispatchEvent(new Event('input')); }
-        });
-
-        // Episode navigation
-        const epList = document.getElementById('epList');
-        epList.addEventListener('click', (e)=>{
-            const item = e.target.closest('.ep-item');
-            if (!item) return;
-            const ep = +item.dataset.ep;
-            if (ep === currentEp) return;
-            guardAuth(()=>{
-                currentEp = ep;
-                document.querySelectorAll('.ep-item').forEach(i=> i.classList.toggle('active', i===item));
-                const url = item.dataset.sourceUrl;
-                localStorage.setItem(`${movieKey}:last_ep`, String(currentEp));
-                if (url) {
-                    selServer.value = url;
-                    loadSource(url);
+            // Progress UI
+            video.addEventListener('timeupdate', ()=>{
+                const p = (video.currentTime / (video.duration||1))*100;
+                if (bar) bar.style.width = p + '%';
+                if (time) time.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
+                if (Math.floor(video.currentTime)%2===0) {
+                    localStorage.setItem(`${movieKey}:ep:${currentEp}:t`, String(Math.floor(video.currentTime)));
                 }
             });
-        });
 
-        btnPrev.addEventListener('click', ()=>{
-            const items = [...document.querySelectorAll('.ep-item')];
-            const currentIndex = items.findIndex(item => +item.dataset.ep === currentEp);
-            items[currentIndex - 1]?.click();
-        });
-        btnNext.addEventListener('click', ()=>{
-            const items = [...document.querySelectorAll('.ep-item')];
-            const currentIndex = items.findIndex(item => +item.dataset.ep === currentEp);
-            items[currentIndex + 1]?.click();
-        });
-
-               // Sticky mini-player on scroll when not in PiP/fullscreen
-        let miniEl;
-
-        function ensureMini() {
-            if (miniEl) return;
-
-            miniEl = document.createElement('div');
-            miniEl.className = 'mini hide';
-            miniEl.innerHTML =
-                `<div class="player-wrap">
-                    <video id="mini" class="video-el" muted></video>
-                 </div>`;
-            document.body.appendChild(miniEl);
-
-            const mv = miniEl.querySelector('#mini');
-
-            // THỬ captureStream, NẾU LỖI (cross-origin) thì fallback sang gán src trực tiếp
-            if (video.captureStream) {
+            video.addEventListener('progress', ()=>{
                 try {
-                    const stream = video.captureStream();
-                    mv.srcObject = stream;
-                    mv.play().catch(() => {});
-                } catch (err) {
-                    console.warn('captureStream bị chặn, dùng fallback src:', err);
-                    if (video.currentSrc) {
-                        mv.src = video.currentSrc;      // chỉ phát lại từ cùng URL, không mirror time
-                        mv.play().catch(() => {});
+                    if (video.buffered.length && buffered) {
+                        const end = video.buffered.end(video.buffered.length-1);
+                        const b = (end/(video.duration||1))*100;
+                        buffered.style.width = b + '%';
                     }
-                }
-            } else if (video.currentSrc) {
-                // Trình duyệt không hỗ trợ captureStream: phát lại từ URL
-                mv.src = video.currentSrc;
-                mv.play().catch(() => {});
+                } catch {}
+            });
+
+            if (progress) {
+                progress.addEventListener('click', e => guardAuth(()=>{
+                    const r = progress.getBoundingClientRect();
+                    const ratio = (e.clientX - r.left)/r.width;
+                    video.currentTime = ratio * (video.duration||0);
+                }));
             }
+
+            // Phím tắt bàn phím
+            window.addEventListener('keydown', (e)=>{
+                const tag = (e.target.tagName||'').toLowerCase();
+                if (['input','textarea'].includes(tag)) return;
+                if (e.code === 'Space'){ e.preventDefault(); btnPlay?.click(); }
+                else if (e.code === 'ArrowLeft'){ e.preventDefault(); btnBack?.click(); }
+                else if (e.code === 'ArrowRight'){ e.preventDefault(); btnFwd?.click(); }
+                else if (e.key.toLowerCase()==='f'){ e.preventDefault(); btnFs?.click(); }
+                else if (e.key.toLowerCase()==='t'){ e.preventDefault(); btnTheater?.click(); }
+                else if (e.key.toLowerCase()==='p'){ e.preventDefault(); btnPip?.click(); }
+                else if (e.key === 'ArrowUp' && vol){ e.preventDefault(); vol.value = Math.min(1, (+vol.value + .05)).toFixed(2); vol.dispatchEvent(new Event('input')); }
+                else if (e.key === 'ArrowDown' && vol){ e.preventDefault(); vol.value = Math.max(0, (+vol.value - .05)).toFixed(2); vol.dispatchEvent(new Event('input')); }
+            });
         }
 
-        // Common button listeners
+        // ==========================================
+        // 2. REALTIME COMMENTS WITH SIGNALR
+        // ==========================================
+        let signalrConn = null;
+        let activeGroupKey = "";
+
+        function getContentGroupKey(ep) {
+            if (ep && ep > 0) return "ep_" + ep;
+            return "movie_" + movieId;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function renderCommentItem(cmt, isNew = false) {
+            const avatar = cmt.userAvatar || `https://i.pravatar.cc/40?u=${cmt.userId || 'guest'}`;
+            const timeAgo = cmt.formattedTime || 'Vừa xong';
+            const author = escapeHtml(cmt.userName || 'Người dùng TFlix');
+            const text = escapeHtml(cmt.content || '');
+            const isMe = cmt.userId && cmt.userId === currentUserId;
+
+            return `
+                <div class="cmt-item ${isNew ? 'new-arrival' : ''}" id="cmt-${cmt.commentId || Date.now()}">
+                    <div class="d-flex gap-3">
+                        <img src="${avatar}" class="rounded-circle border border-info border-opacity-25" width="40" height="40" style="object-fit:cover" />
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold text-white small">${author}</span>
+                                    ${isMe ? '<span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25" style="font-size:0.65rem">Bạn</span>' : ''}
+                                    <span class="text-secondary small">• ${timeAgo}</span>
+                                </div>
+                            </div>
+                            <div class="text-light" style="white-space: pre-wrap; font-size: 0.92rem; line-height: 1.5;">${text}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCommentCountBadge(increment = 0, setCount = null) {
+            const el = document.getElementById('cmtCount');
+            if (!el) return;
+            let current = parseInt(el.textContent) || 0;
+            if (setCount !== null) {
+                current = setCount;
+            } else {
+                current += increment;
+            }
+            el.textContent = Math.max(0, current);
+        }
+
+        function addCommentToUI(comment, isNew = true) {
+            const listEl = document.getElementById('cmtList');
+            if (!listEl) return;
+
+            // Remove placeholder if present
+            const emptyEl = document.getElementById('cmtEmpty');
+            if (emptyEl) emptyEl.remove();
+
+            const cmtHtml = renderCommentItem(comment, isNew);
+            listEl.insertAdjacentHTML('afterbegin', cmtHtml);
+            updateCommentCountBadge(1);
+        }
+
+        function loadComments() {
+            const listEl = document.getElementById('cmtList');
+            if (!listEl) return;
+
+            const epParam = currentEp > 0 ? currentEp : '';
+            fetch(`/Film/GetComments?movieId=${movieId}&episodeId=${epParam}`)
+                .then(res => res.json())
+                .then(res => {
+                    listEl.innerHTML = '';
+                    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+                        res.data.forEach(item => {
+                            listEl.insertAdjacentHTML('beforeend', renderCommentItem(item, false));
+                        });
+                        updateCommentCountBadge(0, res.data.length);
+                    } else {
+                        updateCommentCountBadge(0, 0);
+                        listEl.innerHTML = `
+                            <div class="text-center py-4 text-secondary" id="cmtEmpty">
+                                <i class="bi bi-chat-square-dots display-6 d-block mb-2 text-secondary opacity-50"></i>
+                                <span>Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ!</span>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error('Lỗi tải bình luận:', err);
+                    listEl.innerHTML = `
+                        <div class="text-center py-4 text-secondary" id="cmtEmpty">
+                            <i class="bi bi-chat-square-dots display-6 d-block mb-2 text-secondary opacity-50"></i>
+                            <span>Hãy là người đầu tiên bình luận về nội dung này!</span>
+                        </div>
+                    `;
+                });
+        }
+
+        function switchSignalRGroup() {
+            if (!signalrConn || signalrConn.state !== signalR.HubConnectionState.Connected) return;
+
+            const newKey = getContentGroupKey(currentEp);
+            if (activeGroupKey && activeGroupKey !== newKey) {
+                signalrConn.invoke('LeaveContentGroup', activeGroupKey).catch(()=>{});
+            }
+            activeGroupKey = newKey;
+            signalrConn.invoke('JoinContentGroup', activeGroupKey).then(() => {
+                console.log('✅ Đã tham gia phòng bình luận:', activeGroupKey);
+            }).catch(console.error);
+        }
+
+        function initSignalRConnection() {
+            if (typeof signalR === 'undefined') return;
+
+            signalrConn = new signalR.HubConnectionBuilder()
+                .withUrl('/commentHub')
+                .withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
+                .build();
+
+            signalrConn.on('ReceiveComment', function (comment) {
+                console.log('⚡ Nhận bình luận realtime:', comment);
+                addCommentToUI(comment, true);
+            });
+
+            signalrConn.start().then(() => {
+                console.log('✅ SignalR Hub kết nối thành công!');
+                switchSignalRGroup();
+            }).catch(err => {
+                console.warn('SignalR Hub kết nối chậm:', err);
+            });
+
+            signalrConn.onreconnected(() => {
+                switchSignalRGroup();
+            });
+        }
+
+        // Khởi động SignalR và nạp bình luận ban đầu
+        initSignalRConnection();
+        loadComments();
+
+        // Gửi bình luận
+        const btnCmt = document.getElementById('btnCmt');
+        const cmtTextarea = document.getElementById('cmt');
+        const cmtCharCount = document.getElementById('cmtCharCount');
+
+        if (cmtTextarea && cmtCharCount) {
+            cmtTextarea.addEventListener('input', () => {
+                cmtCharCount.textContent = `${cmtTextarea.value.length} / 500`;
+            });
+
+            // Gửi khi bấm Ctrl+Enter
+            cmtTextarea.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'Enter') {
+                    btnCmt?.click();
+                }
+            });
+        }
+
+        if (btnCmt && cmtTextarea) {
+            btnCmt.addEventListener('click', async () => {
+                if (!isLoggedIn) {
+                    guardAuth();
+                    return;
+                }
+
+                const content = cmtTextarea.value.trim();
+                if (!content) {
+                    cmtTextarea.focus();
+                    return;
+                }
+
+                btnCmt.disabled = true;
+                const originalHtml = btnCmt.innerHTML;
+                btnCmt.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi...';
+
+                const payload = {
+                    movieId: movieId,
+                    episodeId: currentEp > 0 ? currentEp : null,
+                    userId: currentUserId,
+                    userName: currentUserName,
+                    userAvatar: currentUserAvatar,
+                    content: content
+                };
+
+                try {
+                    let savedComment = null;
+                    if (signalrConn && signalrConn.state === signalR.HubConnectionState.Connected) {
+                        savedComment = await signalrConn.invoke('SendComment', activeGroupKey, payload);
+                    } else {
+                        // Fallback API POST
+                        const res = await fetch('/Film/PostComment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data?.success || !data?.data) {
+                            throw new Error(data?.message || 'Không thể lưu bình luận.');
+                        }
+                        savedComment = data.data;
+                    }
+
+                    if (!savedComment || !savedComment.commentId) {
+                        throw new Error('Server không trả về ID bình luận đã lưu.');
+                    }
+
+                    addCommentToUI(savedComment, true);
+
+                    cmtTextarea.value = '';
+                    if (cmtCharCount) cmtCharCount.textContent = '0 / 500';
+                } catch (err) {
+                    console.error('Lỗi khi gửi bình luận:', err);
+                    alert(err?.message || 'Gửi bình luận thất bại. Vui lòng thử lại!');
+                } finally {
+                    btnCmt.disabled = false;
+                    btnCmt.innerHTML = originalHtml;
+                }
+            });
+        }
+
+        // ==========================================
+        // 3. EPISODE SWITCHING NAVIGATION
+        // ==========================================
+        const epList = document.getElementById('epList');
+        if (epList) {
+            epList.addEventListener('click', (e) => {
+                const item = e.target.closest('.ep-item');
+                if (!item) return;
+                const ep = +item.dataset.ep;
+                if (ep === currentEp) return;
+
+                guardAuth(() => {
+                    currentEp = ep;
+                    document.querySelectorAll('.ep-item').forEach(i => i.classList.toggle('active', i === item));
+                    const url = item.dataset.sourceUrl;
+                    localStorage.setItem(`${movieKey}:last_ep`, String(currentEp));
+
+                    if (url && selServer) {
+                        selServer.value = url;
+                        if (typeof loadSource === 'function') loadSource(url);
+                    }
+
+                    // Chuyển nhóm SignalR & load lại bình luận của tập mới
+                    switchSignalRGroup();
+                    loadComments();
+                });
+            });
+        }
+
+        // Common actions
         function needLoginToast(){
             const alertEl = document.createElement('div');
             alertEl.className = 'alert alert-warning position-fixed end-0 bottom-0 m-3';
             alertEl.style.zIndex = 1080;
             alertEl.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Bạn cần đăng nhập để sử dụng tính năng này.';
             document.body.appendChild(alertEl);
-            setTimeout(()=> alertEl.remove(), 2000);
+            setTimeout(()=> alertEl.remove(), 2500);
         }
         document.getElementById('btnLike')?.addEventListener('click',()=> isLoggedIn ? (bootstrap.Toast && 0) : needLoginToast());
         document.getElementById('btnSave')?.addEventListener('click',()=> isLoggedIn ? (bootstrap.Toast && 0) : needLoginToast());

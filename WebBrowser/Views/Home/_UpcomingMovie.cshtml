@@ -1,0 +1,172 @@
+@model List<WebBrowser.Models.Movie.MovieItem>
+
+@{
+    var upcomingList = (Model != null && Model.Count > 0)
+        ? Model.OrderByDescending(m => m.ReleaseDate).Take(3).ToList()
+        : new List<WebBrowser.Models.Movie.MovieItem>();
+
+    var fallbackBackdrop = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1600&auto=format&fit=crop";
+    var defaultPoster = "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop";
+}
+
+<section class="tflix-section" id="upcomingSection">
+    <div class="section-header">
+        <div class="section-title-wrap">
+            <div class="section-icon-badge">
+                <i class="bi bi-calendar-event-fill"></i>
+            </div>
+            <h2 class="section-title">Phim sắp chiếu</h2>
+        </div>
+        <div class="section-divider-line d-none d-md-block"></div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle px-2 py-1 text-white border-0 bg-dark" onclick="prevUpcoming()" aria-label="Phim sắp chiếu trước">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle px-2 py-1 text-white border-0 bg-dark" onclick="nextUpcoming()" aria-label="Phim sắp chiếu tiếp theo">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+    @if (upcomingList.Count > 0)
+    {
+        <div class="upcoming-showcase-card">
+            @for (int i = 0; i < upcomingList.Count; i++)
+            {
+                var up = upcomingList[i];
+                var dateStr = up.ReleaseDate.HasValue ? up.ReleaseDate.Value.ToString("dd/MM/yyyy") : "Dự kiến 2025 - 2026";
+                var genres = !string.IsNullOrEmpty(up.Genres) ? up.Genres : "Khoa học viễn tưởng • Phiêu lưu";
+                var posterUrl = !string.IsNullOrEmpty(up.PosterUrl) ? up.PosterUrl : defaultPoster;
+
+                <div class="upcoming-inner upcoming-item @(i == 0 ? "active" : "d-none")" id="upcomingSlide-@i" data-index="@i">
+                    <div class="upcoming-poster-col">
+                        <img src="@posterUrl"
+                             class="upcoming-poster-img"
+                             alt="Poster phim @up.Title"
+                             loading="lazy"
+                             onerror="this.src='@defaultPoster'" />
+                    </div>
+
+                    <div class="upcoming-info-col">
+                        <div class="upcoming-date-badge">
+                            <i class="bi bi-calendar-check-fill text-info"></i>
+                            <span>Công chiếu: @dateStr</span>
+                        </div>
+
+                        <h3 class="upcoming-title">@up.Title</h3>
+
+                        @if (!string.IsNullOrEmpty(up.OriginalTitle) && up.OriginalTitle != up.Title)
+                        {
+                            <div class="text-muted mb-2 fst-italic">@up.OriginalTitle</div>
+                        }
+
+                        <div class="d-flex align-items-center gap-3 text-muted small mb-3">
+                            <span><i class="bi bi-tags-fill me-1 text-primary"></i>@genres</span>
+                            @if (up.DurationMin.HasValue)
+                            {
+                                <span><i class="bi bi-clock-history me-1"></i>@up.DurationMin phút</span>
+                            }
+                            <span><i class="bi bi-badge-4k me-1 text-warning"></i>Chiếu rạp & TFlix 4K</span>
+                        </div>
+
+                        <p class="upcoming-synopsis">
+                            Tác phẩm điện ảnh đỉnh cao được mong chờ nhất mùa này với dàn diễn viên ngôi sao hàng đầu, hiệu ứng hình ảnh hoành tráng và âm thanh vòm Dolby Atmos sống động. Nhấn "Nhắc tôi" để nhận thông báo ngay khi phim chính thức khởi chiếu!
+                        </p>
+
+                        <div class="upcoming-actions">
+                            <button type="button"
+                                    class="btn-tflix-primary"
+                                    id="remindBtn-@up.MovieId"
+                                    onclick="toggleUpcomingReminder(this, @up.MovieId, '@Html.Raw(up.Title.Replace("'", "\\'"))')">
+                                <i class="bi bi-bell-fill"></i>
+                                <span>Nhắc tôi khi chiếu</span>
+                            </button>
+
+                            <a class="btn-tflix-glass"
+                               asp-controller="Preview"
+                               asp-action="Details"
+                               asp-route-id="@up.MovieId"
+                               asp-route-kind="MOVIE">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Xem thông tin</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <script>
+            let upcomingIndex = 0;
+            const totalUpcoming = @upcomingList.Count;
+
+            function showUpcoming(index) {
+                for (let i = 0; i < totalUpcoming; i++) {
+                    const slide = document.getElementById(`upcomingSlide-${i}`);
+                    if (slide) {
+                        if (i === index) {
+                            slide.classList.remove('d-none');
+                            slide.classList.add('active');
+                        } else {
+                            slide.classList.add('d-none');
+                            slide.classList.remove('active');
+                        }
+                    }
+                }
+                upcomingIndex = index;
+            }
+
+            function nextUpcoming() {
+                const next = (upcomingIndex + 1) % totalUpcoming;
+                showUpcoming(next);
+            }
+
+            function prevUpcoming() {
+                const prev = (upcomingIndex - 1 + totalUpcoming) % totalUpcoming;
+                showUpcoming(prev);
+            }
+
+            function toggleUpcomingReminder(btn, id, title) {
+                const key = `tflix_reminder_${id}`;
+                const isReminded = localStorage.getItem(key) === 'true';
+
+                if (isReminded) {
+                    localStorage.removeItem(key);
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-tflix-primary');
+                    btn.innerHTML = `<i class="bi bi-bell-fill"></i> <span>Nhắc tôi khi chiếu</span>`;
+                    if (window.showTFlixToast) {
+                        window.showTFlixToast(`Đã hủy lời nhắc cho phim: "${title}"`);
+                    }
+                } else {
+                    localStorage.setItem(key, 'true');
+                    btn.classList.remove('btn-tflix-primary');
+                    btn.classList.add('btn-success');
+                    btn.innerHTML = `<i class="bi bi-check2-circle"></i> <span>Đã bật nhắc nhở</span>`;
+                    if (window.showTFlixToast) {
+                        window.showTFlixToast(`Đã bật nhắc nhở! TFlix sẽ thông báo khi "${title}" công chiếu.`);
+                    }
+                }
+            }
+
+            // Restore reminder states on page load
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('[id^="remindBtn-"]').forEach(btn => {
+                    const id = btn.id.replace('remindBtn-', '');
+                    if (localStorage.getItem(`tflix_reminder_${id}`) === 'true') {
+                        btn.classList.remove('btn-tflix-primary');
+                        btn.classList.add('btn-success');
+                        btn.innerHTML = `<i class="bi bi-check2-circle"></i> <span>Đã bật nhắc nhở</span>`;
+                    }
+                });
+            });
+        </script>
+    }
+    else
+    {
+        <div class="card p-4 text-center text-muted bg-dark border-secondary">
+            <i class="bi bi-film fs-1 mb-2"></i>
+            <div>Hiện chưa có thông tin phim sắp chiếu mới. Vui lòng quay lại sau!</div>
+        </div>
+    }
+</section>

@@ -6,6 +6,7 @@ namespace WebBrowser.Models.Film
 {
     public class WatchViewModel
     {
+        public long ContentId { get; set; }
         public PreviewItem Content { get; set; } = new();
         public List<EpisodeItem> Episodes { get; set; } = new();
         public List<SourceItem> Sources { get; set; } = new();

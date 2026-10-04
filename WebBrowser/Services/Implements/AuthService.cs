@@ -21,13 +21,13 @@ namespace WebBrowser.Services.Implements
             _logger = logger;
         }
 
-        public async Task<CResponseMessage> LoginAsync(LoginDto loginDto)
+        public async Task<CResponseMessage> LoginAsync(LoginDto loginDto, bool persistUserSession = true)
         {
             _logger.LogInformation("Calling authentication API");
             var resp = await _httpService.PostAsync<CResponseMessage>("/api/Auth/login", loginDto);
             _logger.LogInformation("Authentication API completed with code {ResponseCode}", resp?.code);
             // Thành công nếu Success == true hoặc code == "200"
-            if (resp is { Data: not null } && (resp.Success || resp.code == "200"))
+            if (persistUserSession && resp is { Data: not null } && (resp.Success || resp.code == "200"))
             {
                 // Lấy token + user
                 var dataJson = JsonConvert.SerializeObject(resp.Data);
@@ -43,6 +43,14 @@ namespace WebBrowser.Services.Implements
             }
 
             return resp!;
+        }
+
+        public async Task<CResponseMessage> RegisterAsync(RegisterDto registerDto)
+        {
+            _logger.LogInformation("Calling registration API for {Email}", registerDto.Email);
+            var response = await _httpService.PostAsync<CResponseMessage>("/api/Auth/register", registerDto);
+            _logger.LogInformation("Registration API completed with code {ResponseCode}", response?.code);
+            return response!;
         }
 
         public void Logout()

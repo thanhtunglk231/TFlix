@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.AuthDtos;
+using CoreLib.Dtos.AuthDtos;
 using CoreLib.Models;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -57,8 +57,19 @@ namespace WebBrowser.Controllers
                     if (data.user != null)
                         HttpContext.Session.SetString("CurrentUser", JsonConvert.SerializeObject(data.user));
 
-                    // Trả về đúng đối tượng phản hồi của backend dưới dạng JSON
-                    return new JsonResult(response) { StatusCode = 200 };
+                    // Trả về đúng đối tượng phản hồi dưới dạng JSON
+                    return new JsonResult(new
+                    {
+                        code = response.code ?? "200",
+                        success = true,
+                        message = response.message ?? "Đăng nhập thành công.",
+                        data = new
+                        {
+                            token = data.token,
+                            user = data.user
+                        }
+                    })
+                    { StatusCode = 200 };
                 }
 
                 // Thành công nhưng không có token
@@ -80,6 +91,49 @@ namespace WebBrowser.Controllers
                 message = "Đăng nhập thất bại."
             })
             { StatusCode = status };
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
+        {
+            if (registerDto == null || string.IsNullOrWhiteSpace(registerDto.FullName) ||
+                string.IsNullOrWhiteSpace(registerDto.Email) || string.IsNullOrWhiteSpace(registerDto.Password))
+            {
+                return new JsonResult(new CResponseMessage
+                {
+                    Success = false,
+                    code = "400",
+                    message = "Vui lòng nhập đầy đủ họ tên, email và mật khẩu."
+                }) { StatusCode = 400 };
+            }
+
+            if (!System.Net.Mail.MailAddress.TryCreate(registerDto.Email.Trim(), out _))
+            {
+                return new JsonResult(new CResponseMessage
+                {
+                    Success = false,
+                    code = "400",
+                    message = "Email không đúng định dạng."
+                }) { StatusCode = 400 };
+            }
+
+            if (registerDto.Password.Length < 8)
+            {
+                return new JsonResult(new CResponseMessage
+                {
+                    Success = false,
+                    code = "400",
+                    message = "Mật khẩu phải có ít nhất 8 ký tự."
+                }) { StatusCode = 400 };
+            }
+
+            var response = await _authService.RegisterAsync(registerDto);
+            var ok = response != null && (response.Success || response.code == "200");
+            return new JsonResult(response)
+            {
+                StatusCode = ok ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest
+            };
         }
 
 

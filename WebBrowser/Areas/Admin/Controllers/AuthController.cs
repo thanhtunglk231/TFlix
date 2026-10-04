@@ -45,13 +45,29 @@ namespace WebBrowser.Areas.Admin.Controllers
                 { StatusCode = 400 };
             }
 
-            var response = await _authService.LoginAsync(loginDto);
+            var response = await _authService.LoginAsync(loginDto, persistUserSession: false);
             bool ok = response != null && (response.Success || response.code == "200");
 
             if (ok && response!.Data != null)
             {
                 var dataJson = JsonConvert.SerializeObject(response.Data);
                 var data = JsonConvert.DeserializeObject<LoginResponseData>(dataJson);
+
+                var isAdmin = data?.user?.roles?.Any(role =>
+                    string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase)) == true;
+
+                if (!isAdmin)
+                {
+                    HttpContext.Session.Remove("AdminJWToken");
+                    HttpContext.Session.Remove("AdminCurrentUser");
+                    return new JsonResult(new CResponseMessage
+                    {
+                        Success = false,
+                        code = "403",
+                        message = "Tài khoản này không có quyền truy cập trang Quản trị."
+                    })
+                    { StatusCode = 403 };
+                }
 
                 if (!string.IsNullOrWhiteSpace(data?.token))
                 {

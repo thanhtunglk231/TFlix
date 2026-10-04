@@ -1,6 +1,6 @@
-﻿@{
+@{
     Layout = null;
-    var title = ViewBag.Title as string ?? "TFlix";
+    var title = (ViewData["Title"] as string) ?? (ViewBag.Title as string) ?? "TFlix";
 }
 <!doctype html>
 <html lang="vi" data-bs-theme="dark">

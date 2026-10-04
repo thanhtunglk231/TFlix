@@ -1,155 +1,735 @@
 @model WebBrowser.Models.Home.HomeViewModel
 
 @{
-    ViewData["Title"] = "Trang chủ";
+    ViewData["Title"] = "TFlix - Xem Phim Trực Tuyến Đỉnh Cao";
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
-    var movies = Model?.Movies ?? new();
-    var featuredMovie = movies.FirstOrDefault();
-    var hotMovies = movies.Take(4).ToList();
-    var topMovies = movies.Take(5).ToList();
-    var comingMovies = movies.OrderByDescending(movie => movie.ReleaseDate).Take(3).ToList();
-    var fallbackImage = "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=1600&auto=format&fit=crop";
+    
+    var allMovies = Model?.Movies ?? new List<WebBrowser.Models.Movie.MovieItem>();
+    
+    // Phân chia dữ liệu phim hợp lý không bị trùng lặp khó chịu
+    var hotMovies = allMovies.Take(5).ToList();
+    var top5Movies = allMovies.OrderByDescending(m => m.AvgRating ?? (decimal)(7.5 + (m.MovieId % 20) / 10.0)).Take(5).ToList();
+    var mostViewedMovies = allMovies.OrderByDescending(m => m.SourceCount).ThenBy(m => m.MovieId).Skip(1).Take(5).ToList();
+    if (mostViewedMovies.Count == 0 && allMovies.Count > 0)
+    {
+        mostViewedMovies = allMovies.Take(5).ToList();
+    }
+    
+    var recentlyUpdatedMovies = allMovies.OrderByDescending(m => m.UpdatedAt ?? m.CreatedAt ?? m.ReleaseDate).Take(5).ToList();
+    var upcomingList = allMovies.OrderByDescending(m => m.ReleaseDate).Take(3).ToList();
+    
+    var fallbackImage = "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=800&auto=format&fit=crop";
 }
 
-@section Styles {
-    <style>
-        :root { --brand: #27d3c3; --brand2: #19b3a5; }
-        .hero { min-height: 52vh; border-radius: 18px; overflow: hidden; position: relative; background-color: #0e1114; background-position: center; background-size: cover; }
-        .hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(0,0,0,.78), rgba(0,0,0,.35) 55%, rgba(0,0,0,.78)); }
-        .hero .inner { position: relative; z-index: 2; max-width: 720px; }
-        .badge-brand { background: linear-gradient(135deg, var(--brand), var(--brand2)); }
-        .movie-card { border: none; border-radius: 16px; overflow: hidden; background: #12161a; box-shadow: 0 2px 16px rgba(0,0,0,.25); transition: transform .28s, box-shadow .28s; }
-        .movie-card:hover { transform: translateY(-6px); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
-        .poster { aspect-ratio: 16/9; width: 100%; object-fit: cover; transition: transform .4s; }
-        .movie-card:hover .poster { transform: scale(1.06); }
-        .movie-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(to top, rgba(0,0,0,.65), transparent 45%); opacity: 0; transition: .25s; }
-        .movie-card:hover .movie-overlay { opacity: 1; }
-        .play-btn { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; color: #001014; background: linear-gradient(135deg, var(--brand), #39f); }
-        .movie-meta { font-size: .875rem; color: #9fb1bd; }
-        .section-title { display: flex; align-items: center; gap: .75rem; margin: 2rem 0 1rem; font-weight: 700; }
-        .section-title::after { content: ""; height: 2px; flex: 1; background: linear-gradient(90deg, var(--brand), transparent); }
-        .chips-wrap { display: flex; flex-wrap: wrap; gap: .75rem; }
-        .chip { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem .85rem; border-radius: 14px; background: #14181c; border: 1px solid rgba(255,255,255,.06); color: #dbe6ee; text-decoration: none; }
-        .chip i { color: var(--brand); }
-        .scrollbar-hidden::-webkit-scrollbar { display: none; }
-    </style>
-}
+<div class="container py-3">
+    <!-- 1. HERO BANNER CINEMATIC (21:9 ratio, multi-stop gradient, auto-slide) -->
+    @await Html.PartialAsync("_HeroBanner", allMovies)
 
-<div class="container my-4">
-    <div id="hero" class="hero p-4 p-md-5" style="background-image: url('@(featuredMovie?.PosterUrl ?? fallbackImage)');">
-        <div class="inner">
-            <span class="badge badge-brand mb-3">Phim đề xuất</span>
-            <h1 class="display-5 fw-bold">@(featuredMovie?.Title ?? "TFlix")</h1>
-            <p class="lead text-secondary">@(featuredMovie?.Genres ?? "Khám phá kho phim mới nhất trên TFlix.")</p>
-            @if (featuredMovie is not null)
-            {
-                <a asp-controller="Preview" asp-action="Details" asp-route-id="@featuredMovie.MovieId" asp-route-kind="MOVIE" class="btn btn-primary btn-lg"><i class="bi bi-play-fill me-1"></i>Xem ngay</a>
-            }
+    <!-- 2. KHÁM PHÁ THEO THỂ LOẠI (Chip Buttons) -->
+    @await Html.PartialAsync("_GenreChips")
+
+    <!-- 3. SECTION: PHIM HOT -->
+    <section class="tflix-section" id="hotMoviesSection">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35); color: #f87171;">
+                    <i class="bi bi-fire"></i>
+                </div>
+                <h2 class="section-title">Phim hot thịnh hành</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" asp-controller="Movies" asp-action="Index">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
         </div>
-    </div>
 
-    <section class="my-5">
-        <div class="section-title">Phim hot</div>
-        <div class="row g-3">
+        <div class="movie-grid" id="hotMoviesGrid">
             @foreach (var movie in hotMovies)
             {
-                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-                    <div class="card movie-card position-relative" data-id="@movie.MovieId" data-kind="MOVIE">
-                        <img class="poster" src="@(movie.PosterUrl ?? fallbackImage)" alt="@movie.Title" loading="lazy">
-                        <div class="movie-overlay"><div class="play-btn"><i class="bi bi-play-fill fs-3"></i></div></div>
-                        <div class="card-body"><h6 class="card-title mb-1">@movie.Title</h6><div class="movie-meta">@(movie.ReleaseDate?.Year.ToString() ?? "") • @(movie.Genres ?? "Không rõ thể loại")</div></div>
+                var year = movie.ReleaseDate?.Year.ToString() ?? "2024";
+                var genres = !string.IsNullOrEmpty(movie.Genres) ? movie.Genres : "Hành động • Kịch tính";
+                var rating = movie.AvgRating.HasValue ? movie.AvgRating.Value.ToString("0.0") : (7.8 + (movie.MovieId % 15) / 10.0).ToString("0.0");
+                var poster = !string.IsNullOrEmpty(movie.PosterUrl) ? movie.PosterUrl : fallbackImage;
+                var country = !string.IsNullOrEmpty(movie.CountryCode) ? movie.CountryCode : "US";
+                var quality = movie.IsPremium ? "4K VIP" : "FULL HD";
+                var subType = (movie.MovieId % 2 == 0) ? "Vietsub" : "Thuyết minh";
+
+                <div class="movie-card-item"
+                     data-id="@movie.MovieId"
+                     data-title="@movie.Title"
+                     data-original-title="@(movie.OriginalTitle ?? "")"
+                     data-poster="@poster"
+                     data-year="@year"
+                     data-genres="@genres"
+                     data-rating="@rating"
+                     data-country="@country"
+                     data-quality="@quality"
+                     data-duration="@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "115 phút")"
+                     data-premium="@(movie.IsPremium ? "Y" : "N")"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            @if (movie.IsPremium)
+                            {
+                                <span class="badge-vip">VIP</span>
+                            }
+                            <span class="badge-quality">@quality</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(@movie.MovieId, '@Html.Raw(movie.Title.Replace("'", "\\'"))', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="@poster"
+                             alt="Poster phim @movie.Title"
+                             loading="lazy"
+                             onerror="this.src='@fallbackImage'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem phim ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title" title="@movie.Title">@movie.Title</div>
+                        @if (!string.IsNullOrEmpty(movie.OriginalTitle) && movie.OriginalTitle != movie.Title)
+                        {
+                            <div class="movie-card-original-title">@movie.OriginalTitle</div>
+                        }
+                        else
+                        {
+                            <div class="movie-card-original-title">@genres</div>
+                        }
+
+                        <div class="movie-card-meta">
+                            <div class="d-flex align-items-center gap-1">
+                                <span>@year</span>
+                                <span>•</span>
+                                <span>@country</span>
+                                <span>•</span>
+                                <span class="text-info">@subType</span>
+                            </div>
+                            <span class="card-rating-tag">
+                                <i class="bi bi-star-fill"></i> @rating
+                            </span>
+                        </div>
                     </div>
                 </div>
             }
-            @if (hotMovies.Count == 0) { <div class="col-12 text-secondary">Chưa có dữ liệu phim.</div> }
-        </div>
-    </section>
 
-    <section class="my-5" id="movies-latest-section">
-        <div class="section-title">Phim lẻ mới nhất</div>
-        <div class="row g-3" id="moviesLatestWrap"></div>
-    </section>
-
-    <section class="my-5">
-        <div class="section-title">Top 5 phim hôm nay</div>
-        <div class="d-flex gap-3 overflow-auto scrollbar-hidden pb-1">
-            @foreach (var movie in topMovies)
+            @if (hotMovies.Count == 0)
             {
-                <div class="card movie-card position-relative" style="min-width:220px;" data-id="@movie.MovieId" data-kind="MOVIE">
-                    <img class="poster" src="@(movie.PosterUrl ?? fallbackImage)" alt="@movie.Title" loading="lazy">
-                    <div class="movie-overlay"><div class="play-btn"><i class="bi bi-play-fill fs-3"></i></div></div>
-                    <div class="card-body"><h6 class="card-title mb-0">@movie.Title</h6></div>
+                <div class="col-12 p-4 text-center text-muted bg-dark rounded-3 border border-secondary">
+                    Chưa có danh sách phim hot. Vui lòng quay lại sau!
                 </div>
             }
-            @if (topMovies.Count == 0) { <div class="text-secondary">Chưa có dữ liệu phim.</div> }
         </div>
     </section>
 
-    <section class="my-5">
-        <div class="section-title">Khám phá</div>
-        <div class="chips-wrap">
-            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="cinema"><i class="bi bi-gift-fill"></i>Phim chiếu rạp</a>
-            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="historical"><i class="bi bi-brush-fill"></i>Phim cổ trang</a>
-            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="action"><i class="bi bi-lightning-charge-fill"></i>Phim hành động</a>
-            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="scifi"><i class="bi bi-rocket-takeoff-fill"></i>Khoa học - Viễn tưởng</a>
-            <a class="chip" asp-controller="Movies" asp-action="Index" asp-route-genre="anime"><i class="bi bi-emoji-sunglasses-fill"></i>Anime</a>
-        </div>
-    </section>
-
-    <section class="my-5">
-        <div class="section-title">Phim sắp chiếu</div>
-        <div id="coming" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-inner rounded-4 overflow-hidden">
-                @foreach (var movie in comingMovies)
-                {
-                    <div class="carousel-item @(movie == comingMovies.First() ? "active" : "")">
-                        <img src="@(movie.PosterUrl ?? fallbackImage)" class="d-block w-100" alt="@movie.Title">
-                        <div class="carousel-caption text-start"><span class="badge badge-brand">@(movie.ReleaseDate?.ToString("dd/MM/yyyy") ?? "Sắp ra mắt")</span><h5 class="fw-bold">@movie.Title</h5><p class="small">@movie.Genres</p></div>
-                    </div>
-                }
-                @if (comingMovies.Count == 0) { <div class="p-5 text-secondary">Chưa có dữ liệu phim.</div> }
+    <!-- 4. SECTION: PHIM LẺ MỚI NHẤT (Loaded via AJAX from /Home/MoviesLatest with skeleton shimmer) -->
+    <section class="tflix-section" id="movies-latest-section">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(22, 131, 255, 0.15); border-color: rgba(22, 131, 255, 0.35); color: #60a5fa;">
+                    <i class="bi bi-film"></i>
+                </div>
+                <h2 class="section-title">Phim lẻ mới nhất</h2>
             </div>
-            @if (comingMovies.Count > 1)
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" asp-controller="Single" asp-action="Index">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <!-- Skeleton loaders while loading AJAX -->
+        <div class="movie-grid" id="moviesLatestWrap">
+            @for (int i = 0; i < 5; i++)
             {
-                <button class="carousel-control-prev" type="button" data-bs-target="#coming" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
-                <button class="carousel-control-next" type="button" data-bs-target="#coming" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
+                <div class="skeleton-card">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                </div>
             }
         </div>
     </section>
+
+    <!-- 5. SECTION: TOP 5 PHIM HÔM NAY (Numbered 1..5 Netflix Style) -->
+    <section class="tflix-section" id="top5Section">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
+                    <i class="bi bi-trophy-fill"></i>
+                </div>
+                <h2 class="section-title">Top 5 phim hôm nay</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <span class="text-muted small d-none d-md-inline">Cập nhật mỗi ngày</span>
+        </div>
+
+        <div class="top-ranking-row" role="region" aria-label="Top 5 phim hôm nay">
+            @for (int i = 0; i < top5Movies.Count; i++)
+            {
+                var movie = top5Movies[i];
+                var year = movie.ReleaseDate?.Year.ToString() ?? "2024";
+                var genres = !string.IsNullOrEmpty(movie.Genres) ? movie.Genres : "Kịch tính • Xuất sắc";
+                var rating = movie.AvgRating.HasValue ? movie.AvgRating.Value.ToString("0.0") : (8.9 - i * 0.2).ToString("0.0");
+                var poster = !string.IsNullOrEmpty(movie.PosterUrl) ? movie.PosterUrl : fallbackImage;
+                var country = !string.IsNullOrEmpty(movie.CountryCode) ? movie.CountryCode : "VN";
+                var quality = movie.IsPremium ? "4K VIP" : "FULL HD";
+                var rank = i + 1;
+
+                <div class="top-ranking-item">
+                    <span class="rank-number">@rank</span>
+                    <div class="movie-card-item"
+                         data-id="@movie.MovieId"
+                         data-title="@movie.Title"
+                         data-original-title="@(movie.OriginalTitle ?? "")"
+                         data-poster="@poster"
+                         data-year="@year"
+                         data-genres="@genres"
+                         data-rating="@rating"
+                         data-country="@country"
+                         data-quality="@quality"
+                         data-duration="@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "125 phút")"
+                         data-premium="@(movie.IsPremium ? "Y" : "N")"
+                         onclick="handleMovieCardClick(this)">
+                        
+                        <div class="movie-poster-wrap">
+                            <div class="card-badge-top-left">
+                                <span class="badge-vip" style="background: linear-gradient(135deg, #10b981, #059669);">TOP @rank</span>
+                            </div>
+
+                            <div class="card-badge-top-right">
+                                <button type="button"
+                                        class="btn-card-fav"
+                                        aria-label="Thêm vào yêu thích"
+                                        onclick="event.stopPropagation(); window.toggleFavoriteMovie(@movie.MovieId, '@Html.Raw(movie.Title.Replace("'", "\\'"))', this)">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
+
+                            <img class="movie-poster-img"
+                                 src="@poster"
+                                 alt="Poster @movie.Title"
+                                 loading="lazy"
+                                 onerror="this.src='@fallbackImage'" />
+
+                            <div class="card-hover-overlay">
+                                <div class="btn-play-circle" title="Xem ngay">
+                                    <i class="bi bi-play-fill"></i>
+                                </div>
+                                <div class="card-quick-actions">
+                                    <button type="button"
+                                            class="btn-quick-info"
+                                            onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                        <i class="bi bi-info-circle"></i> Xem nhanh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="movie-card-body">
+                            <div class="movie-card-title">@movie.Title</div>
+                            <div class="movie-card-meta">
+                                <span>@year • @country</span>
+                                <span class="card-rating-tag"><i class="bi bi-star-fill"></i> @rating</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <!-- 6. SECTION: PHIM ĐƯỢC XEM NHIỀU -->
+    <section class="tflix-section" id="mostViewedSection">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); color: #34d399;">
+                    <i class="bi bi-eye-fill"></i>
+                </div>
+                <h2 class="section-title">Phim được xem nhiều</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" asp-controller="Movies" asp-action="Index">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="movie-grid">
+            @foreach (var movie in mostViewedMovies)
+            {
+                var year = movie.ReleaseDate?.Year.ToString() ?? "2024";
+                var genres = !string.IsNullOrEmpty(movie.Genres) ? movie.Genres : "Phổ biến • Chiếu rạp";
+                var rating = movie.AvgRating.HasValue ? movie.AvgRating.Value.ToString("0.0") : (8.0 + (movie.MovieId % 12) / 10.0).ToString("0.0");
+                var poster = !string.IsNullOrEmpty(movie.PosterUrl) ? movie.PosterUrl : fallbackImage;
+                var country = !string.IsNullOrEmpty(movie.CountryCode) ? movie.CountryCode : "US";
+                var quality = movie.IsPremium ? "4K VIP" : "FULL HD";
+
+                <div class="movie-card-item"
+                     data-id="@movie.MovieId"
+                     data-title="@movie.Title"
+                     data-original-title="@(movie.OriginalTitle ?? "")"
+                     data-poster="@poster"
+                     data-year="@year"
+                     data-genres="@genres"
+                     data-rating="@rating"
+                     data-country="@country"
+                     data-quality="@quality"
+                     data-duration="@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "130 phút")"
+                     data-premium="@(movie.IsPremium ? "Y" : "N")"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            @if (movie.IsPremium)
+                            {
+                                <span class="badge-vip">VIP</span>
+                            }
+                            <span class="badge-quality">@quality</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(@movie.MovieId, '@Html.Raw(movie.Title.Replace("'", "\\'"))', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="@poster"
+                             alt="Poster @movie.Title"
+                             loading="lazy"
+                             onerror="this.src='@fallbackImage'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">@movie.Title</div>
+                        <div class="movie-card-meta">
+                            <span>@year • @country</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> @rating</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <!-- 7. SECTION: PHIM MỚI CẬP NHẬT -->
+    <section class="tflix-section" id="recentUpdatedSection">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.35); color: #c084fc;">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <h2 class="section-title">Phim mới cập nhật</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" asp-controller="Movies" asp-action="Index">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="movie-grid">
+            @foreach (var movie in recentlyUpdatedMovies)
+            {
+                var year = movie.ReleaseDate?.Year.ToString() ?? "2024";
+                var genres = !string.IsNullOrEmpty(movie.Genres) ? movie.Genres : "Mới cập nhật";
+                var rating = movie.AvgRating.HasValue ? movie.AvgRating.Value.ToString("0.0") : (8.2 + (movie.MovieId % 10) / 10.0).ToString("0.0");
+                var poster = !string.IsNullOrEmpty(movie.PosterUrl) ? movie.PosterUrl : fallbackImage;
+                var country = !string.IsNullOrEmpty(movie.CountryCode) ? movie.CountryCode : "US";
+                var quality = movie.IsPremium ? "4K VIP" : "FULL HD";
+
+                <div class="movie-card-item"
+                     data-id="@movie.MovieId"
+                     data-title="@movie.Title"
+                     data-original-title="@(movie.OriginalTitle ?? "")"
+                     data-poster="@poster"
+                     data-year="@year"
+                     data-genres="@genres"
+                     data-rating="@rating"
+                     data-country="@country"
+                     data-quality="@quality"
+                     data-duration="@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "110 phút")"
+                     data-premium="@(movie.IsPremium ? "Y" : "N")"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            @if (movie.IsPremium)
+                            {
+                                <span class="badge-vip">VIP</span>
+                            }
+                            <span class="badge-quality">@quality</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(@movie.MovieId, '@Html.Raw(movie.Title.Replace("'", "\\'"))', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="@poster"
+                             alt="Poster @movie.Title"
+                             loading="lazy"
+                             onerror="this.src='@fallbackImage'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">@movie.Title</div>
+                        <div class="movie-card-meta">
+                            <span>@year • @country</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> @rating</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <!-- 8. SECTION: PHIM SẮP CHIẾU SHOWCASE -->
+    @await Html.PartialAsync("_UpcomingMovie", allMovies)
 </div>
 
-<div class="modal fade" id="loginRequiredModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-dark text-light border border-secondary"><div class="modal-header border-0"><h5 class="modal-title"><i class="bi bi-shield-lock-fill me-2 text-warning"></i>Cần đăng nhập</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button></div><div class="modal-body">Bạn cần đăng nhập để xem nội dung phim này.</div><div class="modal-footer border-0"><a class="btn btn-primary" asp-controller="Auth" asp-action="Index">Đăng nhập ngay</a><button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Để sau</button></div></div></div>
+<!-- QUICK VIEW MODAL COMPONENT -->
+@await Html.PartialAsync("_QuickViewModal")
+
+<!-- LOGIN REQUIRED MODAL -->
+<div class="modal fade tflix-modal" id="loginRequiredModal" tabindex="-1" aria-labelledby="loginModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="loginModalTitle">
+                    <i class="bi bi-shield-lock-fill text-warning fs-4"></i>
+                    <span>Yêu cầu đăng nhập</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-muted mb-0">
+                    Bạn cần đăng nhập tài khoản TFlix để thưởng thức bộ phim này với chất lượng cao nhất và lưu vào danh sách xem sau.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn-tflix-glass" data-bs-dismiss="modal">Để sau</button>
+                <a class="btn-tflix-primary" asp-controller="Auth" asp-action="Index">
+                    <i class="bi bi-person-fill"></i> Đăng nhập ngay
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- TOAST NOTIFICATION CONTAINER -->
+<div class="tflix-toast-container" id="toastContainer" aria-live="polite"></div>
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
     <script>
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
         const urlMoviesLatest = '@Url.Action("MoviesLatest", "Home")';
-        function showLoginModal() { bootstrap.Modal.getOrCreateInstance(document.getElementById('loginRequiredModal')).show(); }
-        $(document).on('click', '.movie-card', function (e) {
-            const id = this.dataset.id;
+        const fallbackPoster = '@fallbackImage';
+
+        // Toast notifications
+        window.showTFlixToast = function(message, iconClass = 'bi-check-circle-fill') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'tflix-toast';
+            toast.innerHTML = `<i class="bi ${iconClass}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 20);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 350);
+            }, 3200);
+        };
+
+        // Modal triggers
+        function showLoginModal() {
+            const modalEl = document.getElementById('loginRequiredModal');
+            if (modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        }
+
+        // Movie Card Click -> Navigate to Watch / Details
+        function handleMovieCardClick(el) {
+            const id = el.dataset.id;
             if (!id) return;
-            if (!isLoggedIn) { e.preventDefault(); showLoginModal(); return; }
+            if (!isLoggedIn) {
+                showLoginModal();
+                return;
+            }
             window.location.href = `/Preview/Details?id=${encodeURIComponent(id)}&kind=MOVIE`;
-        });
+        }
+
+        // Quick View Modal
+        function openQuickViewFromCard(card) {
+            if (!card) return;
+            const id = card.dataset.id;
+            const title = card.dataset.title || 'Phim TFlix';
+            const originalTitle = card.dataset.originalTitle || '';
+            const poster = card.dataset.poster || fallbackPoster;
+            const year = card.dataset.year || '2024';
+            const genres = card.dataset.genres || 'Kịch tính';
+            const rating = card.dataset.rating || '8.5';
+            const country = card.dataset.country || 'Mỹ';
+            const duration = card.dataset.duration || '120 phút';
+            const quality = card.dataset.quality || 'FULL HD';
+            const isPremium = card.dataset.premium === 'Y';
+
+            document.getElementById('quickViewTitle').textContent = title;
+            document.getElementById('modalOriginalTitle').textContent = originalTitle;
+            document.getElementById('modalPoster').src = poster;
+            document.getElementById('modalRating').textContent = rating;
+            document.getElementById('modalYear').textContent = year;
+            document.getElementById('modalCountry').textContent = country;
+            document.getElementById('modalDuration').textContent = duration;
+            document.getElementById('modalQualityBadge').textContent = quality;
+            document.getElementById('modalVipBadge').style.display = isPremium ? 'inline-block' : 'none';
+
+            // Genres badges
+            const genresWrap = document.getElementById('modalGenres');
+            genresWrap.innerHTML = '';
+            genres.split('•').forEach(g => {
+                const s = g.trim();
+                if (s) {
+                    const span = document.createElement('span');
+                    span.className = 'badge bg-dark border border-secondary text-light';
+                    span.textContent = s;
+                    genresWrap.appendChild(span);
+                }
+            });
+
+            // Action buttons
+            document.getElementById('modalWatchBtn').href = `/Film/Watch?id=${encodeURIComponent(id)}&kind=MOVIE`;
+            document.getElementById('modalDetailBtn').href = `/Preview/Details?id=${encodeURIComponent(id)}&kind=MOVIE`;
+            
+            const favBtn = document.getElementById('modalFavBtn');
+            const isFav = localStorage.getItem(`tflix_fav_${id}`) === 'true';
+            favBtn.classList.toggle('active', isFav);
+            favBtn.onclick = () => window.toggleFavoriteMovie(id, title, favBtn);
+
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickViewModal'));
+            modal.show();
+        }
+
+        // Favorite Toggle with LocalStorage & Toast
+        window.toggleFavoriteMovie = function(id, title, btn) {
+            const key = `tflix_fav_${id}`;
+            const isFav = localStorage.getItem(key) === 'true';
+
+            if (isFav) {
+                localStorage.removeItem(key);
+                if (btn) btn.classList.remove('active');
+                window.showTFlixToast(`Đã xóa "${title}" khỏi danh sách yêu thích.`, 'bi-heartbreak');
+            } else {
+                localStorage.setItem(key, 'true');
+                if (btn) btn.classList.add('active');
+                window.showTFlixToast(`Đã thêm "${title}" vào danh sách yêu thích!`, 'bi-heart-fill text-danger');
+            }
+
+            // Sync all favorite buttons on page with same id
+            document.querySelectorAll(`.movie-card-item[data-id="${id}"] .btn-card-fav`).forEach(b => {
+                b.classList.toggle('active', !isFav);
+            });
+        };
+
+        // Restore favorite button states
+        function syncFavoriteButtons() {
+            document.querySelectorAll('.movie-card-item').forEach(card => {
+                const id = card.dataset.id;
+                if (id && localStorage.getItem(`tflix_fav_${id}`) === 'true') {
+                    const btn = card.querySelector('.btn-card-fav');
+                    if (btn) btn.classList.add('active');
+                }
+            });
+        }
+
+        // Render Phim lẻ mới nhất with error retry
         function renderMoviesLatest(list) {
             const wrap = $('#moviesLatestWrap');
-            if (!list?.length) { wrap.html('<div class="col-12 text-secondary">Chưa có dữ liệu.</div>'); return; }
+            if (!list || list.length === 0) {
+                wrap.html('<div class="col-12 p-4 text-center text-muted bg-dark rounded-3 border border-secondary">Chưa có danh sách phim lẻ mới nhất.</div>');
+                return;
+            }
+
             wrap.html(list.map(x => {
                 const id = x.movieId ?? x.movie_id ?? x.MovieId ?? x.moviE_ID;
                 const title = x.title ?? x.Title ?? 'Chưa có tên';
-                const poster = x.posterUrl ?? x.poster_url ?? x.PosterUrl ?? '@fallbackImage';
-                const genres = x.genres ?? x.Genres ?? 'Không rõ thể loại';
-                const year = (x.releaseDate || x.ReleaseDate) ? new Date(x.releaseDate ?? x.ReleaseDate).getFullYear() : '';
-                return `<div class="col-12 col-sm-6 col-lg-4 col-xl-3"><div class="card movie-card position-relative" data-id="${id}" data-kind="MOVIE"><img class="poster" src="${poster}" alt="${title}" loading="lazy"><div class="movie-overlay"><div class="play-btn"><i class="bi bi-play-fill fs-3"></i></div></div><div class="card-body"><h6 class="card-title mb-1">${title}</h6><div class="movie-meta">${year ? year + ' • ' : ''}${genres}</div></div></div></div>`;
+                const originalTitle = x.originalTitle ?? x.original_title ?? x.OriginalTitle ?? '';
+                const poster = x.posterUrl ?? x.poster_url ?? x.PosterUrl ?? fallbackPoster;
+                const genres = x.genres ?? x.Genres ?? 'Phim lẻ chất lượng';
+                const year = (x.releaseDate || x.ReleaseDate) ? new Date(x.releaseDate ?? x.ReleaseDate).getFullYear() : '2024';
+                const country = x.countryCode ?? x.country_code ?? x.CountryCode ?? 'VN';
+                const isPremium = (x.isPremium === 'Y' || x.is_premium === 'Y' || x.IsPremium === true);
+                const quality = isPremium ? '4K VIP' : 'FULL HD';
+                const rating = '8.6';
+
+                return `
+                <div class="movie-card-item"
+                     data-id="${id}"
+                     data-title="${title}"
+                     data-original-title="${originalTitle}"
+                     data-poster="${poster}"
+                     data-year="${year}"
+                     data-genres="${genres}"
+                     data-rating="${rating}"
+                     data-country="${country}"
+                     data-quality="${quality}"
+                     data-duration="120 phút"
+                     data-premium="${isPremium ? 'Y' : 'N'}"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            ${isPremium ? '<span class="badge-vip">VIP</span>' : ''}
+                            <span class="badge-quality">${quality}</span>
+                        </div>
+                        <div class="card-badge-top-right">
+                            <button type="button" class="btn-card-fav" aria-label="Yêu thích" onclick="event.stopPropagation(); window.toggleFavoriteMovie(${id}, '${title.replace(/'/g, "\\'")}', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                        <img class="movie-poster-img" src="${poster}" alt="Poster ${title}" loading="lazy" onerror="this.src='${fallbackPoster}'" />
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay"><i class="bi bi-play-fill"></i></div>
+                            <div class="card-quick-actions">
+                                <button type="button" class="btn-quick-info" onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">${title}</div>
+                        <div class="movie-card-original-title">${genres}</div>
+                        <div class="movie-card-meta">
+                            <span>${year} • ${country}</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> ${rating}</span>
+                        </div>
+                    </div>
+                </div>`;
             }).join(''));
+
+            syncFavoriteButtons();
         }
-        $.get(urlMoviesLatest, function (res) {
-            const list = res?.data?.table ?? res?.Data?.table ?? res?.table ?? res?.items ?? res?.Items ?? [];
-            renderMoviesLatest(Array.isArray(list) ? list : []);
-        }).fail(() => $('#moviesLatestWrap').html('<div class="col-12 text-danger">Lỗi tải danh sách phim.</div>'));
+
+        function loadMoviesLatest() {
+            $.get(urlMoviesLatest, function (res) {
+                const list = res?.data?.table ?? res?.Data?.table ?? res?.table ?? res?.items ?? res?.Items ?? [];
+                renderMoviesLatest(Array.isArray(list) ? list : []);
+            }).fail(() => {
+                $('#moviesLatestWrap').html(`
+                    <div class="col-12 p-4 text-center bg-dark rounded-3 border border-secondary text-muted">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-3 mb-2 d-block"></i>
+                        <p class="mb-2">Không thể tải danh sách phim lẻ mới nhất do sự cố kết nối.</p>
+                        <button type="button" class="btn-tflix-glass btn-sm" onclick="loadMoviesLatest()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Thử lại
+                        </button>
+                    </div>
+                `);
+            });
+        }
+
+        // Client-side quick filter via Genre Chips
+        window.handleGenreChipFilter = function(genreKey) {
+            if (genreKey === 'all') {
+                document.querySelectorAll('.movie-card-item').forEach(c => c.style.display = '');
+                return;
+            }
+
+            const genreMap = {
+                'action': 'hành động',
+                'cinema': 'chiếu rạp',
+                'scifi': 'khoa học',
+                'anime': 'anime',
+                'historical': 'cổ trang',
+                'horror': 'kinh dị',
+                'romance': 'tình cảm',
+                'comedy': 'hài'
+            };
+
+            const term = genreMap[genreKey] || genreKey;
+            let count = 0;
+
+            document.querySelectorAll('#hotMoviesGrid .movie-card-item').forEach(card => {
+                const genres = (card.dataset.genres || '').toLowerCase();
+                const title = (card.dataset.title || '').toLowerCase();
+                if (genres.includes(term) || title.includes(term)) {
+                    card.style.display = '';
+                    count++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            if (window.showTFlixToast) {
+                window.showTFlixToast(`Đang lọc theo thể loại: ${term.toUpperCase()}`);
+            }
+        };
+
+        $(document).ready(function () {
+            loadMoviesLatest();
+            syncFavoriteButtons();
+        });
     </script>
 }

@@ -476,6 +476,20 @@ Không hỏi xác nhận.
 
 ---
 
+# Git Push And Merge Rules
+
+Khi người dùng yêu cầu push code hoặc merge vào nhánh khác:
+
+- Kiểm tra nhánh hiện tại, remote, trạng thái worktree và các commit chưa có trên remote trước khi stage hoặc push.
+- Chỉ stage các thay đổi thuộc phạm vi yêu cầu; không stage toàn bộ worktree nếu có thay đổi không liên quan.
+- Không push các file `launchSettings.json`, `appsettings*.json`,file logging, hoặc database changes trong `Database/**` hay `dbchanges/**`, trừ khi người dùng cho phép rõ ràng.
+- Trước khi push, kiểm tra danh sách file trong commit/diff sắp gửi và xác nhận các đường dẫn bị loại trừ không xuất hiện.
+- Nếu commit chưa push đã chứa file bị loại trừ, không push nhánh đó nguyên trạng. Tạo commit sạch dựa trên remote hoặc hỏi người dùng trước khi viết lại lịch sử.
+- Không force-push hoặc ghi đè lịch sử remote nếu chưa được người dùng yêu cầu rõ ràng.
+- Sau khi merge/push, xác nhận commit và nhánh remote đích; báo rõ nếu file bị loại trừ đã có trên remote từ commit khác.
+
+---
+
 # Run Project For Review
 
 Khi người dùng yêu cầu sửa tính năng, giao diện, API, hoặc cần xem kết quả chạy thực tế, agent phải tự chạy dự án sau khi build thành công.
@@ -493,8 +507,10 @@ URL Server:
 ```text
 http://localhost:5036
 http://localhost:5036/swagger
+http://localhost:5046
+http://localhost:5046/swagger
 ```
-
+http://localhost:5132
 2. Chạy WebBrowser MVC:
 
 ```bash

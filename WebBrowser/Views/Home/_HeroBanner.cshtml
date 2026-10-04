@@ -1,0 +1,206 @@
+@model List<WebBrowser.Models.Movie.MovieItem>
+
+@{
+    var bannerMovies = (Model != null && Model.Count > 0)
+        ? Model.Take(5).ToList()
+        : new List<WebBrowser.Models.Movie.MovieItem>();
+
+    var defaultBackdrop = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1600&auto=format&fit=crop";
+}
+
+@if (bannerMovies.Count > 0)
+{
+    <div class="hero-banner-container" id="heroBannerCarousel" aria-label="Phim đề xuất nổi bật">
+        <div class="hero-carousel">
+            @for (int i = 0; i < bannerMovies.Count; i++)
+            {
+                var m = bannerMovies[i];
+                var bgImage = !string.IsNullOrEmpty(m.PosterUrl) ? m.PosterUrl : defaultBackdrop;
+                var year = m.ReleaseDate?.Year.ToString() ?? "2024";
+                var genres = !string.IsNullOrEmpty(m.Genres) ? m.Genres : "Hành động • Kịch tính";
+                var rating = m.AvgRating.HasValue ? m.AvgRating.Value.ToString("0.0") : "8.8";
+                var duration = m.DurationMin.HasValue ? $"{m.DurationMin} phút" : "120 phút";
+                var quality = m.IsPremium ? "4K VIP" : "FULL HD";
+
+                <div class="hero-slide @(i == 0 ? "active" : "d-none")"
+                     id="heroSlide-@i"
+                     data-index="@i"
+                     style="background-image: url('@bgImage');">
+                    <div class="hero-content">
+                        <div class="hero-badge-tag">
+                            <i class="bi bi-fire text-warning"></i>
+                            <span>Phim đề xuất #@(i + 1)</span>
+                        </div>
+
+                        <h1 class="hero-title">@m.Title</h1>
+
+                        <div class="hero-meta-row">
+                            <span class="meta-pill-rating">
+                                <i class="bi bi-star-fill"></i> @rating
+                            </span>
+                            <span class="meta-pill-quality">@quality</span>
+                            <span><i class="bi bi-calendar3 me-1"></i>@year</span>
+                            <span><i class="bi bi-clock me-1"></i>@duration</span>
+                            <span><i class="bi bi-tags me-1"></i>@genres</span>
+                            @if (!string.IsNullOrEmpty(m.CountryCode))
+                            {
+                                <span><i class="bi bi-geo-alt me-1"></i>@m.CountryCode</span>
+                            }
+                        </div>
+
+                        <p class="hero-desc">
+                            Khám phá câu chuyện kịch tính, mãn nhãn với những pha hành động đỉnh cao và kỹ xảo điện ảnh đỉnh cao chỉ có trên TFlix. Thưởng thức trọn vẹn chất lượng âm thanh vòm và hình ảnh sắc nét.
+                        </p>
+
+                        <div class="hero-action-buttons">
+                            <a class="btn-tflix-primary btn-lg px-4"
+                               asp-controller="Film"
+                               asp-action="Watch"
+                               asp-route-id="@m.MovieId"
+                               asp-route-kind="MOVIE">
+                                <i class="bi bi-play-fill fs-5"></i>
+                                <span>Xem ngay</span>
+                            </a>
+
+                            <a class="btn-tflix-glass btn-lg px-4"
+                               asp-controller="Preview"
+                               asp-action="Details"
+                               asp-route-id="@m.MovieId"
+                               asp-route-kind="MOVIE">
+                                <i class="bi bi-info-circle fs-6"></i>
+                                <span>Chi tiết phim</span>
+                            </a>
+
+                            <button type="button"
+                                    class="btn-card-fav ms-1"
+                                    style="width: 44px; height: 44px; font-size: 1.1rem;"
+                                    data-movie-id="@m.MovieId"
+                                    data-movie-title="@m.Title"
+                                    aria-label="Thêm vào danh sách yêu thích"
+                                    title="Lưu vào danh sách xem sau"
+                                    onclick="toggleHeroFavorite(this, @m.MovieId, '@Html.Raw(m.Title.Replace("'", "\\'"))')">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (bannerMovies.Count > 1)
+            {
+                <!-- Navigation Arrows -->
+                <button type="button" class="hero-nav-btn hero-nav-prev" onclick="prevHeroSlide()" aria-label="Slide trước">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <button type="button" class="hero-nav-btn hero-nav-next" onclick="nextHeroSlide()" aria-label="Slide tiếp">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+
+                <!-- Indicator Dots -->
+                <div class="hero-indicators" role="tablist">
+                    @for (int i = 0; i < bannerMovies.Count; i++)
+                    {
+                        <button type="button"
+                                class="hero-dot @(i == 0 ? "active" : "")"
+                                onclick="goToHeroSlide(@i)"
+                                aria-label="Chuyển đến slide @(i + 1)"
+                                aria-selected="@(i == 0 ? "true" : "false")">
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <script>
+        let currentHeroIndex = 0;
+        const totalHeroSlides = @bannerMovies.Count;
+        let heroTimer = null;
+
+        function showHeroSlide(index) {
+            for (let i = 0; i < totalHeroSlides; i++) {
+                const slide = document.getElementById(`heroSlide-${i}`);
+                if (slide) {
+                    if (i === index) {
+                        slide.classList.remove('d-none');
+                        slide.classList.add('active');
+                    } else {
+                        slide.classList.add('d-none');
+                        slide.classList.remove('active');
+                    }
+                }
+            }
+            const dots = document.querySelectorAll('.hero-dot');
+            dots.forEach((dot, idx) => {
+                dot.classList.toggle('active', idx === index);
+                dot.setAttribute('aria-selected', idx === index ? 'true' : 'false');
+            });
+            currentHeroIndex = index;
+        }
+
+        function nextHeroSlide() {
+            const nextIdx = (currentHeroIndex + 1) % totalHeroSlides;
+            showHeroSlide(nextIdx);
+        }
+
+        function prevHeroSlide() {
+            const prevIdx = (currentHeroIndex - 1 + totalHeroSlides) % totalHeroSlides;
+            showHeroSlide(prevIdx);
+        }
+
+        function goToHeroSlide(index) {
+            showHeroSlide(index);
+            restartHeroTimer();
+        }
+
+        function startHeroTimer() {
+            if (totalHeroSlides > 1) {
+                heroTimer = setInterval(nextHeroSlide, 5000);
+            }
+        }
+
+        function restartHeroTimer() {
+            if (heroTimer) clearInterval(heroTimer);
+            startHeroTimer();
+        }
+
+        const bannerContainer = document.getElementById('heroBannerCarousel');
+        if (bannerContainer) {
+            bannerContainer.addEventListener('mouseenter', () => {
+                if (heroTimer) clearInterval(heroTimer);
+            });
+            bannerContainer.addEventListener('mouseleave', () => {
+                startHeroTimer();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            startHeroTimer();
+        });
+
+        function toggleHeroFavorite(btn, id, title) {
+            if (window.toggleFavoriteMovie) {
+                window.toggleFavoriteMovie(id, title, btn);
+            }
+        }
+    </script>
+}
+else
+{
+    <div class="hero-banner-container">
+        <div class="hero-carousel">
+            <div class="hero-slide active" style="background-image: url('@defaultBackdrop');">
+                <div class="hero-content">
+                    <div class="hero-badge-tag">
+                        <i class="bi bi-camera-reels-fill"></i> TFlix Originals
+                    </div>
+                    <h1 class="hero-title">Trải nghiệm điện ảnh đỉnh cao</h1>
+                    <p class="hero-desc">Thưởng thức hàng ngàn bộ phim bom tấn và các tác phẩm điện ảnh xuất sắc nhất tại TFlix.</p>
+                    <a asp-controller="Movies" asp-action="Index" class="btn-tflix-primary btn-lg px-4">
+                        <i class="bi bi-collection-play-fill"></i> Khám phá kho phim
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
