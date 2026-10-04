@@ -1,0 +1,58 @@
+@* Views/Home/_QuickViewModal.cshtml *@
+<div class="modal fade tflix-modal" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <span class="badge badge-vip me-2" id="modalVipBadge">VIP</span>
+                <span class="badge badge-quality" id="modalQualityBadge">4K ULTRA HD</span>
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-4 align-items-center">
+                    <div class="col-12 col-md-4">
+                        <div class="rounded-3 overflow-hidden shadow-lg border border-secondary" style="aspect-ratio: 2/3;">
+                            <img id="modalPoster" src="" alt="Poster" class="w-100 h-100 object-fit-cover" />
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <h3 id="quickViewTitle" class="fw-bold mb-1">Tên phim</h3>
+                        <div id="modalOriginalTitle" class="text-muted small mb-2 fst-italic">Original Title</div>
+
+                        <div class="d-flex align-items-center flex-wrap gap-2 mb-3 small">
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> <span id="modalRating">8.5</span></span>
+                            <span>•</span>
+                            <span id="modalYear">2024</span>
+                            <span>•</span>
+                            <span id="modalDuration">120 phút</span>
+                            <span>•</span>
+                            <span id="modalCountry">Mỹ</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <span class="text-muted small d-block mb-1">Thể loại:</span>
+                            <div id="modalGenres" class="d-flex flex-wrap gap-1"></div>
+                        </div>
+
+                        <p id="modalDescription" class="text-muted small" style="line-height: 1.6;">
+                            Thưởng thức phim bom tấn với chất lượng hình ảnh sắc nét, âm thanh vòm sống động và không quảng cáo trên nền tảng TFlix.
+                        </p>
+
+                        <div class="d-flex align-items-center gap-2 mt-4 flex-wrap">
+                            <a id="modalWatchBtn" href="#" class="btn-tflix-primary">
+                                <i class="bi bi-play-fill fs-5"></i>
+                                <span>Xem phim ngay</span>
+                            </a>
+                            <a id="modalDetailBtn" href="#" class="btn-tflix-glass">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Trang chi tiết</span>
+                            </a>
+                            <button type="button" id="modalFavBtn" class="btn-card-fav ms-1" style="width: 42px; height: 42px;" aria-label="Yêu thích">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,69 @@
+@* Views/Home/_GenreChips.cshtml *@
+<section class="tflix-section" id="exploreSection">
+    <div class="section-header">
+        <div class="section-title-wrap">
+            <div class="section-icon-badge">
+                <i class="bi bi-compass-fill"></i>
+            </div>
+            <h2 class="section-title">Khám phá theo thể loại</h2>
+        </div>
+        <div class="section-divider-line d-none d-md-block"></div>
+        <a class="btn-view-all" asp-controller="Movies" asp-action="Index">
+            <span>Tất cả thể loại</span>
+            <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="genre-chips-scroll" role="toolbar" aria-label="Danh sách thể loại phim">
+        <button type="button" class="genre-chip active" data-genre="all" onclick="filterCatalogByGenre('all', this)">
+            <i class="bi bi-grid-fill"></i>
+            <span>Tất cả</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="cinema" onclick="filterCatalogByGenre('cinema', this)">
+            <i class="bi bi-camera-reels-fill"></i>
+            <span>Phim chiếu rạp</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="action" onclick="filterCatalogByGenre('action', this)">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>Phim hành động</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="scifi" onclick="filterCatalogByGenre('scifi', this)">
+            <i class="bi bi-rocket-takeoff-fill"></i>
+            <span>Khoa học viễn tưởng</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="anime" onclick="filterCatalogByGenre('anime', this)">
+            <i class="bi bi-stars"></i>
+            <span>Anime Nhật Bản</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="historical" onclick="filterCatalogByGenre('historical', this)">
+            <i class="bi bi-feather"></i>
+            <span>Phim cổ trang</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="horror" onclick="filterCatalogByGenre('horror', this)">
+            <i class="bi bi-ghost"></i>
+            <span>Kinh dị rùng rợn</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="romance" onclick="filterCatalogByGenre('romance', this)">
+            <i class="bi bi-heart-fill"></i>
+            <span>Tình cảm lãng mạn</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="comedy" onclick="filterCatalogByGenre('comedy', this)">
+            <i class="bi bi-emoji-laughing-fill"></i>
+            <span>Hài hước đặc sắc</span>
+        </button>
+    </div>
+</section>
+
+<script>
+    function filterCatalogByGenre(genreKey, el) {
+        document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
+        if (el) el.classList.add('active');
+
+        if (window.handleGenreChipFilter) {
+            window.handleGenreChipFilter(genreKey);
+        } else {
+            // If on desktop or navigating
+            window.location.href = `/Movies?genre=${encodeURIComponent(genreKey)}`;
+        }
+    }
+</script>

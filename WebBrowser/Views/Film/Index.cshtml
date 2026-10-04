@@ -21,6 +21,9 @@
     var currentUserId = currentUser?.userId ?? 0;
 
     var content = Model.Content;
+    var contentId = Model.ContentId > 0
+        ? Model.ContentId
+        : content.MovieId > 0 ? content.MovieId : (long)content.ContentId;
     var movieTitle = content.OriginalTitle ?? content.title ?? "Đang cập nhật";
     var movieYear = content.ReleaseOrAirDate?.Year ?? 0;
     var movieGenres = content.genres ?? "Đang cập nhật";
@@ -33,7 +36,7 @@
     var currentSources = Model.Sources
         .Where(x => currentEpisodeId.HasValue
             ? x.EpisodeId == currentEpisodeId
-            : x.MovieId == (int)content.ContentId)
+            : x.MovieId == contentId)
         .ToList();
     bool IsHlsSource(SourceItem source)
     {
@@ -395,7 +398,19 @@
             <div id="playerBox" class="player-wrap">
                 @if (hasSource)
                 {
-                    <video id="video" class="video-el" playsinline preload="metadata" poster="@poster"></video>
+                    <video id="video"
+                           class="video-el"
+                           playsinline
+                           preload="none"
+                           poster="@poster"
+                           controlslist="nodownload noremoteplayback"
+                           disablepictureinpicture
+                           disableremoteplayback></video>
+
+                    <div id="playerError" class="position-absolute top-50 start-50 translate-middle text-center text-white d-none px-3" role="alert">
+                        <i class="bi bi-exclamation-triangle fs-2"></i>
+                        <div id="playerErrorText" class="mt-2">Không thể tải video.</div>
+                    </div>
 
                     <!-- Quality notification toast on player -->
                     <div id="qualityToast" class="quality-toast hide">
@@ -436,7 +451,6 @@
                                     }
                                 </select>
                                 <button class="control-btn" id="btnTheater" title="Rạp tối"><i class="bi bi-aspect-ratio"></i></button>
-                                <button class="control-btn" id="btnPip" title="Picture in Picture"><i class="bi bi-window"></i></button>
                                 <button class="control-btn" id="btnFs" title="Toàn màn hình"><i class="bi bi-arrows-fullscreen"></i></button>
                             </div>
                         </div>
@@ -637,11 +651,33 @@
     <script>
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
         const hasSource = @hasSource.ToString().ToLower();
-        const movieId = @((int)content.ContentId);
+        const movieId = @contentId;
         const currentUserId = @currentUserId;
         const currentUserName = @Json.Serialize(currentUserName);
         const currentUserAvatar = @Json.Serialize(currentUserAvatar);
         const allSources = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Sources));
+
+        console.groupCollapsed('[TFlix Player Debug] Dữ liệu nguồn từ Server');
+        console.log('contentId:', movieId);
+        console.log('sourceCount:', allSources.length);
+        console.table(allSources.map(source => ({
+            sourceId: sourceValue(source, 'source_id', 'sourceId', 'SourceId'),
+            movieId: sourceValue(source, 'movie_id', 'movieId', 'MovieId', 'moviE_ID'),
+            episodeId: sourceValue(source, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID'),
+            format: sourceValue(source, 'format', 'Format'),
+            status: sourceValue(source, 'status', 'Status'),
+            streamUrl: sourceValue(source, 'stream_url', 'streamUrl', 'StreamUrl', 'streaM_URL')
+        })));
+        console.groupEnd();
+
+        function sourceValue(source, ...names) {
+            for (const name of names) {
+                if (source && source[name] !== undefined && source[name] !== null) {
+                    return source[name];
+                }
+            }
+            return null;
+        }
 
         let currentEp = @currentEp;
         const movieKey = "movie:" + @Json.Serialize(movieTitle);
@@ -665,6 +701,8 @@
         const selServer = document.getElementById('selServer');
         const qualityToast = document.getElementById('qualityToast');
         const qualityToastText = document.getElementById('qualityToastText');
+        const playerError = document.getElementById('playerError');
+        const playerErrorText = document.getElementById('playerErrorText');
 
         let toastTimer = null;
         function showQualityToast(text) {
@@ -704,7 +742,9 @@
 
         // Cập nhật chất lượng từ danh sách source của phim/tập nếu không dùng multi-level HLS
         function populateFallbackQualities() {
-            const matchingSources = allSources.filter(s => currentEp ? s.episodE_ID == currentEp : s.moviE_ID == movieId);
+            const matchingSources = allSources.filter(s => currentEp
+                ? sourceValue(s, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID') == currentEp
+                : sourceValue(s, 'movie_id', 'movieId', 'MovieId', 'moviE_ID') == movieId);
             const qualitySelects = [selQuality, selQualityInPlayer].filter(Boolean);
 
             const quals = [...new Set(matchingSources.map(s => s.quality).filter(Boolean))];
@@ -740,12 +780,15 @@
             } else {
                 // Fallback đổi source theo quality
                 if (newVal !== 'Auto') {
-                    const matching = allSources.filter(s => currentEp ? s.episodE_ID == currentEp : s.moviE_ID == movieId);
+                    const matching = allSources.filter(s => currentEp
+                        ? sourceValue(s, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID') == currentEp
+                        : sourceValue(s, 'movie_id', 'movieId', 'MovieId', 'moviE_ID') == movieId);
                     const target = matching.find(s => s.quality === newVal);
-                    if (target && target.streaM_URL) {
+                    const targetUrl = sourceValue(target, 'stream_url', 'streamUrl', 'StreamUrl', 'streaM_URL');
+                    if (targetUrl) {
                         const curTime = video.currentTime;
                         const isPaused = video.paused;
-                        loadSource(target.streaM_URL);
+                        loadSource(targetUrl);
                         video.currentTime = curTime;
                         if (!isPaused) video.play().catch(()=>{});
                         showQualityToast('Chất lượng: ' + newVal);
@@ -798,11 +841,36 @@
                 }
             }
 
+            function showPlayerError(message) {
+                if (!playerError || !playerErrorText) return;
+                playerErrorText.textContent = message || 'Không thể tải video.';
+                playerError.classList.remove('d-none');
+            }
+
+            function clearPlayerError() {
+                playerError?.classList.add('d-none');
+            }
+
+            function restorePlaybackPosition() {
+                const resume = +localStorage.getItem(`${movieKey}:ep:${currentEp}:t`) || 0;
+                if (resume > 0 && Number.isFinite(video.duration)) {
+                    video.currentTime = Math.min(Math.max(0, resume - 2), Math.max(0, video.duration - 1));
+                }
+            }
+
             function loadSource(url){
                 if (!isLoggedIn) {
                     guardAuth();
                     return;
                 }
+                if (!url || typeof url !== 'string') {
+                    showPlayerError('Nguồn video không hợp lệ.');
+                    return;
+                }
+
+                clearPlayerError();
+                console.info('[TFlix Player Debug] loadSource nhận URL:', url);
+                console.info('[TFlix Player Debug] Loại nguồn:', isHlsSource(url) ? 'HLS' : 'MP4/Direct');
                 localStorage.setItem(movieKey + ":server", url);
 
                 if (video.hlsInstance) {
@@ -817,18 +885,26 @@
                     const hls = new Hls({
                         enableWorker: true,
                         lowLatencyMode: false,
-                        maxBufferLength: 30,
-                        maxMaxBufferLength: 60,
-                        backBufferLength: 30
+                        // Chỉ giữ một lượng nhỏ segment ở phía trước và phía sau,
+                        // tránh tải/buffer một lúc quá nhiều nội dung phim.
+                        maxBufferLength: 12,
+                        maxMaxBufferLength: 24,
+                        backBufferLength: 10,
+                        maxBufferSize: 32 * 1024 * 1024,
+                        maxBufferHole: 0.5,
+                        startFragPrefetch: false
                     });
                     hls.on(Hls.Events.ERROR, (_event, data) => {
+                        console.error('[TFlix Player Debug] HLS error:', data);
                         if (!data.fatal) return;
                         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                            showPlayerError('Không tải được dữ liệu HLS. Hãy kiểm tra CORS hoặc kết nối Cloudflare.');
                             hls.startLoad();
                         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                             hls.recoverMediaError();
                         } else {
                             console.error('Fatal HLS playback error:', data.type, data.details);
+                            showPlayerError('Nguồn HLS không hợp lệ hoặc trình duyệt không hỗ trợ.');
                             hls.destroy();
                             video.hlsInstance = null;
                         }
@@ -838,7 +914,11 @@
                     video.hlsInstance = hls;
 
                     hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+                        console.info('[TFlix Player Debug] HLS manifest đã tải:', data);
+                        clearPlayerError();
+                        restorePlaybackPosition();
                         populateHlsQualities(hls);
+                        video.play().catch(() => {});
                     });
 
                     hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
@@ -850,16 +930,52 @@
                     });
                 } else if (isHlsSource(url) && video.canPlayType('application/vnd.apple.mpegurl')) {
                     video.src = url;
+                    video.addEventListener('loadedmetadata', restorePlaybackPosition, { once: true });
+                    video.load();
+                    video.play().catch(() => {});
                 } else {
                     video.src = url;
                     populateFallbackQualities();
+                    video.addEventListener('loadedmetadata', restorePlaybackPosition, { once: true });
+                    video.load();
+                    video.play().catch(() => {});
                 }
 
-                const resume = +localStorage.getItem(`${movieKey}:ep:${currentEp}:t`) || 0;
-                video.currentTime = Math.max(0, resume - 2);
-                video.play().catch(()=>{});
                 if (btnPlay) btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>';
             }
+
+            video.addEventListener('canplay', clearPlayerError);
+            video.addEventListener('loadstart', () => console.info('[TFlix Player Debug] video loadstart:', video.currentSrc || video.src));
+            video.addEventListener('loadedmetadata', () => console.info('[TFlix Player Debug] loadedmetadata:', {
+                currentSrc: video.currentSrc,
+                duration: video.duration,
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight
+            }));
+            video.addEventListener('canplay', () => console.info('[TFlix Player Debug] video canplay:', video.currentSrc));
+            video.addEventListener('error', () => {
+                const code = video.error?.code;
+                console.error('[TFlix Player Debug] video error:', {
+                    code,
+                    message: video.error?.message,
+                    currentSrc: video.currentSrc || video.src
+                });
+                const message = code === 4
+                    ? 'Trình duyệt không hỗ trợ nguồn video hoặc Cloudflare trả sai Content-Type.'
+                    : 'Không thể tải video từ máy chủ lưu trữ.';
+                showPlayerError(message);
+            });
+
+            // Hạn chế các thao tác tải xuống phổ biến trên giao diện trình phát.
+            playerBox.addEventListener('contextmenu', event => event.preventDefault());
+            video.addEventListener('dragstart', event => event.preventDefault());
+            document.addEventListener('keydown', event => {
+                if ((document.fullscreenElement === playerBox || playerBox.contains(document.activeElement))
+                    && (event.ctrlKey || event.metaKey)
+                    && event.key.toLowerCase() === 's') {
+                    event.preventDefault();
+                }
+            });
 
             // Gán source đầu tiên
             (function initSelections(){
@@ -871,7 +987,7 @@
             })();
 
             (function autoPlay(){
-                const firstUrl = selServer ? selServer.value : '@currentSource';
+                const firstUrl = selServer ? selServer.value : @Json.Serialize(currentSource);
                 if (isLoggedIn && firstUrl) loadSource(firstUrl);
             })();
 
@@ -1142,8 +1258,9 @@
                 };
 
                 try {
+                    let savedComment = null;
                     if (signalrConn && signalrConn.state === signalR.HubConnectionState.Connected) {
-                        await signalrConn.invoke('SendComment', activeGroupKey, payload);
+                        savedComment = await signalrConn.invoke('SendComment', activeGroupKey, payload);
                     } else {
                         // Fallback API POST
                         const res = await fetch('/Film/PostComment', {
@@ -1151,17 +1268,24 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
                         });
-                        const data = await res.json();
-                        if (data && data.success && data.data) {
-                            addCommentToUI(data.data, true);
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data?.success || !data?.data) {
+                            throw new Error(data?.message || 'Không thể lưu bình luận.');
                         }
+                        savedComment = data.data;
                     }
+
+                    if (!savedComment || !savedComment.commentId) {
+                        throw new Error('Server không trả về ID bình luận đã lưu.');
+                    }
+
+                    addCommentToUI(savedComment, true);
 
                     cmtTextarea.value = '';
                     if (cmtCharCount) cmtCharCount.textContent = '0 / 500';
                 } catch (err) {
                     console.error('Lỗi khi gửi bình luận:', err);
-                    alert('Gửi bình luận thất bại. Vui lòng thử lại!');
+                    alert(err?.message || 'Gửi bình luận thất bại. Vui lòng thử lại!');
                 } finally {
                     btnCmt.disabled = false;
                     btnCmt.innerHTML = originalHtml;

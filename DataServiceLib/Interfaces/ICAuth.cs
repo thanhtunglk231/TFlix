@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.AuthDtos;
+using CoreLib.Dtos.AuthDtos;
 using CoreLib.Models;
 
 namespace DataServiceLib.Interfaces
@@ -7,5 +7,6 @@ namespace DataServiceLib.Interfaces
     {
         Task<CResponseMessage> LoginAsync(LoginDto loginDto);
         Task<CResponseMessage> Register(RegisterDto loginDto);
+        Task<CResponseMessage> IssueOtpAsync(string email, string purpose, string otpHash);
     }
 }

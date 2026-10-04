@@ -6,53 +6,53 @@ namespace WebBrowser.Models.VideoSoure
 {
     public class SourceItem
     {
-        [JsonProperty("sourcE_ID")]
+        [JsonProperty("source_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int SourceId { get; set; }
 
-        [JsonProperty("moviE_ID")]
+        [JsonProperty("movie_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int? MovieId { get; set; }         // JSON có thể null
 
-        [JsonProperty("episodE_ID")]
+        [JsonProperty("episode_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int? EpisodeId { get; set; }       // JSON có thể null (1.0)
 
-        [JsonProperty("moviE_TITLE")]
-        public string MovieTitle { get; set; }
+        [JsonProperty("movie_title")]
+        public string? MovieTitle { get; set; }
 
-        [JsonProperty("episodE_TITLE")]
-        public string EpisodeTitle { get; set; }
+        [JsonProperty("episode_title")]
+        public string? EpisodeTitle { get; set; }
 
         [JsonProperty("provider")]
-        public string Provider { get; set; }
+        public string? Provider { get; set; }
 
-        [JsonProperty("serveR_NAME")]
-        public string ServerName { get; set; }
+        [JsonProperty("server_name")]
+        public string? ServerName { get; set; }
 
-        [JsonProperty("streaM_URL")]
-        public string StreamUrl { get; set; }
+        [JsonProperty("stream_url")]
+        public string? StreamUrl { get; set; }
 
         [JsonProperty("quality")]
-        public string Quality { get; set; }
+        public string? Quality { get; set; }
 
         [JsonProperty("format")]
-        public string Format { get; set; }
+        public string? Format { get; set; }
 
-        [JsonProperty("drM_TYPE")]
-        public string DrmType { get; set; }
+        [JsonProperty("drm_type")]
+        public string? DrmType { get; set; }
 
-        [JsonProperty("drM_LICENSE_URL")]
-        public string DrmLicenseUrl { get; set; }
+        [JsonProperty("drm_license_url")]
+        public string? DrmLicenseUrl { get; set; }
 
-        [JsonProperty("iS_PRIMARY")]
+        [JsonProperty("is_primary")]
         [JsonConverter(typeof(FlexibleBoolYnConverter))]
         public bool IsPrimary { get; set; }
 
         [JsonProperty("status")]
-        public string Status { get; set; }
+        public string? Status { get; set; }
 
-        [JsonProperty("createD_AT")]
+        [JsonProperty("created_at")]
         public DateTimeOffset? CreatedAt { get; set; }
     }
 }

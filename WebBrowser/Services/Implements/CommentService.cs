@@ -24,7 +24,7 @@ namespace WebBrowser.Services.Implements
             {
                 string url = $"/api/Comment/by-content?movieId={(movieId.HasValue ? movieId.Value.ToString() : "")}&episodeId={(episodeId.HasValue ? episodeId.Value.ToString() : "")}";
                 var response = await _httpService.GetAsync<CResponseMessage>(url);
-                if (response != null && response.Data != null)
+                if (response?.Success == true && response.code == "200" && response.Data != null)
                 {
                     var json = JsonConvert.SerializeObject(response.Data);
                     var list = JsonConvert.DeserializeObject<List<CommentDto>>(json);
@@ -43,7 +43,7 @@ namespace WebBrowser.Services.Implements
             try
             {
                 var response = await _httpService.PostAsync<CResponseMessage>("/api/Comment/add", request);
-                if (response != null && response.Data != null)
+                if (response?.Success == true && response.code == "200" && response.Data != null)
                 {
                     var json = JsonConvert.SerializeObject(response.Data);
                     var item = JsonConvert.DeserializeObject<CommentDto>(json);

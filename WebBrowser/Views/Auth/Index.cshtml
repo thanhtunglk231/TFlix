@@ -1,8 +1,6 @@
 @{
-    ViewData["Title"] = "Đăng nhập";
+    ViewData["Title"] = "Đăng nhập hoặc đăng ký";
     var returnUrl = Context?.Request?.Query["returnUrl"].ToString() ?? "/";
-    var token = Context.Session.GetString("JWToken");
-    var isLoggedIn = !string.IsNullOrEmpty(token);
 }
 
 @section Styles {
@@ -14,42 +12,63 @@
             justify-content: center;
             padding: 2rem 1rem;
         }
-        .login-card {
+
+        .auth-card {
             width: 100%;
-            max-width: 440px;
-            background: rgba(18, 22, 26, 0.92);
+            max-width: 460px;
+            background: rgba(18, 22, 26, .94);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, .1);
             border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 25px rgba(39, 211, 195, 0.08);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, .5), 0 0 25px rgba(39, 211, 195, .08);
         }
+
         .brand-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 6px 14px;
             border-radius: 50px;
-            font-size: 0.8rem;
+            font-size: .8rem;
             font-weight: 600;
-            background: rgba(39, 211, 195, 0.15);
+            background: rgba(39, 211, 195, .15);
             color: #27d3c3;
-            border: 1px solid rgba(39, 211, 195, 0.3);
+            border: 1px solid rgba(39, 211, 195, .3);
         }
+
+        .auth-tabs {
+            padding: 5px;
+            background: rgba(255, 255, 255, .05);
+            border-radius: 12px;
+        }
+
+        .auth-tabs .nav-link {
+            color: #9fb1bd;
+            border-radius: 9px;
+            font-weight: 600;
+        }
+
+        .auth-tabs .nav-link.active {
+            color: #001014;
+            background: #27d3c3;
+        }
+
         .form-floating > .form-control {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background-color: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .12);
             color: #fff;
             border-radius: 12px;
         }
+
         .form-floating > .form-control:focus {
-            background-color: rgba(255, 255, 255, 0.08);
+            background-color: rgba(255, 255, 255, .08);
             border-color: #27d3c3;
-            box-shadow: 0 0 0 0.25rem rgba(39, 211, 195, 0.2);
+            box-shadow: 0 0 0 .25rem rgba(39, 211, 195, .2);
             color: #fff;
         }
-        .form-floating > label {
-            color: #9fb1bd;
-        }
+
+        .form-floating > label { color: #9fb1bd; }
+
         .btn-brand {
             background: linear-gradient(135deg, #27d3c3, #19b3a5);
             color: #001014;
@@ -57,81 +76,78 @@
             border: none;
             border-radius: 12px;
             padding: 12px;
-            transition: all 0.25s ease;
         }
-        .btn-brand:hover {
-            background: linear-gradient(135deg, #2de6d4, #1fc9ba);
-            color: #000;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(39, 211, 195, 0.3);
-        }
-        .demo-chip {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px dashed rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 8px 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.85rem;
-            color: #9fb1bd;
-        }
-        .demo-chip:hover {
-            background: rgba(39, 211, 195, 0.12);
-            border-color: #27d3c3;
-            color: #27d3c3;
-        }
+
+        .btn-brand:hover { color: #000; background: linear-gradient(135deg, #2de6d4, #1fc9ba); }
     </style>
 }
 
 <div class="auth-container">
-    <div class="card login-card">
+    <div class="card auth-card">
         <div class="card-body p-4 p-md-5">
             <div class="text-center mb-4">
                 <span class="brand-badge mb-2"><i class="bi bi-shield-lock-fill"></i> TFlix Security</span>
-                <h3 class="fw-bold text-white mb-1">Đăng nhập tài khoản</h3>
-                <p class="text-secondary small">Trải nghiệm rạp chiếu phim trực tuyến đỉnh cao</p>
+                <h3 class="fw-bold text-white mb-1">Tài khoản TFlix</h3>
+                <p class="text-secondary small">Đăng nhập để tiếp tục xem phim hoặc tạo tài khoản miễn phí</p>
             </div>
 
+            <ul class="nav nav-pills nav-fill auth-tabs mb-4" role="tablist">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#loginPane" type="button">Đăng nhập</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#registerPane" type="button">Đăng ký</button></li>
+            </ul>
+
             <div id="msgBox" class="alert d-none" role="alert"></div>
+            @Html.AntiForgeryToken()
 
-            <form id="loginForm" autocomplete="on">
-                @Html.AntiForgeryToken()
-
-                <div class="form-floating mb-3">
-                    <input type="email" class="form-control" id="username" placeholder="name@example.com" value="thanhtung230323@gmail.com" required>
-                    <label for="username"><i class="bi bi-envelope me-1"></i> Email</label>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="loginPane">
+                    <form id="loginForm" autocomplete="on">
+                        <div class="form-floating mb-3">
+                            <input type="email" class="form-control" id="username" placeholder="name@example.com" required>
+                            <label for="username"><i class="bi bi-envelope me-1"></i>Email</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control" id="password" placeholder="Mật khẩu" required>
+                            <label for="password"><i class="bi bi-key me-1"></i>Mật khẩu</label>
+                        </div>
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="showLoginPassword">
+                            <label class="form-check-label text-secondary small" for="showLoginPassword">Hiện mật khẩu</label>
+                        </div>
+                        <div class="d-grid">
+                            <button id="btnLogin" type="submit" class="btn btn-brand">
+                                <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>Đăng nhập ngay
+                            </button>
+                        </div>
+                    </form>
                 </div>
 
-                <div class="form-floating mb-3">
-                    <input type="password" class="form-control" id="password" placeholder="••••••••" value="string" required>
-                    <label for="password"><i class="bi bi-key me-1"></i> Mật khẩu</label>
+                <div class="tab-pane fade" id="registerPane">
+                    <form id="registerForm" autocomplete="on">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="registerFullName" placeholder="Họ và tên" maxlength="200" required>
+                            <label for="registerFullName"><i class="bi bi-person me-1"></i>Họ và tên</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="email" class="form-control" id="registerEmail" placeholder="name@example.com" maxlength="320" required>
+                            <label for="registerEmail"><i class="bi bi-envelope me-1"></i>Email</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control" id="registerPassword" placeholder="Mật khẩu" minlength="8" required>
+                            <label for="registerPassword"><i class="bi bi-key me-1"></i>Mật khẩu (ít nhất 8 ký tự)</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control" id="confirmPassword" placeholder="Xác nhận mật khẩu" minlength="8" required>
+                            <label for="confirmPassword"><i class="bi bi-key-fill me-1"></i>Xác nhận mật khẩu</label>
+                        </div>
+                        <p class="small text-secondary"><i class="bi bi-info-circle me-1"></i>Tài khoản đăng ký tại đây chỉ có quyền người xem, không thể truy cập trang Admin.</p>
+                        <div class="d-grid">
+                            <button id="btnRegister" type="submit" class="btn btn-brand">
+                                <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>Tạo tài khoản
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="showPass">
-                        <label class="form-check-label text-secondary small" for="showPass" style="cursor:pointer;">Hiện mật khẩu</label>
-                    </div>
-                    <a class="small text-decoration-none" style="color: #27d3c3;" href="#">Quên mật khẩu?</a>
-                </div>
-
-                <div class="d-grid mb-3">
-                    <button id="btnLogin" type="submit" class="btn btn-brand">
-                        <span class="spinner-border spinner-border-sm me-2 d-none" id="btnSpinner" role="status" aria-hidden="true"></span>
-                        Đăng nhập ngay
-                    </button>
-                </div>
-
-                <!-- Quick Test Credentials -->
-                <div class="demo-chip text-center mb-2" id="fillDemoUser" title="Nhấn để tự động điền tài khoản mẫu">
-                    <i class="bi bi-lightning-charge-fill text-warning me-1"></i>
-                    Tài khoản demo: <strong>thanhtung230323@gmail.com</strong>
-                </div>
-            </form>
-
-            <div class="text-center mt-4 pt-2 border-top border-secondary border-opacity-25">
-                <span class="text-secondary small">Chưa có tài khoản TFlix?</span>
-                <a href="#" class="small fw-semibold ms-1" style="color: #27d3c3;">Đăng ký miễn phí</a>
             </div>
         </div>
     </div>
@@ -140,76 +156,79 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
-        (function () {
-            const $form = $("#loginForm");
-            const $btn = $("#btnLogin");
-            const $spin = $("#btnSpinner");
-            const $msg = $("#msgBox");
-            const returnUrl = "@returnUrl";
+        (() => {
+            const messageBox = $("#msgBox");
+            const returnUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(returnUrl));
+            const antiForgeryToken = $('input[name="__RequestVerificationToken"]').val();
 
-            // Toggle show password
-            $("#showPass").on("change", function () {
+            const showMessage = (message, type) => {
+                messageBox.removeClass("d-none alert-success alert-danger alert-warning")
+                    .addClass(`alert-${type}`).text(message);
+            };
+
+            const setBusy = (button, busy) => {
+                button.prop("disabled", busy);
+                button.find(".spinner-border").toggleClass("d-none", !busy);
+            };
+
+            $("#showLoginPassword").on("change", function () {
                 $("#password").attr("type", this.checked ? "text" : "password");
             });
 
-            // Quick Fill demo credentials
-            $("#fillDemoUser").on("click", function () {
-                $("#username").val("thanhtung230323@gmail.com");
-                $("#password").val("string");
+            $("#loginForm").on("submit", function (event) {
+                event.preventDefault();
+                const button = $("#btnLogin");
+                setBusy(button, true);
+
+                $.ajax({
+                    url: "/Auth/Login",
+                    method: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    data: JSON.stringify({ username: $("#username").val().trim(), password: $("#password").val() }),
+                    success: response => {
+                        showMessage(response.message || "Đăng nhập thành công.", "success");
+                        setTimeout(() => window.location.href = returnUrl || "/", 500);
+                    },
+                    error: xhr => showMessage(xhr.responseJSON?.message || "Đăng nhập thất bại.", "danger"),
+                    complete: () => setBusy(button, false)
+                });
             });
 
-            function showMsg(text, type) {
-                $msg.removeClass("d-none alert-success alert-danger alert-warning")
-                    .addClass("alert-" + type).text(text);
-            }
-            function resetMsg() {
-                $msg.addClass("d-none").text("");
-            }
-            function setBusy(busy) {
-                $btn.prop("disabled", busy);
-                $spin.toggleClass("d-none", !busy);
-            }
+            $("#registerForm").on("submit", function (event) {
+                event.preventDefault();
+                const password = $("#registerPassword").val();
+                const confirmPassword = $("#confirmPassword").val();
 
-            $form.on("submit", function (e) {
-                e.preventDefault();
-                resetMsg();
-
-                const username = $("#username").val().trim();
-                const password = $("#password").val();
-
-                if (!username || !password) {
-                    showMsg("Vui lòng nhập đầy đủ email và mật khẩu.", "warning");
+                if (password.length < 8) {
+                    showMessage("Mật khẩu phải có ít nhất 8 ký tự.", "warning");
+                    return;
+                }
+                if (password !== confirmPassword) {
+                    showMessage("Mật khẩu xác nhận không khớp.", "warning");
                     return;
                 }
 
-                setBusy(true);
-
-                const anti = $('input[name="__RequestVerificationToken"]').val();
-
+                const button = $("#btnRegister");
+                setBusy(button, true);
                 $.ajax({
-                    url: "/auth/login",
-                    type: "POST",
+                    url: "/Auth/Register",
+                    method: "POST",
                     contentType: "application/json; charset=utf-8",
-                    headers: anti ? { "RequestVerificationToken": anti } : {},
-                    data: JSON.stringify({ username, password }),
-                    success: function (res) {
-                        const ok = res && (res.success === true || res.code === "200");
-                        if (ok) {
-                            showMsg("Đăng nhập thành công! Đang chuyển trang...", "success");
-                            setTimeout(function () {
-                                window.location.href = returnUrl || "/";
-                            }, 500);
-                        } else {
-                            showMsg(res?.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản.", "danger");
-                        }
+                    headers: { "RequestVerificationToken": antiForgeryToken },
+                    data: JSON.stringify({
+                        fullName: $("#registerFullName").val().trim(),
+                        email: $("#registerEmail").val().trim(),
+                        password
+                    }),
+                    success: response => {
+                        showMessage(response.message || "Đăng ký thành công. Bạn có thể đăng nhập ngay.", "success");
+                        $("#username").val($("#registerEmail").val().trim());
+                        $("#password").val("");
+                        bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#loginPane"]')).show();
+                        $("#registerForm")[0].reset();
                     },
-                    error: function (xhr) {
-                        const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi đăng nhập. Vui lòng thử lại.";
-                        showMsg(text, "danger");
-                    },
-                    complete: function () {
-                        setBusy(false);
-                    }
+                    error: xhr => showMessage(xhr.responseJSON?.message || "Đăng ký thất bại.", "danger"),
+                    complete: () => setBusy(button, false)
                 });
             });
         })();

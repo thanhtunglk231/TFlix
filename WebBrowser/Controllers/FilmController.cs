@@ -16,19 +16,22 @@ namespace WebBrowser.Controllers
         private readonly IVideoSoureService _videoSourceService;
         private readonly ISeriesService _seriesService;
         private readonly ICommentService _commentService;
+        private readonly ILogger<FilmController> _logger;
 
         public FilmController(
             IPreviewService previewService,
             IEpisode episodeService,
             IVideoSoureService videoSourceService,
             ISeriesService seriesService,
-            ICommentService commentService)
+            ICommentService commentService,
+            ILogger<FilmController> logger)
         {
             _previewService = previewService;
             _episodeService = episodeService;
             _videoSourceService = videoSourceService;
             _seriesService = seriesService;
             _commentService = commentService;
+            _logger = logger;
         }
 
         public IActionResult Index()
@@ -104,12 +107,32 @@ namespace WebBrowser.Controllers
                 .Where(x => string.Equals(x.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? new List<WebBrowser.Models.VideoSoure.SourceItem>();
 
+            _logger.LogInformation(
+                "Film source debug: ContentId={ContentId}, Kind={Kind}, ApiSourceCount={ApiSourceCount}, MatchedSourceCount={MatchedSourceCount}",
+                id,
+                kind,
+                sourcesResponse?.Data?.Table?.Count ?? 0,
+                sources.Count);
+
+            foreach (var source in sources)
+            {
+                _logger.LogInformation(
+                    "Film source debug: SourceId={SourceId}, MovieId={MovieId}, EpisodeId={EpisodeId}, Format={Format}, Status={Status}, StreamUrl={StreamUrl}",
+                    source.SourceId,
+                    source.MovieId,
+                    source.EpisodeId,
+                    source.Format,
+                    source.Status,
+                    source.StreamUrl);
+            }
+
             var currentEpisodeId = episodes
                 .FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId))?.EpisodeId
                 ?? episodes.FirstOrDefault()?.EpisodeId;
 
             return View("Index", new WatchViewModel
             {
+                ContentId = id,
                 Content = movie,
                 Episodes = episodes,
                 Sources = sources,
@@ -132,6 +155,11 @@ namespace WebBrowser.Controllers
                 return BadRequest(new { success = false, message = "Nội dung bình luận không được để trống" });
             }
 
+            if (!dto.MovieId.HasValue && !dto.EpisodeId.HasValue)
+            {
+                return BadRequest(new { success = false, message = "Bình luận phải thuộc một phim hoặc tập phim." });
+            }
+
             var currentUserJson = HttpContext.Session.GetString("CurrentUser");
             if (!string.IsNullOrEmpty(currentUserJson))
             {
@@ -148,8 +176,22 @@ namespace WebBrowser.Controllers
                 catch { }
             }
 
+            if (dto.UserId <= 0)
+            {
+                return Unauthorized(new { success = false, message = "Không xác định được người dùng đăng nhập." });
+            }
+
             var result = await _commentService.AddCommentAsync(dto);
-            return Json(new { success = result != null, data = result });
+            if (result == null || result.CommentId <= 0)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    message = "Không thể lưu bình luận vào database."
+                });
+            }
+
+            return Json(new { success = true, data = result });
         }
     }
 }

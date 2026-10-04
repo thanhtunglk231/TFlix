@@ -69,10 +69,10 @@ namespace DataServiceLib.Implements
                                 c.user_name    AS UserName,
                                 c.avatar_url   AS UserAvatar,
                                 c.content      AS Content,
-                                c.created_at   AS CreatedAt,
+                                CAST(c.created_at AS DATETIME2) AS CreatedAt,
                                 c.status       AS Status
                             FROM dbo.comments c
-                            WHERE (c.status IS NULL OR c.status = ''ACTIVE'')
+                            WHERE (c.status IS NULL OR c.status IN (''ACTIVE'', ''APPROVED''))
                               AND (
                                     (@p_episode_id IS NOT NULL AND c.episode_id = @p_episode_id)
                                     OR
@@ -119,7 +119,7 @@ namespace DataServiceLib.Implements
                                 movie_id, episode_id, user_id, user_name, avatar_url, content, status, created_at
                             )
                             VALUES (
-                                @p_movie_id, @p_episode_id, @p_user_id, @p_user_name, @p_avatar_url, @p_content, ''ACTIVE'', GETDATE()
+                                @p_movie_id, @p_episode_id, @p_user_id, @p_user_name, @p_avatar_url, @p_content, ''APPROVED'', GETDATE()
                             );
 
                             SET @o_comment_id = SCOPE_IDENTITY();
@@ -178,7 +178,7 @@ namespace DataServiceLib.Implements
                 {
                     foreach (DataRow row in dataset.Tables[0].Rows)
                     {
-                        var createdAt = row["CreatedAt"] != DBNull.Value ? Convert.ToDateTime(row["CreatedAt"]) : (DateTime?)null;
+                        var createdAt = ConvertCreatedAt(row["CreatedAt"]);
                         list.Add(new CommentDto
                         {
                             CommentId = Convert.ToInt64(row["CommentId"]),
@@ -196,10 +196,11 @@ namespace DataServiceLib.Implements
                     }
                 }
 
+                var responseCode = o_code.Value?.ToString() ?? "500";
                 return new CResponseMessage
                 {
-                    Success = true,
-                    code = o_code.Value?.ToString() ?? "200",
+                    Success = responseCode == "200",
+                    code = responseCode,
                     message = o_message.Value?.ToString() ?? "Thành công",
                     Data = list
                 };
@@ -272,12 +273,24 @@ namespace DataServiceLib.Implements
                     o_comment_id, o_code, o_message
                 };
 
-                _baseProvider.ExecuteSP("usp_Comment_Add", parameters, _connectionString ?? "");
+                var executed = _baseProvider.ExecuteSP("usp_Comment_Add", parameters, _connectionString ?? "");
 
                 long newId = 0;
                 if (o_comment_id.Value != null && o_comment_id.Value != DBNull.Value)
                 {
                     newId = Convert.ToInt64(o_comment_id.Value);
+                }
+
+                var responseCode = o_code.Value?.ToString() ?? "500";
+                if (!executed || responseCode != "200" || newId <= 0)
+                {
+                    return new CResponseMessage
+                    {
+                        Success = false,
+                        code = responseCode,
+                        message = o_message.Value?.ToString() ?? "Không thể lưu bình luận.",
+                        Data = null
+                    };
                 }
 
                 var createdItem = new CommentDto
@@ -295,8 +308,8 @@ namespace DataServiceLib.Implements
 
                 return new CResponseMessage
                 {
-                    Success = (o_code.Value?.ToString() == "200"),
-                    code = o_code.Value?.ToString() ?? "200",
+                    Success = true,
+                    code = responseCode,
                     message = o_message.Value?.ToString() ?? "Bình luận thành công",
                     Data = createdItem
                 };
@@ -320,6 +333,20 @@ namespace DataServiceLib.Implements
             if (span.TotalHours < 24) return $"{(int)span.TotalHours} giờ trước";
             if (span.TotalDays < 30) return $"{(int)span.TotalDays} ngày trước";
             return dt.ToString("dd/MM/yyyy");
+        }
+
+        private static DateTime? ConvertCreatedAt(object value)
+        {
+            if (value == null || value == DBNull.Value)
+                return null;
+
+            if (value is DateTimeOffset offset)
+                return offset.LocalDateTime;
+
+            if (value is DateTime dateTime)
+                return dateTime;
+
+            return DateTime.TryParse(value.ToString(), out var parsed) ? parsed : null;
         }
     }
 }

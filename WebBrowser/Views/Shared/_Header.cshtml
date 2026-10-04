@@ -1,7 +1,6 @@
 @using Microsoft.AspNetCore.Http
 
 @{
-    // Lấy route hiện tại
     var routeCtrl = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "");
     var routeAct = (ViewContext.RouteData.Values["action"]?.ToString() ?? "");
 
@@ -12,296 +11,250 @@
         return (matchCtrl && matchAct) ? "active" : "";
     };
 
-    // Lấy giá trị q từ query string
     var q = Context?.Request?.Query["q"].ToString() ?? "";
-
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
     var userName = Context.Session.GetString("Username") ?? "Tài khoản";
-
 }
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top border-bottom border-black">
-    <div class="container">
-        <!-- Brand -->
-        <a class="navbar-brand d-flex align-items-center" asp-controller="Home" asp-action="Index">
-            <img class="brand-logo"
-                 src="~/images/tflix-logo.png"
-                 alt="TFlix Logo" />
-        </a>
-
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
-                aria-controls="mainNav" aria-expanded="false" aria-label="Mở menu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse" id="mainNav">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
-                    <a class="nav-link @isActive("Home", "Index")" asp-controller="Home" asp-action="Index">Trang chủ</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @isActive("Movies", "Index")" asp-controller="Movies" asp-action="Index">Kho phim</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @isActive("Series", "Index")" asp-controller="Series" asp-action="Index">Phim bộ</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link @isActive("Single", "Index")" asp-controller="Single" asp-action="Index">Phim lẻ</a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle @isActive("News", "Index")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Tin tức
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" asp-controller="News" asp-action="Index">Tất cả</a></li>
-                        <li><a class="dropdown-item" asp-controller="News" asp-action="Promotions">Khuyến mãi</a></li>
-                        <li><hr class="dropdown-divider" /></li>
-                        <li><a class="dropdown-item" asp-controller="Home" asp-action="About">Giới thiệu</a></li>
-                    </ul>
-                </li>
-            </ul>
-
-            <!-- Search -->
-            <form id="movieSearchForm" class="d-flex me-3 position-relative" method="get" asp-controller="Home" asp-action="Index" role="search" autocomplete="off">
-                <input id="movieSearchInput" class="form-control me-2" type="search" name="q" placeholder="Tìm phim, diễn viên…" value="@q" aria-label="Tìm phim" aria-autocomplete="list" aria-controls="movieSearchSuggestions" />
-                <button class="btn btn-outline-light" type="submit">
-                    <i class="bi bi-search"></i>
-                </button>
-                <div id="movieSearchSuggestions" class="movie-search-suggestions d-none" role="listbox"></div>
-            </form>
-
-            <!-- User area -->
-            @if (isLoggedIn)
-            {
-                <div class="dropdown">
-                    <a class="btn btn-primary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle me-1"></i> @userName
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
-                                <i class="bi bi-gear me-2"></i> Hồ sơ
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider" /></li>
-                        <li>
-                            <form asp-controller="auth" asp-action="Logout" method="post" class="px-3">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-link dropdown-item text-danger p-0">
-                                    <i class="bi bi-box-arrow-right me-2"></i> Đăng xuất
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
+<header>
+    <nav class="navbar navbar-expand-lg tflix-navbar" id="mainHeader">
+        <div class="container">
+            <!-- Brand Logo with Crisp SVG & Fallback Support -->
+            <a class="brand-wrapper" asp-controller="Home" asp-action="Index" aria-label="TFlix Trang chủ">
+                <div class="brand-icon-box" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 3.5L19 12L5 20.5V3.5Z" fill="currentColor"/>
+                    </svg>
                 </div>
-            }
-            else
-            {
-                <a class="btn btn-primary" asp-controller="Auth" asp-action="Index">
-                    <i class="bi bi-person-circle me-1"></i> Đăng nhập
-                </a>
-            }
+                <span class="brand-text">T<span>Flix</span></span>
+            </a>
+
+            <!-- Mobile Hamburger Toggle -->
+            <button class="navbar-toggler border-0 p-2 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#tflixNavContent"
+                    aria-controls="tflixNavContent" aria-expanded="false" aria-label="Mở bảng điều hướng">
+                <i class="bi bi-list fs-2"></i>
+            </button>
+
+            <!-- Navbar Links & Controls -->
+            <div class="collapse navbar-collapse" id="tflixNavContent">
+                <ul class="navbar-nav tflix-nav me-auto mb-2 mb-lg-0 ms-lg-3">
+                    <li class="nav-item">
+                        <a class="nav-link @isActive("Home", "Index")" asp-controller="Home" asp-action="Index">Trang chủ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @isActive("Movies", "Index")" asp-controller="Movies" asp-action="Index">Kho phim</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @isActive("Series", "Index")" asp-controller="Series" asp-action="Index">Phim bộ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @isActive("Single", "Index")" asp-controller="Single" asp-action="Index">Phim lẻ</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle @isActive("News", "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Tin tức
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark bg-dark border-secondary shadow-lg">
+                            <li><a class="dropdown-item py-2" asp-controller="News" asp-action="Index"><i class="bi bi-newspaper me-2 text-info"></i>Tất cả bài viết</a></li>
+                            <li><a class="dropdown-item py-2" asp-controller="News" asp-action="Promotions"><i class="bi bi-tag-fill me-2 text-warning"></i>Khuyến mãi HOT</a></li>
+                            <li><hr class="dropdown-divider border-secondary" /></li>
+                            <li><a class="dropdown-item py-2" asp-controller="Home" asp-action="About"><i class="bi bi-info-circle me-2 text-primary"></i>Về TFlix</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <!-- Real-Time Autocomplete Search Form -->
+                <form id="movieSearchForm" class="header-search-wrap me-lg-3 my-2 my-lg-0" method="get" asp-controller="Home" asp-action="Index" role="search" autocomplete="off">
+                    <i class="bi bi-search search-icon-left" aria-hidden="true"></i>
+                    <input id="movieSearchInput" class="header-search-input" type="search" name="q" placeholder="Tìm phim, diễn viên, thể loại…" value="@q" aria-label="Tìm kiếm phim" aria-autocomplete="list" aria-controls="movieSearchSuggestions" />
+                    <button type="button" id="searchClearBtn" class="search-clear-btn" aria-label="Xóa từ khóa"><i class="bi bi-x-circle-fill"></i></button>
+                    <div id="movieSearchSuggestions" class="search-suggestions-dropdown d-none" role="listbox"></div>
+                </form>
+
+                <!-- User Account Actions -->
+                <div class="d-flex align-items-center mt-3 mt-lg-0">
+                    @if (isLoggedIn)
+                    {
+                        <div class="dropdown">
+                            <button class="user-avatar-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="user-avatar-img">
+                                    <i class="bi bi-person-fill"></i>
+                                </div>
+                                <span class="d-inline-block text-truncate" style="max-width: 130px;">@userName</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark bg-dark border-secondary shadow-lg mt-2">
+                                <li>
+                                    <a class="dropdown-item py-2" asp-controller="Account" asp-action="Profile">
+                                        <i class="bi bi-person-gear me-2 text-info"></i> Hồ sơ tài khoản
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item py-2" href="#watchlistSection" onclick="window.scrollToWatchlist && window.scrollToWatchlist()">
+                                        <i class="bi bi-heart-fill me-2 text-danger"></i> Phim yêu thích
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider border-secondary" /></li>
+                                <li>
+                                    <form asp-controller="Auth" asp-action="Logout" method="post" class="px-3 py-1">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-link dropdown-item text-danger p-0 d-flex align-items-center">
+                                            <i class="bi bi-box-arrow-right me-2"></i> Đăng xuất
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <a class="btn-tflix-primary" asp-controller="Auth" asp-action="Index">
+                            <i class="bi bi-person-fill"></i>
+                            <span>Đăng nhập</span>
+                        </a>
+                    }
+                </div>
+            </div>
         </div>
-    </div>
-</nav>
-
-<style>
-    .navbar-brand .brand-logo {
-        max-height: 48px;
-        width: auto;
-        object-fit: contain;
-        display: block;
-        transition: transform 0.25s ease, filter 0.25s ease;
-    }
-
-    .navbar-brand:hover .brand-logo {
-        transform: scale(1.04);
-        filter: drop-shadow(0 0 8px rgba(229, 9, 20, 0.4));
-    }
-
-    .nav-link {
-        position: relative;
-    }
-
-        .nav-link::after {
-            content: "";
-            position: absolute;
-            left: .75rem;
-            right: .75rem;
-            bottom: .25rem;
-            height: 2px;
-            background: #27d3c3;
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform .25s;
-        }
-
-        .nav-link:hover::after,
-        .nav-link.active::after {
-            transform: scaleX(1);
-        }
-
-        .movie-search-suggestions {
-            position: absolute;
-            z-index: 1050;
-            top: calc(100% + .35rem);
-            left: 0;
-            right: 2.75rem;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,.12);
-            border-radius: .5rem;
-            background: #212529;
-            box-shadow: 0 .5rem 1rem rgba(0,0,0,.35);
-        }
-
-        .movie-search-suggestion {
-            display: flex;
-            width: 100%;
-            gap: .65rem;
-            align-items: center;
-            padding: .55rem .7rem;
-            border: 0;
-            border-bottom: 1px solid rgba(255,255,255,.08);
-            color: #f8f9fa;
-            background: transparent;
-            text-align: left;
-        }
-
-        .movie-search-suggestion:last-child {
-            border-bottom: 0;
-        }
-
-        .movie-search-suggestion:hover,
-        .movie-search-suggestion:focus {
-            color: #fff;
-            background: rgba(39,211,195,.16);
-            outline: 0;
-        }
-
-        .movie-search-suggestion img {
-            width: 2.25rem;
-            height: 3rem;
-            flex: 0 0 auto;
-            border-radius: .25rem;
-            object-fit: cover;
-        }
-
-        .movie-search-suggestion small {
-            display: block;
-            color: #adb5bd;
-        }
-
-    @@media (max-width: 991.98px) {
-        .navbar-brand .brand-logo {
-            max-height: 34px;
-        }
-
-        .navbar .dropdown-menu {
-            margin-top: .25rem;
-        }
-    }
-</style>
+    </nav>
+</header>
 
 <script>
-    (() => {
-        const initializeMovieSearch = () => {
+    document.addEventListener('DOMContentLoaded', () => {
+        // Sticky Header scroll styling
+        const header = document.getElementById('mainHeader');
+        if (header) {
+            const handleScroll = () => {
+                if (window.scrollY > 40) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
+                }
+            };
+            window.addEventListener('scroll', handleScroll, { passive: true });
+            handleScroll();
+        }
+
+        // Search Autocomplete Logic
         const form = document.getElementById('movieSearchForm');
         const input = document.getElementById('movieSearchInput');
+        const clearBtn = document.getElementById('searchClearBtn');
         const suggestions = document.getElementById('movieSearchSuggestions');
         const endpoint = '@Url.Action("MovieAutocomplete", "Home")';
-        let timer;
-        let request;
+        let timer = null;
+        let abortController = null;
 
-        if (!form || !input || !suggestions) return;
+        if (form && input && suggestions) {
+            const updateClearBtn = () => {
+                if (clearBtn) {
+                    clearBtn.style.display = input.value.trim().length > 0 ? 'block' : 'none';
+                }
+            };
 
-        const hideSuggestions = () => {
-            suggestions.replaceChildren();
-            suggestions.classList.add('d-none');
-        };
+            input.addEventListener('input', updateClearBtn);
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    input.value = '';
+                    updateClearBtn();
+                    hideSuggestions();
+                    input.focus();
+                });
+            }
 
-        const goToMovie = movie => {
-            window.location.href = `/Preview/Details?id=${encodeURIComponent(movie.movieId)}&kind=${encodeURIComponent(movie.kind || 'MOVIE')}`;
-        };
+            const hideSuggestions = () => {
+                suggestions.replaceChildren();
+                suggestions.classList.add('d-none');
+            };
 
-        const renderSuggestions = movies => {
-            suggestions.replaceChildren();
-            movies.forEach(movie => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'movie-search-suggestion';
-                button.setAttribute('role', 'option');
+            const goToMovie = (movie) => {
+                const movieId = movie.movieId ?? movie.MovieId ?? movie.moviE_ID;
+                const kind = movie.kind || 'MOVIE';
+                window.location.href = `/Preview/Details?id=${encodeURIComponent(movieId)}&kind=${encodeURIComponent(kind)}`;
+            };
 
-                if (movie.posterUrl) {
-                    const image = document.createElement('img');
-                    image.src = movie.posterUrl;
-                    image.alt = '';
-                    button.appendChild(image);
+            const renderSuggestions = (movies) => {
+                suggestions.replaceChildren();
+                if (!movies || movies.length === 0) {
+                    const emptyItem = document.createElement('div');
+                    emptyItem.className = 'p-3 text-center text-muted small';
+                    emptyItem.textContent = 'Không tìm thấy phim phù hợp.';
+                    suggestions.appendChild(emptyItem);
+                    suggestions.classList.remove('d-none');
+                    return;
                 }
 
-                const text = document.createElement('span');
-                const title = document.createElement('strong');
-                title.textContent = movie.title || movie.originalTitle || 'Không có tiêu đề';
-                text.appendChild(title);
+                movies.forEach(movie => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'search-suggestion-item';
+                    item.setAttribute('role', 'option');
 
-                if (movie.originalTitle && movie.originalTitle !== movie.title) {
-                    const original = document.createElement('small');
-                    original.textContent = movie.originalTitle;
-                    text.appendChild(original);
+                    const thumb = document.createElement('img');
+                    thumb.className = 'search-suggestion-thumb';
+                    thumb.src = movie.posterUrl || 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=100&auto=format&fit=crop';
+                    thumb.alt = movie.title || '';
+                    thumb.loading = 'lazy';
+                    thumb.onerror = () => { thumb.src = 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=100&auto=format&fit=crop'; };
+
+                    const info = document.createElement('div');
+                    info.className = 'search-suggestion-info';
+
+                    const title = document.createElement('div');
+                    title.className = 'search-suggestion-title';
+                    title.textContent = movie.title || movie.originalTitle || 'Phim TFlix';
+
+                    const meta = document.createElement('div');
+                    meta.className = 'search-suggestion-meta';
+                    const parts = [];
+                    if (movie.originalTitle && movie.originalTitle !== movie.title) parts.push(movie.originalTitle);
+                    if (movie.genres) parts.push(movie.genres);
+                    meta.textContent = parts.join(' • ') || 'Chất lượng cao';
+
+                    info.appendChild(title);
+                    info.appendChild(meta);
+                    item.appendChild(thumb);
+                    item.appendChild(info);
+
+                    item.addEventListener('click', () => goToMovie(movie));
+                    suggestions.appendChild(item);
+                });
+
+                suggestions.classList.remove('d-none');
+            };
+
+            const doSearch = async () => {
+                const query = input.value.trim();
+                if (query.length < 1) {
+                    hideSuggestions();
+                    return;
                 }
 
-                if (movie.producerName) {
-                    const producer = document.createElement('small');
-                    producer.textContent = `Producer: ${movie.producerName}`;
-                    text.appendChild(producer);
-                }
+                if (abortController) abortController.abort();
+                abortController = new AbortController();
 
-                button.appendChild(text);
-                button.addEventListener('click', () => goToMovie(movie));
-                suggestions.appendChild(button);
+                try {
+                    const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}&limit=6`, { signal: abortController.signal });
+                    if (!response.ok) return;
+                    const res = await response.json();
+                    const list = res?.data || res?.Data || [];
+                    renderSuggestions(list);
+                } catch (err) {
+                    if (err.name !== 'AbortError') hideSuggestions();
+                }
+            };
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(doSearch, 220);
             });
 
-            suggestions.classList.toggle('d-none', movies.length === 0);
-        };
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') hideSuggestions();
+            });
 
-        const search = async () => {
-            const query = input.value.trim();
-            if (query.length < 1) {
-                hideSuggestions();
-                return;
-            }
-
-            if (request) request.abort();
-            request = new AbortController();
-
-            try {
-                const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}&limit=8`, { signal: request.signal });
-                if (!response.ok) throw new Error(`Autocomplete failed: ${response.status}`);
-                const payload = await response.json();
-                renderSuggestions(payload.data || payload.Data || []);
-            } catch (error) {
-                if (error.name !== 'AbortError') hideSuggestions();
-            }
-        };
-
-        input.addEventListener('input', () => {
-            clearTimeout(timer);
-            timer = setTimeout(search, 250);
-        });
-
-        input.addEventListener('keydown', event => {
-            if (event.key === 'Escape') hideSuggestions();
-        });
-
-        document.addEventListener('click', event => {
-            if (!form.contains(event.target)) hideSuggestions();
-        });
-        };
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeMovieSearch, { once: true });
-        } else {
-            initializeMovieSearch();
+            document.addEventListener('click', (e) => {
+                if (!form.contains(e.target)) hideSuggestions();
+            });
         }
-    })();
+    });
 </script>

@@ -11,5 +11,6 @@
         public string languageCode { get; set; } = "";
         public bool isEmailVerified { get; set; }
         public string status { get; set; } = "";
+        public List<string> roles { get; set; } = new();
     }
 }

@@ -43,7 +43,7 @@ namespace Server.Controllers
             // Lấy user từ DataSet (bảng ở o_user ref cursor)
             var user = MapUserFromDataSet(response.Data as DataSet);
             var email = user?.Email ?? loginDto.Username;
-            var token = GenerateJwtToken(email);
+            var token = GenerateJwtToken(email, user?.Roles ?? new List<string>());
 
             return Ok(new
             {
@@ -74,34 +74,45 @@ namespace Server.Controllers
                 CountryCode = r.Table.Columns.Contains("COUNTRY_CODE") ? r["COUNTRY_CODE"]?.ToString() : null,
                 LanguageCode = r.Table.Columns.Contains("LANGUAGE_CODE") ? r["LANGUAGE_CODE"]?.ToString() : null,
                 IsEmailVerified = r.Table.Columns.Contains("IS_EMAIL_VERIFIED") && r["IS_EMAIL_VERIFIED"]?.ToString() == "Y",
-                Status = r["STATUS"]?.ToString()
+                Status = r["STATUS"]?.ToString(),
+                Roles = r.Table.Columns.Contains("ROLES")
+                    ? (r["ROLES"]?.ToString() ?? string.Empty)
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToList()
+                    : new List<string>()
             };
         }
 
 
         [HttpPost("register")]
-        public async Task<IActionResult> register([FromBody] RegisterDto loginDto)
+        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            if (loginDto == null || string.IsNullOrEmpty(loginDto.Email) || string.IsNullOrEmpty(loginDto.Password))
-                return BadRequest("Invalid login request.");
-
-            var response = await _auth.Register(loginDto);
-            if (response.code != "200")
-                return Unauthorized(response.message);
-
-           
-
-            return Ok(response);
-        }
-        private string GenerateJwtToken( string email)
-        {
-            
-
-            var claims = new[]
+            if (registerDto == null || string.IsNullOrWhiteSpace(registerDto.Email) ||
+                string.IsNullOrWhiteSpace(registerDto.FullName) || string.IsNullOrWhiteSpace(registerDto.Password))
             {
-               
+                return BadRequest(new { code = "400", success = false, message = "Vui lòng nhập đầy đủ họ tên, email và mật khẩu." });
+            }
+
+            if (!System.Net.Mail.MailAddress.TryCreate(registerDto.Email.Trim(), out _))
+                return BadRequest(new { code = "400", success = false, message = "Email không đúng định dạng." });
+
+            if (registerDto.Password.Length < 8)
+                return BadRequest(new { code = "400", success = false, message = "Mật khẩu phải có ít nhất 8 ký tự." });
+
+            var response = await _auth.Register(registerDto);
+            if (response.code != "200")
+                return BadRequest(new { code = response.code, success = false, message = response.message });
+
+            return Ok(new { code = "200", success = true, message = response.message });
+        }
+        private string GenerateJwtToken(string email, IEnumerable<string> roles)
+        {
+            var claims = new List<Claim>
+            {
                 new Claim(ClaimTypes.Email, email ?? "")
             };
+
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSection["SecretKey"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

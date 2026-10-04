@@ -1,4 +1,4 @@
-using CoreLib.Dtos.AuthDtos;
+﻿using CoreLib.Dtos.AuthDtos;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -78,27 +78,23 @@ namespace DataServiceLib.Implements
                     };
                 }
 
-                // Nếu kết nối DB không khả dụng, hỗ trợ đăng nhập fallback với tài khoản demo
-                Console.WriteLine("[CAuth.LoginAsync] Fallback user dataset activated due to offline DB or empty response.");
-                var fallbackDs = GetFallbackUserDataSet(loginDto.Username ?? "user@tflix.com");
                 return new CResponseMessage
                 {
-                    Data = fallbackDs,
-                    code = "200",
-                    message = "Đăng nhập thành công (tài khoản mẫu)",
-                    Success = true
+                    Data = null,
+                    code = "500",
+                    message = string.IsNullOrWhiteSpace(message) ? "Không thể xác thực tài khoản." : message,
+                    Success = false
                 };
             }
             catch (Exception ex)
             {
                 Console.WriteLine("[CAuth.LoginAsync] Exception: " + ex.Message);
-                var fallbackDs = GetFallbackUserDataSet(loginDto.Username ?? "user@tflix.com");
                 return new CResponseMessage
                 {
-                    Data = fallbackDs,
-                    code = "200",
-                    message = "Đăng nhập thành công (chế độ dự phòng)",
-                    Success = true
+                    Data = null,
+                    code = "500",
+                    message = "Không thể kết nối dịch vụ xác thực. Vui lòng thử lại sau.",
+                    Success = false
                 };
             }
         }
@@ -139,8 +135,8 @@ namespace DataServiceLib.Implements
 
                 var ds = _baseProvider.GetDatasetFromSP("sp_register_user", parameters, _connectionString);
 
-                string code = o_code.Value?.ToString() ?? "200";
-                string message = o_message.Value?.ToString() ?? "Đăng ký thành công";
+                string code = o_code.Value?.ToString() ?? "500";
+                string message = o_message.Value?.ToString() ?? "Không thể đăng ký tài khoản.";
 
                 return new CResponseMessage
                 {
@@ -152,11 +148,12 @@ namespace DataServiceLib.Implements
             }
             catch (Exception ex)
             {
+                Console.WriteLine("[CAuth.Register] Exception: " + ex.Message);
                 return new CResponseMessage
                 {
-                    Success = true,
-                    code = "200",
-                    message = "Đăng ký thành công (chế độ demo): " + ex.Message
+                    Success = false,
+                    code = "500",
+                    message = "Không thể kết nối dịch vụ đăng ký. Vui lòng thử lại sau."
                 };
             }
         }
@@ -246,16 +243,6 @@ namespace DataServiceLib.Implements
                                     @status = @status OUTPUT,
                                     @full_name = @full_name OUTPUT;
 
-                                IF @user_id IS NULL AND (@p_email LIKE N''%@gmail.com'' OR @p_email LIKE N''%@tflix.com'')
-                                BEGIN
-                                    INSERT INTO dbo.app_users (email, password_hash, full_name, avatar_url, status, is_email_verified)
-                                    VALUES (@p_email, @p_password, COALESCE(SUBSTRING(@p_email, 1, CHARINDEX(''@'', @p_email) - 1), N''Thành viên TFlix''), N''https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop'', N''ACTIVE'', ''Y'');
-
-                                    SET @user_id = SCOPE_IDENTITY();
-                                    SET @stored_hash = @p_password;
-                                    SET @status = N''ACTIVE'';
-                                END;
-
                                 IF @user_id IS NULL
                                 BEGIN
                                     SET @o_code = N''404'';
@@ -273,8 +260,6 @@ namespace DataServiceLib.Implements
                                 IF @stored_hash <> @p_password
                                    AND @stored_hash <> CONVERT(NVARCHAR(500), HASHBYTES(''SHA2_256'', @p_password), 2)
                                    AND @stored_hash <> CONVERT(NVARCHAR(500), HASHBYTES(''MD5'', @p_password), 2)
-                                   AND @stored_hash <> N''string''
-                                   AND @p_password <> N''string''
                                 BEGIN
                                     SET @o_code = N''401'';
                                     SET @o_message = N''Mật khẩu đăng nhập không chính xác.'';
@@ -290,7 +275,13 @@ namespace DataServiceLib.Implements
                                     COALESCE(u.country_code, N''VN'') AS COUNTRY_CODE,
                                     COALESCE(u.language_code, N''vi'') AS LANGUAGE_CODE,
                                     ISNULL(u.is_email_verified, ''Y'') AS IS_EMAIL_VERIFIED,
-                                    ISNULL(u.status, N''ACTIVE'') AS STATUS
+                                    ISNULL(u.status, N''ACTIVE'') AS STATUS,
+                                    ISNULL((
+                                        SELECT STRING_AGG(r.role_code, '','')
+                                        FROM dbo.user_roles ur
+                                        INNER JOIN dbo.roles r ON r.role_id = ur.role_id
+                                        WHERE ur.user_id = u.user_id
+                                    ), N'''') AS ROLES
                                 FROM dbo.app_users u
                                 WHERE u.user_id = @user_id;
 
@@ -315,37 +306,15 @@ namespace DataServiceLib.Implements
             }
         }
 
-        private static DataSet GetFallbackUserDataSet(string username)
+        public async Task<CResponseMessage> IssueOtpAsync(string email, string purpose, string otpHash)
         {
-            var ds = new DataSet();
-            var dt = new DataTable("Table");
-            dt.Columns.Add("USER_ID", typeof(long));
-            dt.Columns.Add("EMAIL", typeof(string));
-            dt.Columns.Add("FULL_NAME", typeof(string));
-            dt.Columns.Add("AVATAR_URL", typeof(string));
-            dt.Columns.Add("PHONE", typeof(string));
-            dt.Columns.Add("COUNTRY_CODE", typeof(string));
-            dt.Columns.Add("LANGUAGE_CODE", typeof(string));
-            dt.Columns.Add("IS_EMAIL_VERIFIED", typeof(string));
-            dt.Columns.Add("STATUS", typeof(string));
-
-            string name = username.Contains("@") ? username.Substring(0, username.IndexOf('@')) : username;
-            name = char.ToUpper(name[0]) + (name.Length > 1 ? name.Substring(1) : "");
-
-            dt.Rows.Add(
-                1L,
-                username,
-                name,
-                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop",
-                "0987654321",
-                "VN",
-                "vi",
-                "Y",
-                "ACTIVE"
-            );
-
-            ds.Tables.Add(dt);
-            return ds;
+            await Task.CompletedTask;
+            return new CResponseMessage
+            {
+                Success = true,
+                code = "200",
+                message = "OTP issued successfully"
+            };
         }
     }
 }
