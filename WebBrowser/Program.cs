@@ -1,10 +1,20 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using CommonLib.Logging;
 using WebBrowser.Services.Implements;
 using WebBrowser.Services.Implements.Episodes;
 using WebBrowser.Services.Implements.Movies;
 using WebBrowser.Services.Implements.Series;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Cấu hình File Logger ghi lỗi ra file txt
+builder.Logging.AddFileLogger(options =>
+{
+    options.LogDirectory = "Logs";
+    options.FileNamePrefix = "web_error";
+    options.MinLevel = LogLevel.Error;
+    options.RetainDays = 30;
+});
 
 // ? ??ng ký HttpClientFactory (fix l?i IHttpClientFactory)
 builder.Services.AddHttpClient();
@@ -44,6 +54,9 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPreviewService,
                            PreviewService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.INewsService,
                            NewsService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.ICommentService,
+                           WebBrowser.Services.Implements.CommentService>();
+builder.Services.AddSignalR();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>
     {
@@ -88,6 +101,7 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHub<WebBrowser.Hubs.CommentHub>("/commentHub");
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");

@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Http
+@using Microsoft.AspNetCore.Http
 
 @{
     // Lấy route hiện tại
@@ -26,7 +26,7 @@
         <!-- Brand -->
         <a class="navbar-brand d-flex align-items-center" asp-controller="Home" asp-action="Index">
             <img class="brand-logo"
-                 src="https://khgcepyhcwfblvflclvp.supabase.co/storage/v1/object/public/images/TFlix/ChatGPT%20Image%20Aug%2020,%202025,%2006_24_22%20PM.png"
+                 src="~/images/tflix-logo.png"
                  alt="TFlix Logo" />
         </a>
 
@@ -108,10 +108,16 @@
 
 <style>
     .navbar-brand .brand-logo {
-        max-height: 64px;
+        max-height: 48px;
         width: auto;
         object-fit: contain;
         display: block;
+        transition: transform 0.25s ease, filter 0.25s ease;
+    }
+
+    .navbar-brand:hover .brand-logo {
+        transform: scale(1.04);
+        filter: drop-shadow(0 0 8px rgba(229, 9, 20, 0.4));
     }
 
     .nav-link {

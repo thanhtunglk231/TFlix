@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.AuthDtos;
+using CoreLib.Dtos.AuthDtos;
 using DataServiceLib.Implements;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
@@ -38,7 +38,7 @@ namespace Server.Controllers
 
             // Nếu lỗi hệ thống thì cứ trả code trong body cho thống nhất
             if (response.code != "200")
-                return Ok(new { code = response.code, message = response.message, data = (object)null });
+                return Ok(new { code = response.code, success = false, message = response.message, data = (object)null });
 
             // Lấy user từ DataSet (bảng ở o_user ref cursor)
             var user = MapUserFromDataSet(response.Data as DataSet);
@@ -48,6 +48,7 @@ namespace Server.Controllers
             return Ok(new
             {
                 code = response.code,
+                success = true,
                 message = response.message,
                 data = new
                 {

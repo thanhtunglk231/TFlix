@@ -1,3 +1,5 @@
+using Microsoft.Data.SqlClient;
+using CommonLib.Logging;
 using DataServiceLib.Implements;
 using DataServiceLib.Implements.Admin;
 using DataServiceLib.Implements.Admin.CMS;
@@ -10,6 +12,15 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Cấu hình File Logger ghi lỗi ra file txt
+builder.Logging.AddFileLogger(options =>
+{
+    options.LogDirectory = "Logs";
+    options.FileNamePrefix = "server_error";
+    options.MinLevel = LogLevel.Error;
+    options.RetainDays = 30;
+});
 
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
@@ -38,6 +49,7 @@ builder.Services.AddScoped<ICSeriesGenres, CSeriesGenres>();
 builder.Services.AddScoped<IPreView, PreView>();
 builder.Services.AddScoped<ICHome, CHome>();
 builder.Services.AddScoped<ICNews, CNews>();
+builder.Services.AddScoped<ICComment, CComment>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var config = builder.Configuration;

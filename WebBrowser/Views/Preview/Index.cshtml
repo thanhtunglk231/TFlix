@@ -1,5 +1,5 @@
-﻿@using WebBrowser.Models.Preview
-@model PreviewItem
+@using WebBrowser.Models.Preview
+@model PreviewDetailsViewModel
 
 @{
     Layout = "/Views/Shared/_Layout.cshtml";
@@ -9,44 +9,49 @@
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
 
+    var item = Model?.Movie;
 
     // ===== MAP TỪ MODEL =====
-    var poster = Model?.PrimaryPosterUrl
-                 ?? Model?.PrimaryThumbUrl
-                 ?? "https://placehold.co/400x600?text=No+Poster";
+    var poster = item?.PrimaryPosterUrl
+                 ?? item?.PrimaryThumbUrl
+                 ?? "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
     
-    var title = Model?.title ?? "Đang cập nhật";
-    var original = Model?.OriginalTitle;
-    var year = Model?.ReleaseOrAirDate?.Year;
+    var title = item?.title ?? "Đang cập nhật";
+    var original = item?.OriginalTitle;
+    var year = item?.ReleaseOrAirDate?.Year;
 
-    var country = Model?.CountryName
-                  ?? Model?.CountryCode
-                  ?? "Đang cập nhật";
+    var country = !string.IsNullOrWhiteSpace(item?.CountryName) 
+                  ? item.CountryName 
+                  : (!string.IsNullOrWhiteSpace(item?.CountryCode) ? item.CountryCode : "Đang cập nhật");
 
-    var genres = Model?.genres ?? "Đang cập nhật";
+    var genres = !string.IsNullOrWhiteSpace(item?.genres) ? item.genres : "Đang cập nhật";
 
-    var lang = Model?.LanguageName
-               ?? Model?.LanguageCode
-               ?? "Đang cập nhật";
+    var lang = !string.IsNullOrWhiteSpace(item?.LanguageName) 
+               ? item.LanguageName 
+               : (!string.IsNullOrWhiteSpace(item?.LanguageCode) ? item.LanguageCode : "Đang cập nhật");
 
-    var duration = Model?.DurationMin != null
-        ? $"{Model.DurationMin} phút"
+    var duration = item?.DurationMin != null
+        ? $"{item.DurationMin} phút"
         : "Đang cập nhật";
 
-    // nếu phim lẻ thì cho là 1 tập
-    var episodeCount = 1;
+    var episodes = Model?.Episodes ?? new List<WebBrowser.Models.Episode.EpisodeItem>();
+    var episodeCount = episodes.Any() ? episodes.Count : 1;
 
-    var status = Model?.status ?? "Đang cập nhật";
+    var status = !string.IsNullOrWhiteSpace(item?.status) ? item.status : "Đang cập nhật";
 
-    // tạm thời chưa có rating từ SP
-    var rating = 0.0;
+    var rating = "8.5";
+    var casts = "Đang cập nhật";
 
-    var description = Model?.OverviewText ?? "Chưa có nội dung mô tả.";
+    var description = !string.IsNullOrWhiteSpace(item?.OverviewText) ? item.OverviewText : "Chưa có nội dung mô tả.";
 
-    var tags = (Model?.genres ?? "")
+    var tags = genres
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    var schedule = ""; // nếu sau này có lịch chiếu thì map thêm
+    var schedule = "";
+
+    var watchId = (item?.ContentId > 0) ? (long)item.ContentId : ((item?.Id > 0) ? item.Id : (item?.MovieId ?? 0));
+    var watchKind = !string.IsNullOrWhiteSpace(item?.kind) ? item.kind : "MOVIE";
+    var watchUrl = Url.Action("Watch", "Film", new { id = watchId, kind = watchKind }) ?? $"/Film/Watch?id={watchId}&kind={watchKind}";
 }
 
 @section Styles {
@@ -134,10 +139,12 @@
             border: 1px solid rgba(255,255,255,.08);
             padding: .35rem .7rem;
             border-radius: 10px;
+            text-decoration: none;
         }
 
             .pill:hover {
-                border-color: var(--brand)
+                border-color: var(--brand);
+                color: #fff;
             }
 
         .slist .item {
@@ -181,7 +188,7 @@
 
         <!-- Breadcrumb -->
         <nav class="crumb small mb-3">
-            <a asp-controller="Home" asp-action="Index">MỘT CHILL</a> /
+            <a asp-controller="Home" asp-action="Index">TFLIX</a> /
             <a href="#">@genres</a> /
             <span class="text-secondary" id="bcTitle">@title</span>
         </nav>
@@ -194,7 +201,7 @@
                         <div class="col-12 col-md-4">
                             <img id="poster" src="@poster" alt="@title" class="w-100 rounded-3" />
                             <div class="d-grid gap-2 mt-3">
-                                <a href="javascript:void(0)" class="btn btn-grad btn-lg btnWatch">
+                                <a href="@watchUrl" class="btn btn-grad btn-lg btnWatch">
                                     <i class="bi bi-play-fill me-1"></i>Xem phim
                                 </a>
                                 <a href="#" class="btn btn-outline-light btn-lg">
@@ -244,7 +251,7 @@
                                 <dd id="genresText" class="col-sm-8">@genres</dd>
 
                                 <dt class="col-sm-4">Diễn viên</dt>
-                                <dd id="casts" class="col-sm-8">tungdptrai</dd>
+                                <dd id="casts" class="col-sm-8">@casts</dd>
 
                                 <dt class="col-sm-4">Đánh giá</dt>
                                 <dd class="col-sm-8">
@@ -264,11 +271,22 @@
                         </div>
                     </div>
 
-                    <!-- Latest episodes (hiện demo) -->
+                    <!-- Latest episodes -->
                     <div class="mt-3">
-                        <div class="panel-h">TẬP MỚI NHẤT :</div>
+                        <div class="panel-h">DANH SÁCH TẬP :</div>
                         <div id="latestWrap" class="panel-b d-flex flex-wrap gap-2">
-                            <a href="javascript:void(0)" class="pill btnEp">Tập 1</a>
+                            @if (episodes.Any())
+                            {
+                                foreach (var ep in episodes)
+                                {
+                                    var epUrl = Url.Action("Watch", "Film", new { id = watchId, kind = watchKind, episodeId = ep.EpisodeId }) ?? watchUrl;
+                                    <a href="@epUrl" class="pill btnEp">Tập @ep.EpisodeNo</a>
+                                }
+                            }
+                            else
+                            {
+                                <a href="@watchUrl" class="pill btnEp">Tập 1</a>
+                            }
                         </div>
                     </div>
 
@@ -278,7 +296,18 @@
                         <div class="panel-b">
                             <p class="mb-2" id="description">@description</p>
                             <ul class="mb-0" id="descLinks">
-                                <li><a href="javascript:void(0)" class="btnEp">- @title tập 1</a></li>
+                                @if (episodes.Any())
+                                {
+                                    foreach (var ep in episodes)
+                                    {
+                                        var epUrl = Url.Action("Watch", "Film", new { id = watchId, kind = watchKind, episodeId = ep.EpisodeId }) ?? watchUrl;
+                                        <li><a href="@epUrl" class="btnEp text-decoration-none text-light">- @title - Tập @ep.EpisodeNo</a></li>
+                                    }
+                                }
+                                else
+                                {
+                                    <li><a href="@watchUrl" class="btnEp text-decoration-none text-light">- @title Tập 1</a></li>
+                                }
                             </ul>
                         </div>
                     </div>
@@ -301,7 +330,7 @@
                         </div>
                     </div>
 
-                    <!-- Schedule + comments (mock) -->
+                    <!-- Schedule + comments -->
                     <div class="mt-3">
                         <div class="panel-h">
                             LỊCH CHIẾU:
@@ -326,7 +355,7 @@
                                 <textarea class="form-control mb-3" rows="3" placeholder="Bình luận..."></textarea>
 
                                 <div class="mt-3 small label">
-                                    Plugin bình luận (demo). Khi triển khai thật, nhúng FB Comments hoặc hệ thống của bạn.
+                                    Hệ thống bình luận người dùng TFlix.
                                 </div>
                             </div>
                         </div>
@@ -335,46 +364,76 @@
                 </div>
             </div>
 
-            <!-- RIGHT -->
+            <!-- RIGHT SIDEBAR -->
             <div class="col-12 col-lg-4">
+                <!-- PHIM SẮP CHIẾU / GỢI Ý -->
                 <div class="panel mb-3">
                     <div class="panel-h">PHIM SẮP CHIẾU</div>
                     <div class="panel-b slist">
-                        @for (int i = 0; i < 3; i++)
+                        @if (Model?.UpcomingMovies != null && Model.UpcomingMovies.Any())
                         {
-                            <a class="item text-decoration-none text-light" href="#">
-                                <img class="thumb" src="https://picsum.photos/100/140?random=@(400 + i)" alt="thumb" />
-                                <div>
-                                    <div class="fw-semibold">Phim @i</div>
-                                    <div class="small label">2025</div>
-                                    <div class="small"><span class="star"><i class="bi bi-star-fill"></i></span> 8.@i</div>
-                                </div>
-                            </a>
+                            foreach (var mItem in Model.UpcomingMovies)
+                            {
+                                var mPoster = !string.IsNullOrEmpty(mItem.PosterUrl) ? mItem.PosterUrl : "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
+                                var mYear = mItem.ReleaseDate?.Year;
+                                var mRating = mItem.AvgRating.HasValue ? mItem.AvgRating.Value.ToString("0.0") : "8.5";
+                                <a class="item text-decoration-none text-light" href="@Url.Action("Details", "Preview", new { id = mItem.MovieId, kind = "movie" })">
+                                    <img class="thumb" src="@mPoster" alt="@mItem.Title" />
+                                    <div>
+                                        <div class="fw-semibold text-truncate" style="max-width: 180px;">@mItem.Title</div>
+                                        <div class="small label">@(mYear.HasValue ? mYear.Value.ToString() : "2025")</div>
+                                        <div class="small"><span class="star"><i class="bi bi-star-fill"></i></span> @mRating</div>
+                                    </div>
+                                </a>
+                            }
+                        }
+                        else
+                        {
+                            <div class="small text-muted">Chưa có thông tin phim sắp chiếu.</div>
                         }
                     </div>
                 </div>
 
+                <!-- TRENDING -->
                 <div class="panel mb-3">
                     <div class="panel-h">TRENDING</div>
                     <div class="panel-b">
-                        <ol class="mb-0 small">
-                            <li class="mb-2"><a href="#">@title</a> <span class="label">90 lượt quan tâm</span></li>
-                            <li class="mb-2"><a href="#">Cẩm Nguyệt Như Ca</a> <span class="label">54</span></li>
-                            <li class="mb-2"><a href="#">Hiên Nguyệt</a> <span class="label">43</span></li>
-                            <li class="mb-2"><a href="#">Từ trái Trường An</a> <span class="label">30</span></li>
-                            <li><a href="#">Ngự Tư Của Bạo Chúa</a> <span class="label">27</span></li>
-                        </ol>
+                        @if (Model?.TrendingMovies != null && Model.TrendingMovies.Any())
+                        {
+                            <ol class="mb-0 small ps-3">
+                                @foreach (var mItem in Model.TrendingMovies)
+                                {
+                                    <li class="mb-2">
+                                        <a href="@Url.Action("Details", "Preview", new { id = mItem.MovieId, kind = "movie" })" class="text-decoration-none text-light fw-medium">
+                                            @mItem.Title
+                                        </a>
+                                        <span class="label ms-1">(phim hot)</span>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                        else
+                        {
+                            <div class="small text-muted">Đang cập nhật danh sách trending.</div>
+                        }
                     </div>
                 </div>
 
+                <!-- TỪ KHOÁ NỔI BẬT -->
                 <div class="panel">
                     <div class="panel-h">TỪ KHOÁ NỔI BẬT</div>
                     <div class="panel-b d-flex flex-wrap gap-2" id="hotTags">
-                        <a href="#" class="chip"><i class="bi bi-hash"></i> võ thuật</a>
-                        <a href="#" class="chip"><i class="bi bi-hash"></i> huyền huyễn</a>
-                        <a href="#" class="chip"><i class="bi bi-hash"></i> học đường</a>
-                        <a href="#" class="chip"><i class="bi bi-hash"></i> gia đấu</a>
-                        <a href="#" class="chip"><i class="bi bi-hash"></i> lãng mạn</a>
+                        @if (Model?.HotTags != null && Model.HotTags.Any())
+                        {
+                            foreach (var tagItem in Model.HotTags)
+                            {
+                                <a href="/Movies?genreId=@tagItem.GenreId" class="chip"><i class="bi bi-hash"></i>@tagItem.GenreName</a>
+                            }
+                        }
+                        else
+                        {
+                            <span class="text-muted small">Đang cập nhật thể loại.</span>
+                        }
                     </div>
                 </div>
             </div>
@@ -403,8 +462,9 @@
         </div>
     </div>
 </div>
+
 @section Scripts {
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         // Kiểm tra trạng thái đăng nhập
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
@@ -419,16 +479,10 @@
             }
         }
 
-        // Chặn truy cập nếu chưa đăng nhập khi nhấn vào nút "Xem phim"
+        // Chặn truy cập nếu chưa đăng nhập khi nhấn vào nút "Xem phim" / "Tập phim"
         document.addEventListener('click', function (e) {
-            const t = e.target;
-            if (!t) return;
-
-            const isBtn =
-                t.classList.contains('btnWatch') ||
-                t.classList.contains('btnEp');
-
-            if (!isBtn) return;
+            const btn = e.target.closest('.btnWatch, .btnEp');
+            if (!btn) return;
 
             if (!isLoggedIn) {
                 e.preventDefault();
@@ -436,23 +490,5 @@
                 showLoginModal();
             }
         });
-
-        // Lấy id và kind từ URL
-        var url = new URL(window.location.href);
-        var para = new URLSearchParams(url.search);
-        var id = para.get('id');
-        var kind = para.get('kind');
-
-        // Điều hướng tới trang Film/Watch khi nhấn nút "Xem phim"
-        $(document).ready(function () {
-            $('.btnWatch').click(function () {
-                if (id && kind) {
-                    // Điều hướng tới trang Watch với các tham số id và kind
-                    console.log("Click xem phim");
-                    window.location.href = `/Film/Watch?id=${id}&kind=${kind}`;
-                }
-            });
-        });
     </script>
 }
-

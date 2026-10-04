@@ -85,5 +85,11 @@ namespace WebBrowser.Models.Preview
 
         [JsonProperty("primaryThumbUrl")]
         public string? PrimaryThumbUrl { get; set; }
+
+        [JsonProperty("casts")]
+        public string? Casts { get; set; }
+
+        [JsonProperty("rating")]
+        public double? Rating { get; set; }
     }
 }

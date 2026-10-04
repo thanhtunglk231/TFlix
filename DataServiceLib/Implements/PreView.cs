@@ -142,7 +142,9 @@ namespace DataServiceLib.Implements
                                 m.overview AS OverviewText,
                                 m.release_date AS ReleaseOrAirDate,
                                 m.duration_min AS DurationMin,
+                                c.country_name AS CountryName,
                                 m.country_code AS CountryCode,
+                                l.language_name AS LanguageName,
                                 m.language_code AS LanguageCode,
                                 m.status AS Status,
                                 m.is_premium AS IsPremiumYN,
@@ -153,8 +155,20 @@ namespace DataServiceLib.Implements
                                     FROM dbo.movie_genres mg
                                     JOIN dbo.genres g ON mg.genre_id = g.genre_id
                                     WHERE mg.movie_id = m.movie_id
-                                ) AS genres
+                                ) AS genres,
+                                (
+                                    SELECT STRING_AGG(p.full_name, N', ')
+                                    FROM dbo.movie_people mp
+                                    JOIN dbo.people p ON mp.person_id = p.person_id
+                                    WHERE mp.movie_id = m.movie_id
+                                ) AS Casts,
+                                ISNULL(
+                                    (SELECT AVG(CAST(r.rating_val AS FLOAT)) FROM dbo.ratings r WHERE r.movie_id = m.movie_id),
+                                    8.5
+                                ) AS Rating
                             FROM dbo.movies m
+                            LEFT JOIN dbo.countries c ON m.country_code = c.country_code
+                            LEFT JOIN dbo.languages l ON m.language_code = l.language_code
                             LEFT JOIN dbo.movie_assets ma ON m.movie_id = ma.movie_id AND ma.asset_type = N'POSTER'
                             LEFT JOIN dbo.video_sources vs ON m.movie_id = vs.movie_id
                             WHERE (@p_id IS NOT NULL AND m.movie_id = @p_id)

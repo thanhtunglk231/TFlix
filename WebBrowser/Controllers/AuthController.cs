@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.AuthDtos;
+using CoreLib.Dtos.AuthDtos;
 using CoreLib.Models;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -57,8 +57,19 @@ namespace WebBrowser.Controllers
                     if (data.user != null)
                         HttpContext.Session.SetString("CurrentUser", JsonConvert.SerializeObject(data.user));
 
-                    // Trả về đúng đối tượng phản hồi của backend dưới dạng JSON
-                    return new JsonResult(response) { StatusCode = 200 };
+                    // Trả về đúng đối tượng phản hồi dưới dạng JSON
+                    return new JsonResult(new
+                    {
+                        code = response.code ?? "200",
+                        success = true,
+                        message = response.message ?? "Đăng nhập thành công.",
+                        data = new
+                        {
+                            token = data.token,
+                            user = data.user
+                        }
+                    })
+                    { StatusCode = 200 };
                 }
 
                 // Thành công nhưng không có token
