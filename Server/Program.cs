@@ -49,6 +49,7 @@ builder.Services.AddScoped<ICSeriesGenres, CSeriesGenres>();
 builder.Services.AddScoped<IPreView, PreView>();
 builder.Services.AddScoped<ICHome, CHome>();
 builder.Services.AddScoped<ICNews, CNews>();
+builder.Services.AddScoped<ICComment, CComment>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var config = builder.Configuration;

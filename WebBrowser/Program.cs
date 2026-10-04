@@ -54,6 +54,9 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPreviewService,
                            PreviewService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.INewsService,
                            NewsService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.ICommentService,
+                           WebBrowser.Services.Implements.CommentService>();
+builder.Services.AddSignalR();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>
     {
@@ -98,6 +101,7 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHub<WebBrowser.Hubs.CommentHub>("/commentHub");
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");

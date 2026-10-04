@@ -1,3 +1,4 @@
+using CoreLib.Dtos.Comment;
 using CoreLib.Dtos.Preview;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,17 +15,20 @@ namespace WebBrowser.Controllers
         private readonly IEpisode _episodeService;
         private readonly IVideoSoureService _videoSourceService;
         private readonly ISeriesService _seriesService;
+        private readonly ICommentService _commentService;
 
         public FilmController(
             IPreviewService previewService,
             IEpisode episodeService,
             IVideoSoureService videoSourceService,
-            ISeriesService seriesService)
+            ISeriesService seriesService,
+            ICommentService commentService)
         {
             _previewService = previewService;
             _episodeService = episodeService;
             _videoSourceService = videoSourceService;
             _seriesService = seriesService;
+            _commentService = commentService;
         }
 
         public IActionResult Index()
@@ -111,6 +115,41 @@ namespace WebBrowser.Controllers
                 Sources = sources,
                 CurrentEpisodeId = currentEpisodeId
             });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetComments(long? movieId, long? episodeId)
+        {
+            var list = await _commentService.GetCommentsByContentAsync(movieId, episodeId);
+            return Json(new { success = true, data = list });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> PostComment([FromBody] CreateCommentDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Content))
+            {
+                return BadRequest(new { success = false, message = "Nội dung bình luận không được để trống" });
+            }
+
+            var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+            if (!string.IsNullOrEmpty(currentUserJson))
+            {
+                try
+                {
+                    var user = JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson);
+                    if (user != null)
+                    {
+                        dto.UserId = user.userId;
+                        dto.UserName = string.IsNullOrWhiteSpace(user.fullName) ? dto.UserName : user.fullName;
+                        dto.UserAvatar = string.IsNullOrWhiteSpace(user.avatarUrl) ? dto.UserAvatar : user.avatarUrl;
+                    }
+                }
+                catch { }
+            }
+
+            var result = await _commentService.AddCommentAsync(dto);
+            return Json(new { success = result != null, data = result });
         }
     }
 }
