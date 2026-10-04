@@ -2,9 +2,10 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using RestSharp;
 
 namespace DataServiceLib.Implements
@@ -12,22 +13,31 @@ namespace DataServiceLib.Implements
     public class SupabaseService : ISupabaseService
     {
         private readonly RestClient _client;
+        private readonly string _supabaseUrl;
+        private readonly string _storageBucket;
+        private readonly ILogger<SupabaseService> _logger;
 
-        public SupabaseService()
+        public SupabaseService(IConfiguration configuration, ILogger<SupabaseService> logger)
         {
-            if (string.IsNullOrWhiteSpace(SupabaseConfig.SupabaseUrl))
+            _logger = logger;
+            var supabase = configuration.GetSection("Supabase");
+            _supabaseUrl = supabase["Url"]?.TrimEnd('/') ?? string.Empty;
+            var apiKey = supabase["ApiKey"] ?? string.Empty;
+            _storageBucket = supabase["Bucket"] ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(_supabaseUrl))
                 throw new InvalidOperationException("SupabaseUrl chưa được cấu hình.");
-            if (string.IsNullOrWhiteSpace(SupabaseConfig.SupabaseApiKey))
+            if (string.IsNullOrWhiteSpace(apiKey))
                 throw new InvalidOperationException("SupabaseApiKey chưa được cấu hình.");
-            if (string.IsNullOrWhiteSpace(SupabaseConfig.StorageBucket))
+            if (string.IsNullOrWhiteSpace(_storageBucket))
                 throw new InvalidOperationException("StorageBucket chưa được cấu hình.");
 
-            var options = new RestClientOptions(SupabaseConfig.SupabaseUrl);
+            var options = new RestClientOptions(_supabaseUrl);
             _client = new RestClient(options);
 
             // Header mặc định cho mọi request
-            _client.AddDefaultHeader("apikey", SupabaseConfig.SupabaseApiKey);
-            _client.AddDefaultHeader("Authorization", $"Bearer {SupabaseConfig.SupabaseApiKey}");
+            _client.AddDefaultHeader("apikey", apiKey);
+            _client.AddDefaultHeader("Authorization", $"Bearer {apiKey}");
         }
 
         private static string EncodeObjectPath(string objectPath)
@@ -87,7 +97,7 @@ namespace DataServiceLib.Implements
             string encodedPath = EncodeObjectPath(objectPath);
 
             // Dùng đường dẫn tương đối vì đã set BaseUrl ở RestClient
-            var relativeUrl = $"/storage/v1/object/{SupabaseConfig.StorageBucket}/{encodedPath}";
+            var relativeUrl = $"/storage/v1/object/{_storageBucket}/{encodedPath}";
 
             var request = new RestRequest(relativeUrl, Method.Delete);
 
@@ -95,7 +105,11 @@ namespace DataServiceLib.Implements
             if (response.IsSuccessful)
                 return true;
 
-            Console.WriteLine($"Supabase Delete Error: {(int)response.StatusCode} - {response.Content}");
+            _logger.LogWarning(
+                response.ErrorException,
+                "Supabase delete failed with status {StatusCode}: {ErrorMessage}",
+                (int)response.StatusCode,
+                response.ErrorMessage);
             return false;
         }
 
@@ -108,6 +122,8 @@ namespace DataServiceLib.Implements
             if (file == null || file.Length == 0)
                 return null;
 
+            _logger.LogInformation("Uploading storage object with size {FileSize} bytes", file.Length);
+
             if (string.IsNullOrWhiteSpace(objectPath))
                 throw new ArgumentException("objectPath không được rỗng.", nameof(objectPath));
 
@@ -117,7 +133,7 @@ namespace DataServiceLib.Implements
             // Encode path (từng segment)
             var encodedPath = EncodeObjectPath(objectPath);
 
-            var relativeUrl = $"/storage/v1/object/{SupabaseConfig.StorageBucket}/{encodedPath}";
+            var relativeUrl = $"/storage/v1/object/{_storageBucket}/{encodedPath}";
 
             using var memoryStream = new MemoryStream();
             await file.CopyToAsync(memoryStream);
@@ -132,11 +148,16 @@ namespace DataServiceLib.Implements
             if (response.IsSuccessful)
             {
                 var publicUrl =
-                    $"{SupabaseConfig.SupabaseUrl}/storage/v1/object/public/{SupabaseConfig.StorageBucket}/{encodedPath}";
+                    $"{_supabaseUrl}/storage/v1/object/public/{_storageBucket}/{encodedPath}";
+                _logger.LogInformation("Supabase upload completed with status {StatusCode}", (int)response.StatusCode);
                 return publicUrl;
             }
 
-            Console.WriteLine("Supabase Upload Error: " + response.Content);
+            _logger.LogWarning(
+                response.ErrorException,
+                "Supabase upload failed with status {StatusCode}: {ErrorMessage}",
+                (int)response.StatusCode,
+                response.ErrorMessage);
             return null;
         }
 

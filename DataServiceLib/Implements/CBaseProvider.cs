@@ -1,6 +1,8 @@
 ﻿using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Data;
 
 namespace DataServiceLib.Implements
@@ -10,9 +12,11 @@ namespace DataServiceLib.Implements
         private SqlConnection _connection;
         private SqlCommand _command;
         private SqlDataAdapter _adapter;
+        private readonly ILogger<CBaseProvider> _logger;
 
-        public CBaseProvider()
+        public CBaseProvider(ILogger<CBaseProvider> logger)
         {
+            _logger = logger;
         }
 
         public bool OpenConnection(string connectionString)
@@ -23,13 +27,12 @@ namespace DataServiceLib.Implements
                 {
                     _connection = new SqlConnection(connectionString);
                     _connection.Open();
-                    Console.WriteLine("Opened SQL Server connection.");
                 }
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex + " Failed to open SQL Server connection.");
+                _logger.LogError(ex, "Failed to open SQL Server connection");
                 return false;
             }
         }
@@ -55,17 +58,18 @@ namespace DataServiceLib.Implements
                 _adapter?.Dispose();
                 _adapter = null;
 
-                Console.WriteLine("Closed SQL Server connection.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex + " Failed to close SQL Server connection.");
+                _logger.LogError(ex, "Failed to close SQL Server connection");
             }
         }
 
         public DataSet GetDatasetFromSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
             var dataset = new DataSet();
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation("Executing stored procedure {StoredProcedure}", spName);
 
             if (!OpenConnection(connectionString))
                 return dataset;
@@ -88,10 +92,15 @@ namespace DataServiceLib.Implements
 
                 _adapter = new SqlDataAdapter(_command);
                 _adapter.Fill(dataset);
+                _logger.LogInformation(
+                    "Stored procedure {StoredProcedure} completed in {ElapsedMilliseconds} ms with {ResultSetCount} result sets",
+                    spName,
+                    stopwatch.ElapsedMilliseconds,
+                    dataset.Tables.Count);
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                _logger.LogError(ex, "Stored procedure {StoredProcedure} failed", spName);
                 dataset = new DataSet();
             }
             finally
@@ -123,6 +132,8 @@ namespace DataServiceLib.Implements
         public bool ExecuteSP(string spName, IDbDataParameter[] parameters, string connectionString)
         {
             bool success = false;
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation("Executing stored procedure {StoredProcedure}", spName);
 
             if (!OpenConnection(connectionString))
                 return false;
@@ -145,10 +156,14 @@ namespace DataServiceLib.Implements
 
                 _command.ExecuteNonQuery();
                 success = true;
+                _logger.LogInformation(
+                    "Stored procedure {StoredProcedure} completed in {ElapsedMilliseconds} ms",
+                    spName,
+                    stopwatch.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                _logger.LogError(ex, "Stored procedure {StoredProcedure} failed", spName);
             }
             finally
             {

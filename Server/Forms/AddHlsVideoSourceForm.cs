@@ -2,6 +2,8 @@
 {
     public class AddHlsVideoSourceForm
     {
+        public decimal? SourceId { get; set; }
+        public string? OldStreamUrl { get; set; }
         public decimal? MovieId { get; set; }
         public decimal? EpisodeId { get; set; }
         public string? Provider { get; set; }

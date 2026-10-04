@@ -14,6 +14,7 @@ namespace CoreLib.Dtos.VideSoure
 
         public string Provider { get; set; } = "SUPABASE";
         public string? ServerName { get; set; } = "cdn-1";
+        public string? StreamUrl { get; set; }
         public string? Quality { get; set; }   // 1080p...
         public string? Format { get; set; }    // MP4/HLS/DASH
         public string? DrmType { get; set; }

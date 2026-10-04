@@ -1,4 +1,5 @@
 @using WebBrowser.Models.Film
+@using WebBrowser.Models.VideoSoure
 @model WatchViewModel
 
 @{
@@ -24,7 +25,19 @@
             ? x.EpisodeId == currentEpisodeId
             : x.MovieId == (int)content.ContentId)
         .ToList();
+    bool IsHlsSource(SourceItem source)
+    {
+        if (string.Equals(source.Format, "HLS", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var sourcePath = Uri.TryCreate(source.StreamUrl, UriKind.Absolute, out var sourceUri)
+            ? sourceUri.AbsolutePath
+            : source.StreamUrl?.Split('?', '#')[0];
+        return sourcePath?.EndsWith(".m3u8", StringComparison.OrdinalIgnoreCase) == true;
+    }
     var sources = currentSources
+        .OrderByDescending(IsHlsSource)
+        .ThenByDescending(x => x.IsPrimary)
         .Select(x => (label: $"{x.ServerName ?? x.Provider ?? "CDN"} • {x.Quality ?? "Auto"}", url: x.StreamUrl))
         .Where(x => !string.IsNullOrWhiteSpace(x.url))
         .ToList();
@@ -428,7 +441,8 @@
                             var act = episode.EpisodeId == currentEp ? "active" : "";
                             var episodeSource = Model.Sources
                                 .Where(x => x.EpisodeId == episode.EpisodeId)
-                                .OrderByDescending(x => x.IsPrimary)
+                                .OrderByDescending(IsHlsSource)
+                                .ThenByDescending(x => x.IsPrimary)
                                 .FirstOrDefault();
                             <div class="ep-item @act"
                                  data-ep="@episode.EpisodeId"
@@ -529,6 +543,15 @@
                 return (h>0?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
             }
 
+            function isHlsSource(url){
+                if (!url) return false;
+                try {
+                    return new URL(url, window.location.href).pathname.toLowerCase().endsWith('.m3u8');
+                } catch {
+                    return url.split(/[?#]/, 1)[0].toLowerCase().endsWith('.m3u8');
+                }
+            }
+
             function loadSource(url){
                 if (!isLoggedIn) {
                     guardAuth();
@@ -536,14 +559,40 @@
                 }
                 localStorage.setItem(movieKey + ":server", url);
 
-                if (url.endsWith(".m3u8") && window.Hls && Hls.isSupported()) {
-                    if (video.hlsInstance) { video.hlsInstance.destroy(); }
-                    const hls = new Hls({ maxBufferLength: 30 });
+                if (video.hlsInstance) {
+                    video.hlsInstance.destroy();
+                    video.hlsInstance = null;
+                }
+                video.pause();
+                video.removeAttribute('src');
+                video.load();
+
+                if (isHlsSource(url) && window.Hls && Hls.isSupported()) {
+                    const hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: false,
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 60,
+                        backBufferLength: 30
+                    });
+                    hls.on(Hls.Events.ERROR, (_event, data) => {
+                        if (!data.fatal) return;
+                        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                            hls.startLoad();
+                        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                            hls.recoverMediaError();
+                        } else {
+                            console.error('Fatal HLS playback error:', data.type, data.details);
+                            hls.destroy();
+                            video.hlsInstance = null;
+                        }
+                    });
                     hls.loadSource(url);
                     hls.attachMedia(video);
                     video.hlsInstance = hls;
+                } else if (isHlsSource(url) && video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url;
                 } else {
-                    if (video.hlsInstance) { video.hlsInstance.destroy(); video.hlsInstance = null; }
                     video.src = url;
                 }
 

@@ -12,17 +12,20 @@ namespace WebBrowser.Services.Implements
     {
         private readonly IHttpService _httpService;           // <-- đổi sang interface
         private readonly IHttpContextAccessor _http;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IHttpService httpService, IHttpContextAccessor http) // <-- inject interface
+        public AuthService(IHttpService httpService, IHttpContextAccessor http, ILogger<AuthService> logger) // <-- inject interface
         {
             _httpService = httpService;
             _http = http;
+            _logger = logger;
         }
 
         public async Task<CResponseMessage> LoginAsync(LoginDto loginDto)
         {
+            _logger.LogInformation("Calling authentication API");
             var resp = await _httpService.PostAsync<CResponseMessage>("/api/Auth/login", loginDto);
-            Console.WriteLine("LoginAsync");
+            _logger.LogInformation("Authentication API completed with code {ResponseCode}", resp?.code);
             // Thành công nếu Success == true hoặc code == "200"
             if (resp is { Data: not null } && (resp.Success || resp.code == "200"))
             {
@@ -31,7 +34,6 @@ namespace WebBrowser.Services.Implements
                 var data = JsonConvert.DeserializeObject<LoginResponseData>(dataJson);
 
                 var token = data?.token;
-                Console.WriteLine("LoginAsync Token: "+token);
                 if (!string.IsNullOrWhiteSpace(token))
                 {
                     _http.HttpContext?.Session.SetString("JWToken", token);
