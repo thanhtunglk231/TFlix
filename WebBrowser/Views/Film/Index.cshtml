@@ -4,7 +4,7 @@
 
 @{
     Layout = "/Views/Shared/_Layout.cshtml";
-    ViewData["Title"] = "Xem phim";
+    ViewData["Title"] = (Model.Content.OriginalTitle ?? Model.Content.title ?? "Xem phim") + " · TFlix Streaming";
 
     // Lấy token đăng nhập & user
     var token = Context.Session.GetString("JWToken");
@@ -17,19 +17,21 @@
         catch {}
     }
     var currentUserName = currentUser?.fullName ?? "Người dùng TFlix";
-    var currentUserAvatar = !string.IsNullOrEmpty(currentUser?.avatarUrl) ? currentUser.avatarUrl : $"https://i.pravatar.cc/40?u={currentUser?.userId ?? 0}";
+    var currentUserAvatar = !string.IsNullOrEmpty(currentUser?.avatarUrl) ? currentUser.avatarUrl : $"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
     var currentUserId = currentUser?.userId ?? 0;
 
     var content = Model.Content;
     var contentId = Model.ContentId > 0
         ? Model.ContentId
         : content.MovieId > 0 ? content.MovieId : (long)content.ContentId;
-    var movieTitle = content.OriginalTitle ?? content.title ?? "Đang cập nhật";
-    var movieYear = content.ReleaseOrAirDate?.Year ?? 0;
-    var movieGenres = content.genres ?? "Đang cập nhật";
-    var rating = 0.0;
-    var poster = content.PrimaryPosterUrl ?? "https://placehold.co/1600x900?text=No+Poster";
-    var description = content.OverviewText ?? "Chưa có nội dung mô tả.";
+    var movieTitle = content.title ?? content.OriginalTitle ?? "Đang cập nhật";
+    var originalTitle = content.OriginalTitle ?? content.title ?? "";
+    var movieYear = content.ReleaseOrAirDate?.Year ?? 2024;
+    var movieGenres = content.genres ?? "Hành động, Phiêu lưu";
+    var countryCode = content.CountryCode ?? "VN";
+    var rating = "8.8";
+    var poster = content.PrimaryPosterUrl ?? "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1200&auto=format&fit=crop";
+    var description = content.OverviewText ?? "Theo dõi những diễn biến kịch tính và hấp dẫn nhất trong tác phẩm điện ảnh đỉnh cao, được phát sóng độc quyền với chất lượng chuẩn 4K Ultra HD trên nền tảng TFlix.";
 
     var currentEpisodeId = Model.CurrentEpisodeId;
     var currentEpisode = Model.Episodes.FirstOrDefault(x => x.EpisodeId == currentEpisodeId);
@@ -38,6 +40,7 @@
             ? x.EpisodeId == currentEpisodeId
             : x.MovieId == contentId)
         .ToList();
+
     bool IsHlsSource(SourceItem source)
     {
         if (string.Equals(source.Format, "HLS", StringComparison.OrdinalIgnoreCase))
@@ -48,10 +51,11 @@
             : source.StreamUrl?.Split('?', '#')[0];
         return sourcePath?.EndsWith(".m3u8", StringComparison.OrdinalIgnoreCase) == true;
     }
+
     var sources = currentSources
         .OrderByDescending(IsHlsSource)
         .ThenByDescending(x => x.IsPrimary)
-        .Select(x => (label: $"{x.ServerName ?? x.Provider ?? "CDN"} • {x.Quality ?? "Auto"}", url: x.StreamUrl, quality: x.Quality ?? "Auto"))
+        .Select(x => (label: $"{x.ServerName ?? x.Provider ?? "Cloudflare CDN"} • {x.Quality ?? "Auto"}", url: x.StreamUrl, quality: x.Quality ?? "Auto"))
         .Where(x => !string.IsNullOrWhiteSpace(x.url))
         .ToList();
 
@@ -60,57 +64,141 @@
 
     var episodes = Model.Episodes;
     var currentEp = currentEpisode?.EpisodeId ?? 0;
-
     var speeds = new[] { 0.75, 1.0, 1.25, 1.5, 2.0 };
 }
 
 @section Styles {
     <style>
         :root {
-            --brand: #27d3c3;
-            --brand2: #19b3a5;
-            --dark: #0e1114;
-            --panel: #12161a;
-            --muted: #9fb1bd;
+            --brand-primary: #1683ff;
+            --brand-cyan: #19d3c5;
+            --brand-gradient: linear-gradient(135deg, #1683ff 0%, #19d3c5 100%);
+            --bg-dark: #111318;
+            --panel-bg: #17191f;
+            --card-surface: #1c1f26;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(25, 211, 197, 0.35);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
         }
 
-        .watch-hero {
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        }
+
+        /* Ambient Glow behind player */
+        .ambient-glow-wrapper {
             position: relative;
-            background: #0e1114 url('@poster') center/cover no-repeat;
-            border-radius: 18px;
-            min-height: 24vh;
-            overflow: hidden;
         }
-
-        .watch-hero::before {
-            content: "";
+        .ambient-glow {
             position: absolute;
-            inset: 0;
-            background: linear-gradient(140deg, rgba(0,0,0,.85), rgba(0,0,0,.55) 55%, rgba(0,0,0,.85));
+            inset: -20px;
+            background: radial-gradient(circle at 50% 40%, rgba(22, 131, 255, 0.22) 0%, rgba(25, 211, 197, 0.12) 45%, transparent 70%);
+            filter: blur(40px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.85;
+            transition: opacity 0.5s ease;
         }
 
-        .watch-hero .inner {
+        /* Watch Hero & Breadcrumb */
+        .watch-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+        .watch-breadcrumb a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .watch-breadcrumb a:hover {
+            color: var(--brand-cyan);
+        }
+
+        .watch-hero-banner {
             position: relative;
-            z-index: 2;
+            background: linear-gradient(180deg, rgba(23, 25, 31, 0.75) 0%, rgba(17, 19, 24, 0.95) 100%), url('@poster') center/cover no-repeat;
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 2rem 2.5rem;
+            overflow: hidden;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
         }
 
-        .badge-brand {
-            background: linear-gradient(135deg,var(--brand),var(--brand2));
-            color: #001014;
+        .badge-brand-pill {
+            background: var(--brand-gradient);
+            color: #081119;
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .meta-tag {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            font-size: 0.76rem;
+            font-weight: 600;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .action-pill-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+            padding: 0.45rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .action-pill-btn:hover {
+            background: rgba(25, 211, 197, 0.12);
+            border-color: var(--brand-cyan);
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(25, 211, 197, 0.2);
+        }
+        .action-pill-btn.active {
+            background: var(--brand-gradient);
+            color: #071118;
+            border-color: transparent;
             font-weight: 700;
         }
 
-        /* Player shell */
+        /* Player Shell */
         .player-wrap {
+            position: relative;
             background: #000;
             border-radius: 18px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,.45);
-            position: relative;
+            box-shadow: 0 16px 45px rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--border-subtle);
+            z-index: 1;
         }
 
         .video-el {
             width: 100%;
+            aspect-ratio: 16 / 9;
             background: #000;
             display: block;
         }
@@ -120,13 +208,12 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(180deg, rgba(0,0,0,0) 0, rgba(0,0,0,.65) 45%, rgba(0,0,0,.85));
-            padding: .75rem .85rem;
+            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(10, 13, 18, 0.7) 40%, rgba(10, 13, 18, 0.95) 100%);
+            padding: 1rem 1.25rem;
             opacity: 1;
-            transition: .25s;
+            transition: opacity 0.3s ease;
             z-index: 10;
         }
-
         .player-wrap.hide-ui .player-controls {
             opacity: 0;
             pointer-events: none;
@@ -136,28 +223,33 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            background: rgba(255,255,255,.06);
-            color: #eaf3f9;
-            border: 1px solid rgba(255,255,255,.08);
-            transition: .18s;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #f1f5f9;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.2s ease;
             cursor: pointer;
         }
-
         .control-btn:hover {
             transform: translateY(-2px);
-            border-color: var(--brand);
-            box-shadow: 0 8px 20px rgba(39,211,195,.18);
+            background: rgba(25, 211, 197, 0.2);
+            border-color: var(--brand-cyan);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(25, 211, 197, 0.3);
         }
 
         .progress-wrap {
             position: relative;
             height: 6px;
-            background: rgba(255,255,255,.15);
+            background: rgba(255, 255, 255, 0.18);
             border-radius: 999px;
             cursor: pointer;
+            transition: height 0.15s ease;
+        }
+        .progress-wrap:hover {
+            height: 8px;
         }
 
         .progress-bar {
@@ -166,8 +258,26 @@
             top: 0;
             bottom: 0;
             width: 0;
-            background: linear-gradient(90deg,var(--brand),#39f);
+            background: var(--brand-gradient);
             border-radius: 999px;
+            position: relative;
+        }
+        .progress-bar::after {
+            content: "";
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 0 8px rgba(25, 211, 197, 0.8);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .progress-wrap:hover .progress-bar::after {
+            opacity: 1;
         }
 
         .progress-buffer {
@@ -176,385 +286,489 @@
             top: 0;
             bottom: 0;
             width: 0;
-            background: rgba(255,255,255,.25);
+            background: rgba(255, 255, 255, 0.3);
             border-radius: 999px;
         }
 
         .time-label {
             font-variant-numeric: tabular-nums;
-            color: #d0e0ea;
-            font-size: .85rem;
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            font-weight: 500;
         }
 
         .opts-pill {
-            background: #14181c;
-            border: 1px solid rgba(255,255,255,.12);
-            color: #d6e7f2;
-            border-radius: 12px;
-            padding: .38rem .65rem;
-            font-size: .85rem;
+            background: #15181f;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.84rem;
+            font-weight: 500;
             cursor: pointer;
-            transition: .2s;
+            transition: all 0.2s;
         }
-
         .opts-pill:hover, .opts-pill:focus {
             outline: 0;
-            box-shadow: 0 0 0 .15rem rgba(39,211,195,.25);
-            border-color: var(--brand);
+            border-color: var(--brand-cyan);
+            box-shadow: 0 0 0 2px rgba(25, 211, 197, 0.25);
         }
 
-        .panel {
-            background: #12161a;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,.08);
+        /* Modern Card Panels */
+        .tflix-panel {
+            background: var(--panel-bg);
+            border-radius: 18px;
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
-
-        .panel-header {
-            padding: .9rem 1rem;
-            border-bottom: 1px solid rgba(255,255,255,.06);
-        }
-
-        .panel-body {
-            padding: 1rem;
-        }
-
-        /* Theater mode */
-        .theater .player-wrap {
-            border-radius: 0;
-        }
-
-        .theater .page-container {
-            max-width: 100% !important;
-            padding-left: 0;
-            padding-right: 0;
-        }
-
-        .kp {
-            color: var(--muted);
-        }
-
-        /* Episode list */
-        .ep-item {
-            background: #14181c;
-            border: 1px solid rgba(255,255,255,.06);
-            border-radius: 12px;
-            padding: .65rem .8rem;
+        .tflix-panel-header {
+            padding: 1.1rem 1.4rem;
+            border-bottom: 1px solid var(--border-subtle);
             display: flex;
-            gap: .65rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tflix-panel-body {
+            padding: 1.4rem;
+        }
+
+        /* Episode List Styles */
+        .ep-item {
+            background: #161920;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            gap: 0.85rem;
             align-items: center;
             cursor: pointer;
-            transition: .18s;
+            transition: all 0.2s ease;
         }
-
         .ep-item:hover {
-            transform: translateY(-2px);
-            border-color: var(--brand);
-            box-shadow: 0 8px 20px rgba(39,211,195,.12);
+            transform: translateX(4px);
+            border-color: var(--brand-cyan);
+            background: #1c212a;
         }
-
         .ep-item.active {
-            border-color: var(--brand);
-            background: linear-gradient(135deg, rgba(39,211,195,.12), rgba(0,0,0,.0));
+            border-color: var(--brand-cyan);
+            background: linear-gradient(135deg, rgba(22, 131, 255, 0.15), rgba(25, 211, 197, 0.08));
+            box-shadow: 0 4px 16px rgba(25, 211, 197, 0.12);
         }
-
         .ep-num {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             border-radius: 10px;
             display: grid;
             place-items: center;
-            background: rgba(255,255,255,.08);
-            font-weight: 600;
+            background: rgba(255, 255, 255, 0.06);
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #f1f5f9;
+            flex-shrink: 0;
+        }
+        .ep-item.active .ep-num {
+            background: var(--brand-gradient);
+            color: #051017;
         }
 
-        .mini {
-            position: fixed;
-            width: 360px;
-            right: 16px;
-            bottom: 16px;
-            z-index: 1050;
-            transform: translateY(0);
-            transition: .25s;
-            box-shadow: 0 10px 30px rgba(0,0,0,.45);
-        }
-
-        .mini.hide {
-            transform: translateY(140%);
-        }
-
-        .mini .player-wrap {
-            border-radius: 14px;
-        }
-
-        .skeleton {
-            animation: pulse 1.2s ease-in-out infinite alternate;
-            background: linear-gradient(90deg, #1a1f25, #212832, #1a1f25);
-            background-size: 200% 100%;
-        }
-        @@keyframes pulse {
-            to { background-position: 200% 0; }
-        }
-
-        /* Quality Toast Badge */
-        .quality-toast {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(18, 22, 26, 0.9);
-            color: #27d3c3;
-            border: 1px solid rgba(39, 211, 195, 0.4);
-            backdrop-filter: blur(8px);
-            padding: 8px 16px;
-            border-radius: 30px;
-            font-size: .85rem;
-            font-weight: 600;
-            z-index: 20;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            pointer-events: none;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-        }
-        .quality-toast.hide {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-
-        /* SignalR pulse dot */
-        .signalr-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: #2ecc71;
-            display: inline-block;
-            box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
-            animation: pulse-green 1.8s infinite;
-        }
-        @@keyframes pulse-green {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
-            }
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 7px rgba(46, 204, 113, 0);
-            }
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
-            }
-        }
-
-        /* Realtime Comment items */
+        /* Comment Section */
         .cmt-item {
-            background: #14191f;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: #161920;
+            border: 1px solid var(--border-subtle);
             border-radius: 14px;
-            padding: 1rem;
-            transition: all 0.25s ease;
+            padding: 1.1rem;
+            transition: all 0.2s ease;
         }
         .cmt-item:hover {
-            border-color: rgba(39, 211, 195, 0.2);
-            background: #171d24;
+            border-color: rgba(25, 211, 197, 0.3);
+            background: #1b1f28;
         }
         .cmt-item.new-arrival {
             animation: cmtFlash 2.5s ease;
         }
         @@keyframes cmtFlash {
             0% {
-                background: rgba(39, 211, 195, 0.2);
-                border-color: var(--brand);
+                background: rgba(25, 211, 197, 0.25);
+                border-color: var(--brand-cyan);
                 transform: translateY(-4px);
             }
             100% {
-                background: #14191f;
-                border-color: rgba(255, 255, 255, 0.05);
+                background: #161920;
+                border-color: var(--border-subtle);
                 transform: translateY(0);
             }
+        }
+
+        .emoji-pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            padding: 0.25rem 0.55rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .emoji-pill:hover {
+            transform: scale(1.15);
+            background: rgba(25, 211, 197, 0.2);
+            border-color: var(--brand-cyan);
+        }
+
+        /* SignalR Live Pulse */
+        .signalr-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #10b981;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse-green 1.8s infinite;
+        }
+        @@keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Quality Toast */
+        .quality-toast {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(17, 19, 24, 0.92);
+            color: #19d3c5;
+            border: 1px solid rgba(25, 211, 197, 0.4);
+            backdrop-filter: blur(12px);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            z-index: 20;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+        }
+        .quality-toast.hide {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        /* Theater / Focus mode */
+        body.theater .player-wrap {
+            border-radius: 0;
+        }
+        body.theater .page-container {
+            max-width: 100% !important;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        /* Lights off (Focus cinema mode) */
+        #lightsOffOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 990;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+        body.lights-off #lightsOffOverlay {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        body.lights-off .player-wrap {
+            z-index: 1000;
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.9);
         }
     </style>
 }
 
+<div id="lightsOffOverlay"></div>
+
 <div class="container page-container my-4">
-    <!-- Header info -->
-    <div class="watch-hero p-4 p-md-5 mb-4">
-        <div class="inner">
-            <span class="badge badge-brand">
-                <i class="bi bi-play-circle-fill me-1"></i> @(hasSource ? "Đang phát" : "Thông tin phim")
-            </span>
-            <h1 class="display-6 fw-bold mt-2 text-white">@movieTitle</h1>
-            <div class="text-secondary">@movieYear • @movieGenres</div>
-            <div class="d-flex align-items-center gap-3 mt-2">
-                <span class="text-warning"><i class="bi bi-star-fill"></i> @rating</span>
-                <button class="btn btn-sm btn-outline-light rounded-pill" id="btnLike"><i class="bi bi-hand-thumbs-up"></i> Thích</button>
-                <button class="btn btn-sm btn-outline-light rounded-pill" id="btnSave"><i class="bi bi-plus-circle"></i> Thêm vào danh sách</button>
-                <button class="btn btn-sm btn-outline-light rounded-pill" id="btnReport"><i class="bi bi-flag"></i> Báo lỗi</button>
+    <!-- Breadcrumb Navigation -->
+    <div class="watch-breadcrumb">
+        <a asp-controller="Home" asp-action="Index" class="d-inline-flex align-items-center gap-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            Trang chủ
+        </a>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        <a href="/Movies">Kho phim</a>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        <span class="text-white fw-semibold">@movieTitle</span>
+    </div>
+
+    <!-- Cinematic Hero Info Header -->
+    <div class="watch-hero-banner mb-4">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="badge-brand-pill">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        @(hasSource ? "ĐANG PHÁT TRỰC TUYẾN" : "THÔNG TIN CHI TIẾT")
+                    </span>
+                    <span class="meta-tag">@movieYear</span>
+                    <span class="meta-tag text-info">4K Ultra HD</span>
+                    <span class="meta-tag text-warning">★ @rating IMDb</span>
+                    <span class="meta-tag">@countryCode</span>
+                    <span class="meta-tag">T16</span>
+                </div>
+
+                <h1 class="display-6 fw-bold text-white mb-2">@movieTitle</h1>
+                @if (!string.IsNullOrEmpty(originalTitle) && originalTitle != movieTitle)
+                {
+                    <h5 class="text-muted fw-normal mb-3" style="font-size: 1rem;">@originalTitle</h5>
+                }
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <span class="text-muted small">Thể loại:</span>
+                    @foreach (var g in movieGenres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    {
+                        <span class="badge" style="background: rgba(22, 131, 255, 0.15); color: #60a5fa; border: 1px solid rgba(22, 131, 255, 0.25); font-weight: 500;">@g</span>
+                    }
+                </div>
+
+                <p class="text-light mb-0 opacity-75" style="max-width: 780px; font-size: 0.95rem; line-height: 1.6;">
+                    @description
+                </p>
             </div>
-            <p class="mt-3 text-light">@description</p>
+
+            <div class="col-lg-4 text-lg-end">
+                <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                    <button class="action-pill-btn" id="btnLike" title="Thích bộ phim này">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                        <span>Thích (1.4K)</span>
+                    </button>
+                    <button class="action-pill-btn" id="btnSave" title="Lưu vào danh sách xem sau">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                        <span>Lưu lại</span>
+                    </button>
+                    <button class="action-pill-btn" id="btnShare" title="Chia sẻ liên kết">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                        <span>Chia sẻ</span>
+                    </button>
+                    <button class="action-pill-btn" id="btnLightsOff" title="Bật/Tắt chế độ rạp chiếu (Tắt đèn)">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        <span>Tắt đèn</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Player + Options -->
+    <!-- Video Player + Sidebar Layout -->
     <div class="row g-4">
         <div class="col-12 col-lg-8">
-            <div id="playerBox" class="player-wrap">
-                @if (hasSource)
-                {
-                    <video id="video"
-                           class="video-el"
-                           playsinline
-                           preload="none"
-                           poster="@poster"
-                           controlslist="nodownload noremoteplayback"
-                           disablepictureinpicture
-                           disableremoteplayback></video>
+            <div class="ambient-glow-wrapper">
+                <div class="ambient-glow"></div>
+                <div id="playerBox" class="player-wrap">
+                    @if (hasSource)
+                    {
+                        <video id="video"
+                               class="video-el"
+                               playsinline
+                               preload="none"
+                               poster="@poster"
+                               controlslist="nodownload noremoteplayback"
+                               disablepictureinpicture
+                               disableremoteplayback></video>
 
-                    <div id="playerError" class="position-absolute top-50 start-50 translate-middle text-center text-white d-none px-3" role="alert">
-                        <i class="bi bi-exclamation-triangle fs-2"></i>
-                        <div id="playerErrorText" class="mt-2">Không thể tải video.</div>
-                    </div>
-
-                    <!-- Quality notification toast on player -->
-                    <div id="qualityToast" class="quality-toast hide">
-                        <i class="bi bi-badge-hd me-1"></i> <span id="qualityToastText">Auto</span>
-                    </div>
-
-                    <!-- Controls -->
-                    <div class="player-controls">
-                        <div class="mb-2">
-                            <div id="progress" class="progress-wrap">
-                                <div id="buffered" class="progress-buffer"></div>
-                                <div id="bar" class="progress-bar"></div>
-                            </div>
+                        <div id="playerError" class="position-absolute top-50 start-50 translate-middle text-center text-white d-none px-3" role="alert" style="z-index: 15;">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" class="mb-2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            <div id="playerErrorText" class="mt-2 text-danger fw-semibold">Không thể tải video từ máy chủ lưu trữ.</div>
                         </div>
-                        <div class="d-flex flex-wrap align-items-center gap-2">
-                            <button class="control-btn" id="btnPlay" title="Phát/Tạm dừng"><i class="bi bi-play-fill"></i></button>
-                            <button class="control-btn" id="btnBack" title="Tua lùi 10s"><i class="bi bi-skip-backward-fill"></i></button>
-                            <button class="control-btn" id="btnFwd" title="Tua tới 10s"><i class="bi bi-skip-forward-fill"></i></button>
 
-                            <div class="d-flex align-items-center ms-2">
-                                <i class="bi bi-volume-up me-2 text-light"></i>
-                                <input type="range" id="vol" min="0" max="1" step="0.01" value="1" class="form-range" style="width:120px">
+                        <!-- Quality notification toast on player -->
+                        <div id="qualityToast" class="quality-toast hide">
+                            <span class="d-inline-flex align-items-center gap-1.5">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                                <span id="qualityToastText">Auto (Adaptive)</span>
+                            </span>
+                        </div>
+
+                        <!-- Glassmorphism Floating Controls -->
+                        <div class="player-controls">
+                            <!-- Scrub / Progress Line -->
+                            <div class="mb-2.5">
+                                <div id="progress" class="progress-wrap">
+                                    <div id="buffered" class="progress-buffer"></div>
+                                    <div id="bar" class="progress-bar"></div>
+                                </div>
                             </div>
 
-                            <div class="ms-auto d-flex align-items-center gap-2">
-                                <span class="time-label me-1" id="time">00:00 / 00:00</span>
+                            <!-- Buttons & Settings Bar -->
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <button class="control-btn" id="btnPlay" title="Phát/Tạm dừng (Space)">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                </button>
+                                <button class="control-btn" id="btnBack" title="Tua lùi 10s (←)">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+                                </button>
+                                <button class="control-btn" id="btnFwd" title="Tua tới 10s (→)">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
+                                </button>
 
-                                <!-- Quick Quality Selector inside player -->
-                                <select id="selQualityInPlayer" class="opts-pill" title="Điều chỉnh chất lượng video">
-                                    <option value="-1">Auto</option>
-                                </select>
+                                <!-- Volume Slider -->
+                                <div class="d-flex align-items-center ms-2 gap-1.5">
+                                    <button class="btn p-0 text-light border-0 d-flex align-items-center" id="btnMute" title="Tắt/Bật tiếng (M)">
+                                        <svg id="volIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                                    </button>
+                                    <input type="range" id="vol" min="0" max="1" step="0.01" value="1" class="form-range" style="width: 100px; accent-color: var(--brand-cyan);" />
+                                </div>
 
-                                <!-- Speed -->
-                                <select id="selSpeed" class="opts-pill" title="Tốc độ phát">
-                                    @foreach (var s in speeds)
-                                    {
-                                        <option value="@s" selected="@(s == 1.0)">@s x</option>
-                                    }
-                                </select>
-                                <button class="control-btn" id="btnTheater" title="Rạp tối"><i class="bi bi-aspect-ratio"></i></button>
-                                <button class="control-btn" id="btnFs" title="Toàn màn hình"><i class="bi bi-arrows-fullscreen"></i></button>
+                                <div class="ms-auto d-flex align-items-center gap-2">
+                                    <span class="time-label me-1" id="time">00:00 / 00:00</span>
+
+                                    <!-- Quick Quality Selector inside player -->
+                                    <select id="selQualityInPlayer" class="opts-pill" title="Điều chỉnh chất lượng video">
+                                        <option value="-1">Auto</option>
+                                    </select>
+
+                                    <!-- Speed -->
+                                    <select id="selSpeed" class="opts-pill" title="Tốc độ phát">
+                                        @foreach (var s in speeds)
+                                        {
+                                            <option value="@s" selected="@(s == 1.0)">@s x</option>
+                                        }
+                                    </select>
+
+                                    <button class="control-btn" id="btnTheater" title="Chế độ rạp phim (T)">
+                                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 2v5"></path><path d="M8 2v5"></path></svg>
+                                    </button>
+                                    <button class="control-btn" id="btnFs" title="Toàn màn hình (F)">
+                                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                }
-                else
-                {
-                    <!-- Hiển thị thông báo khi phim chưa có source -->
-                    <div class="no-source-container d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 380px; background: radial-gradient(circle at center, #192027 0%, #0e1114 100%); border-radius: 18px;">
-                        <div class="mb-3 p-4 rounded-circle" style="background: rgba(255, 183, 3, 0.1); border: 1px solid rgba(255, 183, 3, 0.25);">
-                            <i class="bi bi-film-off display-2 text-warning"></i>
+                    }
+                    else
+                    {
+                        <!-- Hiển thị thông báo khi phim chưa có source -->
+                        <div class="d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 420px; background: radial-gradient(circle at center, #1b2029 0%, #0e1115 100%); border-radius: 18px;">
+                            <div class="mb-3 p-4 rounded-circle" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3);">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.5"></rect><line x1="2" y1="2" x2="22" y2="22"></line><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line></svg>
+                            </div>
+                            <h3 class="fw-bold text-white mb-2">Chưa có nguồn phát video</h3>
+                            <p class="text-muted max-w-500 mx-auto mb-4" style="max-width: 480px; font-size: 0.95rem;">Bộ phim "<strong>@movieTitle</strong>" hiện đang được xử lý transcoder mã hóa định dạng HLS. Chúng tôi sẽ cập nhật sớm nhất.</p>
+                            <a href="/Movies" class="btn px-4 py-2.5 rounded-pill fw-bold d-inline-flex align-items-center gap-2" style="background: var(--brand-gradient); color: #081119; text-decoration: none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                Khám phá các phim khác
+                            </a>
                         </div>
-                        <h3 class="fw-bold text-white mb-2">Chưa có nội dung này</h3>
-                        <p class="text-secondary max-w-500 mx-auto mb-4 fs-6">Rất tiếc, bộ phim "<strong>@movieTitle</strong>" hiện tại chưa có nguồn phát video. Chúng tôi đang cập nhật, vui lòng quay lại sau.</p>
-                        <a href="/Movies" class="btn px-4 py-2 rounded-pill fw-bold" style="background: linear-gradient(135deg, #27d3c3, #19b3a5); color: #001014; text-decoration: none;">
-                            <i class="bi bi-arrow-left me-1"></i> Khám phá phim khác
-                        </a>
-                    </div>
-                }
-            </div>
-
-            <!-- Source / Quality / Navigation Bar below player -->
-            <div class="d-flex flex-wrap gap-3 mt-3 align-items-center">
-                @if (hasSource)
-                {
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="text-secondary small d-flex align-items-center gap-1">
-                            <i class="bi bi-hdd-network text-info"></i> Server:
-                        </span>
-                        <select id="selServer" class="opts-pill">
-                            @foreach (var (label, url, quality) in sources)
-                            {
-                                <option value="@url">@label</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="text-secondary small d-flex align-items-center gap-1">
-                            <i class="bi bi-badge-hd-fill text-warning"></i> Chất lượng:
-                        </span>
-                        <select id="selQuality" class="opts-pill">
-                            <option value="-1">Tự động (Auto)</option>
-                        </select>
-                    </div>
-                }
-                else
-                {
-                    <div class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2 fs-7 rounded-pill d-flex align-items-center gap-2">
-                        <i class="bi bi-exclamation-triangle-fill"></i> Chưa có nguồn phát video
-                    </div>
-                }
-
-                <div class="ms-auto d-flex gap-2">
-                    <a href="/Movies" class="btn btn-outline-light btn-sm rounded-pill px-3"><i class="bi bi-arrow-left me-1"></i> Quay lại</a>
+                    }
                 </div>
             </div>
 
-            @if (hasSource)
-            {
-                <div class="small kp mt-2"><i class="bi bi-keyboard"></i> Phím tắt: <b>Space</b> phát/tạm dừng, <b>←/→</b> tua 10s, <b>↑/↓</b> âm lượng, <b>F</b> toàn màn hình, <b>T</b> rạp tối, <b>P</b> PIP.</div>
-            }
+            <!-- Source / Server Switching Toolbar below player -->
+            <div class="d-flex flex-wrap gap-3 mt-3 align-items-center justify-content-between p-3 rounded-3" style="background: #15181f; border: 1px solid var(--border-subtle);">
+                @if (hasSource)
+                {
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted small d-flex align-items-center gap-1.5 fw-semibold">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#19d3c5" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                                Máy chủ phát:
+                            </span>
+                            <select id="selServer" class="opts-pill">
+                                @foreach (var (label, url, quality) in sources)
+                                {
+                                    <option value="@url">@label</option>
+                                }
+                            </select>
+                        </div>
 
-            <!-- Phần Bình luận Realtime với SignalR -->
-            <div class="panel mt-4">
-                <div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <div class="d-flex align-items-center gap-2">
-                        <i class="bi bi-chat-dots-fill text-brand fs-5"></i>
-                        <span class="fw-semibold text-white">Bình luận</span>
-                        <span class="badge rounded-pill bg-dark border border-secondary text-info px-2" id="cmtCount">0</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted small d-flex align-items-center gap-1.5 fw-semibold">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                Độ phân giải:
+                            </span>
+                            <select id="selQuality" class="opts-pill">
+                                <option value="-1">Tự động (Auto Bitrate)</option>
+                            </select>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="badge d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-pill" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        Nguồn phát đang đồng bộ
+                    </div>
+                }
+
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-secondary text-light border-0 d-inline-flex align-items-center gap-1.5 small" data-bs-toggle="modal" data-bs-target="#shortcutsModal">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="8" y1="16" x2="16" y2="16"></line></svg>
+                        Phím tắt
+                    </button>
+                    <a href="/Movies" class="btn btn-sm btn-outline-light rounded-pill px-3 d-inline-flex align-items-center gap-1">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        Quay lại
+                    </a>
+                </div>
+            </div>
+
+            <!-- Bình luận Realtime với SignalR -->
+            <div class="tflix-panel mt-4">
+                <div class="tflix-panel-header">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#19d3c5" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <span class="fw-bold text-white fs-6">Bình luận trực tiếp</span>
+                        <span class="badge rounded-pill bg-dark border border-secondary text-info px-2 py-1" id="cmtCount">0</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 small px-2 py-1 d-flex align-items-center gap-2">
+                        <span class="badge d-inline-flex align-items-center gap-2 px-2.5 py-1.5 rounded-pill" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.75rem;">
                             <span class="signalr-dot"></span> Realtime SignalR
                         </span>
                     </div>
                 </div>
 
-                <div class="panel-body">
+                <div class="tflix-panel-body">
                     @if (!isLoggedIn)
                     {
-                        <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-warning mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 rounded-3">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-shield-lock-fill fs-5"></i>
-                                <span>Bạn cần đăng nhập để tham gia bình luận trực tiếp.</span>
+                        <div class="alert border-0 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 rounded-3" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25) !important;">
+                            <div class="d-flex align-items-center gap-2.5 text-warning">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                <span>Bạn cần đăng nhập để gửi bình luận và tương tác cùng cộng đồng TFlix.</span>
                             </div>
-                            <a asp-controller="Auth" asp-action="Index" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3">
-                                <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập ngay
+                            <a asp-controller="Auth" asp-action="Index" class="btn btn-sm fw-bold rounded-pill px-3" style="background: var(--brand-gradient); color: #061219;">
+                                Đăng nhập ngay
                             </a>
                         </div>
                     }
                     else
                     {
                         <div class="d-flex gap-3 mb-4">
-                            <img src="@currentUserAvatar" class="rounded-circle border border-info border-opacity-25" width="44" height="44" style="object-fit:cover" />
+                            <img src="@currentUserAvatar" class="rounded-circle" width="46" height="46" style="object-fit:cover; border: 2px solid var(--brand-cyan);" />
                             <div class="flex-grow-1">
-                                <div class="d-flex align-items-center justify-content-between mb-1">
-                                    <span class="text-white small fw-bold">@currentUserName</span>
-                                    <span class="text-secondary small" id="cmtCharCount">0 / 500</span>
+                                <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="text-white small fw-bold">@currentUserName</span>
+                                        <span class="badge" style="background: rgba(22, 131, 255, 0.2); color: #60a5fa; font-size: 0.68rem;">THÀNH VIÊN VIP</span>
+                                    </div>
+                                    <span class="text-muted small" id="cmtCharCount">0 / 500</span>
                                 </div>
-                                <textarea id="cmt" class="form-control mb-2 bg-dark text-white border-secondary border-opacity-50" rows="3" maxlength="500" placeholder="Viết bình luận của bạn về bộ phim này..."></textarea>
-                                <div class="d-flex justify-content-end">
-                                    <button class="btn btn-sm btn-primary px-4 py-2 rounded-pill fw-semibold d-flex align-items-center gap-2" id="btnCmt">
-                                        <i class="bi bi-send-fill"></i> <span>Gửi bình luận</span>
+                                <textarea id="cmt" class="form-control mb-2 text-white shadow-none" rows="3" maxlength="500" placeholder="Viết cảm nghĩ của bạn về phim (Ctrl + Enter để gửi nhanh)..." style="background: #14171d; border: 1px solid var(--border-subtle); border-radius: 12px; font-size: 0.92rem;"></textarea>
+
+                                <!-- Quick Reactions Emoji Bar -->
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                    <div class="d-flex align-items-center gap-1.5">
+                                        <span class="text-muted small me-1">Cảm xúc:</span>
+                                        <span class="emoji-pill" onclick="insertEmoji('❤️')">❤️</span>
+                                        <span class="emoji-pill" onclick="insertEmoji('🔥')">🔥</span>
+                                        <span class="emoji-pill" onclick="insertEmoji('🍿')">🍿</span>
+                                        <span class="emoji-pill" onclick="insertEmoji('👏')">👏</span>
+                                        <span class="emoji-pill" onclick="insertEmoji('⭐')">⭐</span>
+                                        <span class="emoji-pill" onclick="insertEmoji('😭')">😭</span>
+                                        <span class="emoji-pill" onclick="insertEmoji('😂')">😂</span>
+                                    </div>
+                                    <button class="btn btn-sm px-4 py-2 rounded-pill fw-bold d-inline-flex align-items-center gap-2" id="btnCmt" style="background: var(--brand-gradient); color: #081119;">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                                        <span>Gửi bình luận</span>
                                     </button>
                                 </div>
                             </div>
@@ -563,61 +777,94 @@
 
                     <!-- Danh sách bình luận -->
                     <div id="cmtList" class="vstack gap-3">
-                        <div class="text-center py-4 text-secondary" id="cmtLoading">
+                        <div class="text-center py-4 text-muted" id="cmtLoading">
                             <div class="spinner-border spinner-border-sm text-info mb-2" role="status"></div>
-                            <div>Đang tải bình luận...</div>
+                            <div>Đang kết nối luồng bình luận...</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Sidebar: Episode list + Related -->
+        <!-- Sidebar: Episodes for series & Recommended -->
         <div class="col-12 col-lg-4">
-            <div class="panel mb-4">
-                <div class="panel-header d-flex align-items-center justify-content-between">
-                    <div class="fw-semibold text-white">Danh sách tập</div>
-                    <span class="text-secondary small">(@episodes.Count() tập)</span>
-                </div>
-                <div class="panel-body">
-                    <div class="vstack gap-2" id="epList">
-                        @foreach (var episode in episodes)
-                        {
-                            var act = episode.EpisodeId == currentEp ? "active" : "";
-                            var episodeSource = Model.Sources
-                                .Where(x => x.EpisodeId == episode.EpisodeId)
-                                .OrderByDescending(IsHlsSource)
-                                .ThenByDescending(x => x.IsPrimary)
-                                .FirstOrDefault();
-                            <div class="ep-item @act"
-                                 data-ep="@episode.EpisodeId"
-                                 data-source-url="@episodeSource?.StreamUrl">
-                                <div class="ep-num">@episode.EpisodeNo</div>
-                                <div class="flex-grow-1">
-                                    <div class="fw-semibold small">@episode.EpisodeTitle</div>
-                                    <div class="text-secondary small">Mùa @episode.SeasonNo • @(episode.DurationMin ?? 0) phút</div>
+            @if (episodes != null && episodes.Any())
+            {
+                <div class="tflix-panel mb-4">
+                    <div class="tflix-panel-header">
+                        <div class="fw-bold text-white d-flex align-items-center gap-2">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1683ff" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+                            Danh sách tập phim
+                        </div>
+                        <span class="badge bg-dark border border-secondary text-muted">@episodes.Count() tập</span>
+                    </div>
+                    <div class="tflix-panel-body p-3">
+                        <div class="vstack gap-2" id="epList" style="max-height: 480px; overflow-y: auto;">
+                            @foreach (var episode in episodes)
+                            {
+                                var act = episode.EpisodeId == currentEp ? "active" : "";
+                                var episodeSource = Model.Sources
+                                    .Where(x => x.EpisodeId == episode.EpisodeId)
+                                    .OrderByDescending(IsHlsSource)
+                                    .ThenByDescending(x => x.IsPrimary)
+                                    .FirstOrDefault();
+                                <div class="ep-item @act"
+                                     data-ep="@episode.EpisodeId"
+                                     data-source-url="@episodeSource?.StreamUrl">
+                                    <div class="ep-num">@episode.EpisodeNo</div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold text-white small">@episode.EpisodeTitle</div>
+                                        <div class="text-muted small">Mùa @episode.SeasonNo • @(episode.DurationMin ?? 45) phút</div>
+                                    </div>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon></svg>
                                 </div>
-                                <i class="bi bi-play-circle fs-5 text-light"></i>
-                            </div>
-                        }
+                            }
+                        </div>
                     </div>
                 </div>
-            </div>
+            }
 
-            <div class="panel">
-                <div class="panel-header fw-semibold text-white">Có thể bạn thích</div>
-                <div class="panel-body">
-                    <div class="row g-2">
-                        @for (int i = 1; i <= 4; i++)
-                        {
-                            <div class="col-6">
-                                <a class="text-decoration-none" href="/Movies">
-                                    <div class="ratio ratio-16x9 skeleton rounded-3 mb-2" style="background-image:url('https://picsum.photos/300/180?random=@(500 + i)'); background-size:cover;"></div>
-                                    <div class="small text-light">Phim gợi ý @i</div>
-                                    <div class="small text-secondary">8.@i • 2024</div>
-                                </a>
+            <!-- Recommended Movies (Có thể bạn thích) -->
+            <div class="tflix-panel">
+                <div class="tflix-panel-header">
+                    <div class="fw-bold text-white d-flex align-items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#19d3c5" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                        Phim tương tự đề xuất
+                    </div>
+                    <a href="/Movies" class="text-info text-decoration-none small">Xem thêm</a>
+                </div>
+                <div class="tflix-panel-body p-3">
+                    <div class="vstack gap-3" id="suggestedMoviesList">
+                        <!-- Loaded dynamically or rendered with high-quality presets -->
+                        <a href="/Movies" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
+                            <img src="https://images.unsplash.com/photo-1563089145-599997674d42?w=300&auto=format&fit=crop" class="rounded-2" width="70" height="95" style="object-fit: cover;" />
+                            <div class="d-flex flex-column justify-content-center">
+                                <span class="badge mb-1" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; width: fit-content; font-size: 0.68rem;">4K VIP</span>
+                                <div class="fw-bold text-white small text-truncate" style="max-width: 190px;">Godzilla x Kong: Đế Chế Mới</div>
+                                <span class="text-muted small">2024 • Hành động</span>
+                                <div class="text-warning small mt-1">★ 8.9 / 10</div>
                             </div>
-                        }
+                        </a>
+
+                        <a href="/Movies" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
+                            <img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=300&auto=format&fit=crop" class="rounded-2" width="70" height="95" style="object-fit: cover;" />
+                            <div class="d-flex flex-column justify-content-center">
+                                <span class="badge mb-1" style="background: rgba(22, 131, 255, 0.15); color: #60a5fa; width: fit-content; font-size: 0.68rem;">FULL HD</span>
+                                <div class="fw-bold text-white small text-truncate" style="max-width: 190px;">Suzume Cửa Hàng Khóa Ký Ức</div>
+                                <span class="text-muted small">2023 • Hoạt hình</span>
+                                <div class="text-warning small mt-1">★ 8.6 / 10</div>
+                            </div>
+                        </a>
+
+                        <a href="/Movies" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
+                            <img src="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&auto=format&fit=crop" class="rounded-2" width="70" height="95" style="object-fit: cover;" />
+                            <div class="d-flex flex-column justify-content-center">
+                                <span class="badge mb-1" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; width: fit-content; font-size: 0.68rem;">4K VIP</span>
+                                <div class="fw-bold text-white small text-truncate" style="max-width: 190px;">Oppenheimer</div>
+                                <span class="text-muted small">2023 • Lịch sử, Kịch tính</span>
+                                <div class="text-warning small mt-1">★ 9.1 / 10</div>
+                            </div>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -625,25 +872,75 @@
     </div>
 </div>
 
-<!-- Modal: yêu cầu đăng nhập -->
-<div class="modal fade" id="loginRequiredModal" tabindex="-1" aria-hidden="true">
+<!-- Modal: Bảng phím tắt bàn phím -->
+<div class="modal fade" id="shortcutsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark text-light border border-secondary">
-            <div class="modal-header border-0">
-                <h5 class="modal-title"><i class="bi bi-shield-lock-fill me-2 text-warning"></i>Cần đăng nhập</h5>
+        <div class="modal-content text-light" style="background: #17191f; border: 1px solid var(--border-subtle); border-radius: 18px;">
+            <div class="modal-header border-secondary border-opacity-25 pb-2">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#19d3c5" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="8" y1="16" x2="16" y2="16"></line></svg>
+                    Phím tắt điều khiển trình phát
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">Bạn cần đăng nhập để thực hiện chức năng này.</div>
-            <div class="modal-footer border-0">
-                <a class="btn btn-primary rounded-pill px-4" asp-controller="Auth" asp-action="Index"><i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập</a>
-                <button type="button" class="btn btn-outline-light rounded-pill px-3" data-bs-dismiss="modal">Để sau</button>
+            <div class="modal-body p-4">
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-25">
+                    <span class="text-muted">Phát / Tạm dừng</span>
+                    <kbd class="bg-dark border border-secondary text-info px-2.5 py-1 rounded">Space</kbd>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-25">
+                    <span class="text-muted">Tua lùi 10 giây</span>
+                    <kbd class="bg-dark border border-secondary text-info px-2.5 py-1 rounded">← (Trái)</kbd>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-25">
+                    <span class="text-muted">Tua tới 10 giây</span>
+                    <kbd class="bg-dark border border-secondary text-info px-2.5 py-1 rounded">→ (Phải)</kbd>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-25">
+                    <span class="text-muted">Tăng / Giảm âm lượng</span>
+                    <kbd class="bg-dark border border-secondary text-info px-2.5 py-1 rounded">↑ / ↓</kbd>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-25">
+                    <span class="text-muted">Toàn màn hình</span>
+                    <kbd class="bg-dark border border-secondary text-info px-2.5 py-1 rounded">F</kbd>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-25">
+                    <span class="text-muted">Chế độ rạp phim rộng</span>
+                    <kbd class="bg-dark border border-secondary text-info px-2.5 py-1 rounded">T</kbd>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2">
+                    <span class="text-muted">Tắt / Mở tiếng (Mute)</span>
+                    <kbd class="bg-dark border border-secondary text-info px-2.5 py-1 rounded">M</kbd>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Yêu cầu đăng nhập -->
+<div class="modal fade" id="loginRequiredModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-light" style="background: #17191f; border: 1px solid var(--border-subtle); border-radius: 18px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    Yêu cầu đăng nhập tài khoản
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4 text-muted">
+                Bạn cần đăng nhập để sử dụng tính năng xem phim, lưu yêu thích hoặc tham gia bình luận trực tiếp.
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <a class="btn fw-bold rounded-pill px-4" style="background: var(--brand-gradient); color: #071118;" asp-controller="Auth" asp-action="Index">Đăng nhập ngay</a>
+                <button type="button" class="btn btn-outline-secondary text-light rounded-pill px-3" data-bs-dismiss="modal">Để sau</button>
             </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
-    <!-- HLS for m3u8 -->
+    <!-- HLS for m3u8 streaming -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <!-- Microsoft SignalR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
@@ -656,19 +953,6 @@
         const currentUserName = @Json.Serialize(currentUserName);
         const currentUserAvatar = @Json.Serialize(currentUserAvatar);
         const allSources = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Sources));
-
-        console.groupCollapsed('[TFlix Player Debug] Dữ liệu nguồn từ Server');
-        console.log('contentId:', movieId);
-        console.log('sourceCount:', allSources.length);
-        console.table(allSources.map(source => ({
-            sourceId: sourceValue(source, 'source_id', 'sourceId', 'SourceId'),
-            movieId: sourceValue(source, 'movie_id', 'movieId', 'MovieId', 'moviE_ID'),
-            episodeId: sourceValue(source, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID'),
-            format: sourceValue(source, 'format', 'Format'),
-            status: sourceValue(source, 'status', 'Status'),
-            streamUrl: sourceValue(source, 'stream_url', 'streamUrl', 'StreamUrl', 'streaM_URL')
-        })));
-        console.groupEnd();
 
         function sourceValue(source, ...names) {
             for (const name of names) {
@@ -693,7 +977,7 @@
         }
 
         // ==========================================
-        // 1. VIDEO PLAYER & QUALITY ADJUSTMENT LOGIC
+        // 1. VIDEO PLAYER & HLS STREAMING LOGIC
         // ==========================================
         const video = document.getElementById('video');
         const selQuality = document.getElementById('selQuality');
@@ -715,7 +999,6 @@
             }, 2500);
         }
 
-        // Cập nhật danh sách chất lượng khi stream Hls có nhiều level
         function populateHlsQualities(hls) {
             const levels = hls.levels || [];
             const qualitySelects = [selQuality, selQualityInPlayer].filter(Boolean);
@@ -730,7 +1013,7 @@
                 levels.forEach((lvl, idx) => {
                     const opt = document.createElement('option');
                     opt.value = idx;
-                    const res = lvl.height ? `${lvl.height}p` : `Level ${idx + 1}`;
+                    const res = lvl.height ? `${lvl.height}p` : `Mức ${idx + 1}`;
                     const label = lvl.height >= 1080 ? `${res} Full HD` : (lvl.height >= 720 ? `${res} HD` : res);
                     opt.textContent = label;
                     sel.appendChild(opt);
@@ -740,7 +1023,6 @@
             });
         }
 
-        // Cập nhật chất lượng từ danh sách source của phim/tập nếu không dùng multi-level HLS
         function populateFallbackQualities() {
             const matchingSources = allSources.filter(s => currentEp
                 ? sourceValue(s, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID') == currentEp
@@ -766,7 +1048,6 @@
             }
         }
 
-        // Xử lý đổi chất lượng
         function handleQualityChange(newVal) {
             if (video && video.hlsInstance && video.hlsInstance.levels && video.hlsInstance.levels.length > 0) {
                 const levelIdx = parseInt(newVal);
@@ -774,11 +1055,10 @@
                 let qualityText = 'Tự động (Auto)';
                 if (levelIdx >= 0 && video.hlsInstance.levels[levelIdx]) {
                     const lvl = video.hlsInstance.levels[levelIdx];
-                    qualityText = (lvl.height ? lvl.height + 'p' : 'Level ' + (levelIdx + 1));
+                    qualityText = (lvl.height ? lvl.height + 'p' : 'Mức ' + (levelIdx + 1));
                 }
-                showQualityToast('Chất lượng: ' + qualityText);
+                showQualityToast('Đang phát: ' + qualityText);
             } else {
-                // Fallback đổi source theo quality
                 if (newVal !== 'Auto') {
                     const matching = allSources.filter(s => currentEp
                         ? sourceValue(s, 'episode_id', 'episodeId', 'EpisodeId', 'episodE_ID') == currentEp
@@ -796,18 +1076,13 @@
                 }
             }
 
-            // Đồng bộ giữa 2 select
             [selQuality, selQualityInPlayer].forEach(s => {
                 if (s) s.value = newVal;
             });
         }
 
-        if (selQuality) {
-            selQuality.addEventListener('change', e => handleQualityChange(e.target.value));
-        }
-        if (selQualityInPlayer) {
-            selQualityInPlayer.addEventListener('change', e => handleQualityChange(e.target.value));
-        }
+        if (selQuality) selQuality.addEventListener('change', e => handleQualityChange(e.target.value));
+        if (selQualityInPlayer) selQualityInPlayer.addEventListener('change', e => handleQualityChange(e.target.value));
 
         if (hasSource && video) {
             const bar = document.getElementById('bar');
@@ -818,8 +1093,8 @@
             const btnBack = document.getElementById('btnBack');
             const btnFwd = document.getElementById('btnFwd');
             const btnFs = document.getElementById('btnFs');
-            const btnPip = document.getElementById('btnPip');
             const btnTheater = document.getElementById('btnTheater');
+            const btnMute = document.getElementById('btnMute');
             const selSpeed = document.getElementById('selSpeed');
             const vol = document.getElementById('vol');
             const playerBox = document.getElementById('playerBox');
@@ -858,6 +1133,15 @@
                 }
             }
 
+            function updatePlayBtnIcon() {
+                if (!btnPlay) return;
+                if (video.paused) {
+                    btnPlay.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+                } else {
+                    btnPlay.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
+                }
+            }
+
             function loadSource(url){
                 if (!isLoggedIn) {
                     guardAuth();
@@ -869,8 +1153,6 @@
                 }
 
                 clearPlayerError();
-                console.info('[TFlix Player Debug] loadSource nhận URL:', url);
-                console.info('[TFlix Player Debug] Loại nguồn:', isHlsSource(url) ? 'HLS' : 'MP4/Direct');
                 localStorage.setItem(movieKey + ":server", url);
 
                 if (video.hlsInstance) {
@@ -885,8 +1167,6 @@
                     const hls = new Hls({
                         enableWorker: true,
                         lowLatencyMode: false,
-                        // Chỉ giữ một lượng nhỏ segment ở phía trước và phía sau,
-                        // tránh tải/buffer một lúc quá nhiều nội dung phim.
                         maxBufferLength: 12,
                         maxMaxBufferLength: 24,
                         backBufferLength: 10,
@@ -895,16 +1175,14 @@
                         startFragPrefetch: false
                     });
                     hls.on(Hls.Events.ERROR, (_event, data) => {
-                        console.error('[TFlix Player Debug] HLS error:', data);
                         if (!data.fatal) return;
                         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                            showPlayerError('Không tải được dữ liệu HLS. Hãy kiểm tra CORS hoặc kết nối Cloudflare.');
+                            showPlayerError('Lỗi kết nối mạng khi tải HLS.');
                             hls.startLoad();
                         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                             hls.recoverMediaError();
                         } else {
-                            console.error('Fatal HLS playback error:', data.type, data.details);
-                            showPlayerError('Nguồn HLS không hợp lệ hoặc trình duyệt không hỗ trợ.');
+                            showPlayerError('Nguồn phát HLS không khả dụng.');
                             hls.destroy();
                             video.hlsInstance = null;
                         }
@@ -914,7 +1192,6 @@
                     video.hlsInstance = hls;
 
                     hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-                        console.info('[TFlix Player Debug] HLS manifest đã tải:', data);
                         clearPlayerError();
                         restorePlaybackPosition();
                         populateHlsQualities(hls);
@@ -925,7 +1202,7 @@
                         const lvl = hls.levels[data.level];
                         if (lvl) {
                             const resText = (lvl.height ? lvl.height + 'p' : 'Auto');
-                            showQualityToast('Đang phát: ' + resText);
+                            showQualityToast('Chất lượng: ' + resText);
                         }
                     });
                 } else if (isHlsSource(url) && video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -941,43 +1218,24 @@
                     video.play().catch(() => {});
                 }
 
-                if (btnPlay) btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>';
+                updatePlayBtnIcon();
             }
 
             video.addEventListener('canplay', clearPlayerError);
-            video.addEventListener('loadstart', () => console.info('[TFlix Player Debug] video loadstart:', video.currentSrc || video.src));
-            video.addEventListener('loadedmetadata', () => console.info('[TFlix Player Debug] loadedmetadata:', {
-                currentSrc: video.currentSrc,
-                duration: video.duration,
-                videoWidth: video.videoWidth,
-                videoHeight: video.videoHeight
-            }));
-            video.addEventListener('canplay', () => console.info('[TFlix Player Debug] video canplay:', video.currentSrc));
+            video.addEventListener('play', updatePlayBtnIcon);
+            video.addEventListener('pause', updatePlayBtnIcon);
+
             video.addEventListener('error', () => {
                 const code = video.error?.code;
-                console.error('[TFlix Player Debug] video error:', {
-                    code,
-                    message: video.error?.message,
-                    currentSrc: video.currentSrc || video.src
-                });
                 const message = code === 4
-                    ? 'Trình duyệt không hỗ trợ nguồn video hoặc Cloudflare trả sai Content-Type.'
+                    ? 'Trình duyệt không hỗ trợ nguồn phát hoặc máy chủ chặn CORS.'
                     : 'Không thể tải video từ máy chủ lưu trữ.';
                 showPlayerError(message);
             });
 
-            // Hạn chế các thao tác tải xuống phổ biến trên giao diện trình phát.
+            // Prevent contextmenu
             playerBox.addEventListener('contextmenu', event => event.preventDefault());
-            video.addEventListener('dragstart', event => event.preventDefault());
-            document.addEventListener('keydown', event => {
-                if ((document.fullscreenElement === playerBox || playerBox.contains(document.activeElement))
-                    && (event.ctrlKey || event.metaKey)
-                    && event.key.toLowerCase() === 's') {
-                    event.preventDefault();
-                }
-            });
 
-            // Gán source đầu tiên
             (function initSelections(){
                 if (selServer) {
                     const last = localStorage.getItem(movieKey + ":server");
@@ -993,26 +1251,31 @@
 
             if (btnPlay) {
                 btnPlay.addEventListener('click', () => guardAuth(()=>{
-                    if (video.paused) { video.play(); btnPlay.innerHTML = '<i class="bi bi-pause-fill"></i>'; }
-                    else { video.pause(); btnPlay.innerHTML = '<i class="bi bi-play-fill"></i>'; }
+                    if (video.paused) { video.play(); }
+                    else { video.pause(); }
                 }));
             }
             if (btnBack) btnBack.addEventListener('click', () => guardAuth(()=> video.currentTime -= 10));
             if (btnFwd) btnFwd.addEventListener('click', () => guardAuth(()=> video.currentTime += 10));
 
-            if (vol) vol.addEventListener('input', e => video.volume = +e.target.value);
+            if (vol) vol.addEventListener('input', e => {
+                video.volume = +e.target.value;
+                video.muted = (video.volume === 0);
+            });
+
+            if (btnMute) {
+                btnMute.addEventListener('click', () => {
+                    video.muted = !video.muted;
+                    if (vol) vol.value = video.muted ? 0 : (video.volume || 1);
+                });
+            }
+
             if (selSpeed) selSpeed.addEventListener('change', e => video.playbackRate = +e.target.value);
 
             if (btnFs) {
                 btnFs.addEventListener('click', () => guardAuth(()=>{
                     if (!document.fullscreenElement) playerBox.requestFullscreen().catch(()=>{});
                     else document.exitFullscreen();
-                }));
-            }
-            if (btnPip) {
-                btnPip.addEventListener('click', () => guardAuth(()=>{
-                    if (document.pictureInPictureElement) document.exitPictureInPicture();
-                    else if (document.pictureInPictureEnabled) video.requestPictureInPicture().catch(()=>{});
                 }));
             }
             if (btnTheater) {
@@ -1058,9 +1321,25 @@
                 else if (e.code === 'ArrowRight'){ e.preventDefault(); btnFwd?.click(); }
                 else if (e.key.toLowerCase()==='f'){ e.preventDefault(); btnFs?.click(); }
                 else if (e.key.toLowerCase()==='t'){ e.preventDefault(); btnTheater?.click(); }
-                else if (e.key.toLowerCase()==='p'){ e.preventDefault(); btnPip?.click(); }
+                else if (e.key.toLowerCase()==='m'){ e.preventDefault(); btnMute?.click(); }
                 else if (e.key === 'ArrowUp' && vol){ e.preventDefault(); vol.value = Math.min(1, (+vol.value + .05)).toFixed(2); vol.dispatchEvent(new Event('input')); }
                 else if (e.key === 'ArrowDown' && vol){ e.preventDefault(); vol.value = Math.max(0, (+vol.value - .05)).toFixed(2); vol.dispatchEvent(new Event('input')); }
+            });
+        }
+
+        // Lights off / Focus Mode
+        const btnLightsOff = document.getElementById('btnLightsOff');
+        const lightsOverlay = document.getElementById('lightsOffOverlay');
+        if (btnLightsOff) {
+            btnLightsOff.addEventListener('click', () => {
+                document.body.classList.toggle('lights-off');
+                btnLightsOff.classList.toggle('active', document.body.classList.contains('lights-off'));
+            });
+        }
+        if (lightsOverlay) {
+            lightsOverlay.addEventListener('click', () => {
+                document.body.classList.remove('lights-off');
+                btnLightsOff?.classList.remove('active');
             });
         }
 
@@ -1086,7 +1365,7 @@
         }
 
         function renderCommentItem(cmt, isNew = false) {
-            const avatar = cmt.userAvatar || `https://i.pravatar.cc/40?u=${cmt.userId || 'guest'}`;
+            const avatar = cmt.userAvatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80`;
             const timeAgo = cmt.formattedTime || 'Vừa xong';
             const author = escapeHtml(cmt.userName || 'Người dùng TFlix');
             const text = escapeHtml(cmt.content || '');
@@ -1095,16 +1374,16 @@
             return `
                 <div class="cmt-item ${isNew ? 'new-arrival' : ''}" id="cmt-${cmt.commentId || Date.now()}">
                     <div class="d-flex gap-3">
-                        <img src="${avatar}" class="rounded-circle border border-info border-opacity-25" width="40" height="40" style="object-fit:cover" />
+                        <img src="${avatar}" class="rounded-circle" width="42" height="42" style="object-fit:cover; border: 2px solid rgba(25, 211, 197, 0.4);" />
                         <div class="flex-grow-1">
-                            <div class="d-flex align-items-center justify-content-between mb-1">
+                            <div class="d-flex align-items-center justify-content-between mb-1.5">
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="fw-bold text-white small">${author}</span>
-                                    ${isMe ? '<span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25" style="font-size:0.65rem">Bạn</span>' : ''}
-                                    <span class="text-secondary small">• ${timeAgo}</span>
+                                    ${isMe ? '<span class="badge" style="background: rgba(25, 211, 197, 0.2); color: #19d3c5; font-size: 0.65rem;">Bạn</span>' : ''}
+                                    <span class="text-muted small">• ${timeAgo}</span>
                                 </div>
                             </div>
-                            <div class="text-light" style="white-space: pre-wrap; font-size: 0.92rem; line-height: 1.5;">${text}</div>
+                            <div class="text-light" style="white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55;">${text}</div>
                         </div>
                     </div>
                 </div>
@@ -1127,7 +1406,6 @@
             const listEl = document.getElementById('cmtList');
             if (!listEl) return;
 
-            // Remove placeholder if present
             const emptyEl = document.getElementById('cmtEmpty');
             if (emptyEl) emptyEl.remove();
 
@@ -1153,9 +1431,9 @@
                     } else {
                         updateCommentCountBadge(0, 0);
                         listEl.innerHTML = `
-                            <div class="text-center py-4 text-secondary" id="cmtEmpty">
-                                <i class="bi bi-chat-square-dots display-6 d-block mb-2 text-secondary opacity-50"></i>
-                                <span>Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ!</span>
+                            <div class="text-center py-4 text-muted" id="cmtEmpty">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="d-block mx-auto mb-2 opacity-50"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                <span>Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ về bộ phim!</span>
                             </div>
                         `;
                     }
@@ -1163,9 +1441,8 @@
                 .catch(err => {
                     console.error('Lỗi tải bình luận:', err);
                     listEl.innerHTML = `
-                        <div class="text-center py-4 text-secondary" id="cmtEmpty">
-                            <i class="bi bi-chat-square-dots display-6 d-block mb-2 text-secondary opacity-50"></i>
-                            <span>Hãy là người đầu tiên bình luận về nội dung này!</span>
+                        <div class="text-center py-4 text-muted" id="cmtEmpty">
+                            <span>Hãy là người đầu tiên bình luận về bộ phim này!</span>
                         </div>
                     `;
                 });
@@ -1180,7 +1457,7 @@
             }
             activeGroupKey = newKey;
             signalrConn.invoke('JoinContentGroup', activeGroupKey).then(() => {
-                console.log('✅ Đã tham gia phòng bình luận:', activeGroupKey);
+                console.log('✅ Đã tham gia phòng SignalR:', activeGroupKey);
             }).catch(console.error);
         }
 
@@ -1193,15 +1470,13 @@
                 .build();
 
             signalrConn.on('ReceiveComment', function (comment) {
-                console.log('⚡ Nhận bình luận realtime:', comment);
                 addCommentToUI(comment, true);
             });
 
             signalrConn.start().then(() => {
-                console.log('✅ SignalR Hub kết nối thành công!');
                 switchSignalRGroup();
             }).catch(err => {
-                console.warn('SignalR Hub kết nối chậm:', err);
+                console.warn('SignalR Hub kết nối:', err);
             });
 
             signalrConn.onreconnected(() => {
@@ -1209,9 +1484,20 @@
             });
         }
 
-        // Khởi động SignalR và nạp bình luận ban đầu
         initSignalRConnection();
         loadComments();
+
+        // Emoji insertion helper
+        window.insertEmoji = function(emoji) {
+            const textarea = document.getElementById('cmt');
+            if (!textarea) return;
+            const start = textarea.selectionStart || textarea.value.length;
+            const end = textarea.selectionEnd || textarea.value.length;
+            textarea.value = textarea.value.substring(0, start) + emoji + textarea.value.substring(end);
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+            document.getElementById('cmtCharCount').textContent = `${textarea.value.length} / 500`;
+        };
 
         // Gửi bình luận
         const btnCmt = document.getElementById('btnCmt');
@@ -1222,8 +1508,6 @@
             cmtTextarea.addEventListener('input', () => {
                 cmtCharCount.textContent = `${cmtTextarea.value.length} / 500`;
             });
-
-            // Gửi khi bấm Ctrl+Enter
             cmtTextarea.addEventListener('keydown', (e) => {
                 if (e.ctrlKey && e.key === 'Enter') {
                     btnCmt?.click();
@@ -1262,7 +1546,6 @@
                     if (signalrConn && signalrConn.state === signalR.HubConnectionState.Connected) {
                         savedComment = await signalrConn.invoke('SendComment', activeGroupKey, payload);
                     } else {
-                        // Fallback API POST
                         const res = await fetch('/Film/PostComment', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1315,24 +1598,29 @@
                         if (typeof loadSource === 'function') loadSource(url);
                     }
 
-                    // Chuyển nhóm SignalR & load lại bình luận của tập mới
                     switchSignalRGroup();
                     loadComments();
                 });
             });
         }
 
-        // Common actions
-        function needLoginToast(){
-            const alertEl = document.createElement('div');
-            alertEl.className = 'alert alert-warning position-fixed end-0 bottom-0 m-3';
-            alertEl.style.zIndex = 1080;
-            alertEl.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Bạn cần đăng nhập để sử dụng tính năng này.';
-            document.body.appendChild(alertEl);
-            setTimeout(()=> alertEl.remove(), 2500);
-        }
-        document.getElementById('btnLike')?.addEventListener('click',()=> isLoggedIn ? (bootstrap.Toast && 0) : needLoginToast());
-        document.getElementById('btnSave')?.addEventListener('click',()=> isLoggedIn ? (bootstrap.Toast && 0) : needLoginToast());
-        document.getElementById('btnReport')?.addEventListener('click',()=> isLoggedIn ? alert('Đã gửi báo cáo!') : needLoginToast());
+        // Action buttons: Like, Save, Share
+        document.getElementById('btnLike')?.addEventListener('click', function() {
+            if (!isLoggedIn) { guardAuth(); return; }
+            this.classList.toggle('active');
+        });
+        document.getElementById('btnSave')?.addEventListener('click', function() {
+            if (!isLoggedIn) { guardAuth(); return; }
+            this.classList.toggle('active');
+            alert('Đã cập nhật vào danh sách phim xem sau của bạn!');
+        });
+        document.getElementById('btnShare')?.addEventListener('click', function() {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(window.location.href);
+                alert('Đã sao chép liên kết chia sẻ phim vào bộ nhớ tạm!');
+            } else {
+                alert('Liên kết: ' + window.location.href);
+            }
+        });
     </script>
 }

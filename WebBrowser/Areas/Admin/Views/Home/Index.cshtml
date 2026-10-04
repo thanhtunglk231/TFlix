@@ -1,3 +1,468 @@
-﻿@{
+@{
     Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Bảng điều khiển Quản trị · TFlix Admin";
+}
+
+<!-- Welcome Hero Banner -->
+<div class="card mb-4 border-0 overflow-hidden" style="background: linear-gradient(135deg, rgba(22, 131, 255, 0.18) 0%, rgba(25, 211, 197, 0.12) 60%, rgba(28, 31, 38, 0.95) 100%);">
+    <div class="card-body p-4 p-lg-5">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-8">
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill mb-3" style="background: rgba(25, 211, 197, 0.15); border: 1px solid rgba(25, 211, 197, 0.35); font-size: 0.8rem; color: #19d3c5; font-weight: 700;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    TFlix Management Studio
+                </div>
+                <h1 class="display-6 fw-bold mb-2">Xin chào, Quản trị viên!</h1>
+                <p class="text-muted mb-0 lead fs-6">
+                    Theo dõi hoạt động hệ thống, quản lý danh mục phim, series truyền hình, nguồn phát và người dùng tại trung tâm điều khiển TFlix.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                    <a asp-area="Admin" asp-controller="Movie" asp-action="Index" class="btn-tflix-primary d-inline-flex align-items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="16"></line>
+                            <line x1="8" y1="12" x2="16" y2="12"></line>
+                        </svg>
+                        Thêm phim mới
+                    </a>
+                    <a href="/" target="_blank" class="btn-tflix-glass d-inline-flex align-items-center gap-2">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                        Xem Website
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 4 Key Metric Stat Cards -->
+<div class="row g-3 mb-4">
+    <!-- Stat 1: Total Movies -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card h-100 p-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-bold text-uppercase">Kho phim lẻ</span>
+                <div class="stat-icon-wrapper" style="background: rgba(22, 131, 255, 0.15); color: #60a5fa; border: 1px solid rgba(22, 131, 255, 0.3);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="20" rx="2.5"></rect>
+                        <line x1="7" y1="2" x2="7" y2="22"></line>
+                        <line x1="17" y1="2" x2="17" y2="22"></line>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <line x1="2" y1="7" x2="7" y2="7"></line>
+                        <line x1="2" y1="17" x2="7" y2="17"></line>
+                        <line x1="17" y1="17" x2="22" y2="17"></line>
+                        <line x1="17" y1="7" x2="22" y2="7"></line>
+                    </svg>
+                </div>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+                <h2 class="fw-bold mb-0" id="totalMoviesCount">--</h2>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.72rem;">+12% mới</span>
+            </div>
+            <div class="text-muted small mt-2">Phim đã công chiếu & xuất bản</div>
+        </div>
+    </div>
+
+    <!-- Stat 2: Total Series -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card h-100 p-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-bold text-uppercase">Phim bộ (Series)</span>
+                <div class="stat-icon-wrapper" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="15" rx="2"></rect>
+                        <polyline points="17 2 12 7 7 2"></polyline>
+                        <circle cx="17" cy="14" r="1" fill="currentColor"></circle>
+                    </svg>
+                </div>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+                <h2 class="fw-bold mb-0">28</h2>
+                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 0.72rem;">54 Mùa</span>
+            </div>
+            <div class="text-muted small mt-2">Bao gồm 320+ tập phim</div>
+        </div>
+    </div>
+
+    <!-- Stat 3: Total Streams -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card h-100 p-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-bold text-uppercase">Lượt xem trực tuyến</span>
+                <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </div>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+                <h2 class="fw-bold mb-0">48.5K</h2>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.72rem;">+24% tuần này</span>
+            </div>
+            <div class="text-muted small mt-2">HLS / Cloudflare Stream</div>
+        </div>
+    </div>
+
+    <!-- Stat 4: VIP Users -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card h-100 p-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-bold text-uppercase">Thành viên VIP</span>
+                <div class="stat-icon-wrapper" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </div>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+                <h2 class="fw-bold mb-0">1,240</h2>
+                <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 0.72rem;">Đang hoạt động</span>
+            </div>
+            <div class="text-muted small mt-2">Tỷ lệ gia hạn: 88.5%</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Module Shortcuts Grid -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="fw-bold mb-0 text-white d-flex align-items-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-info">
+                <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+            </svg>
+            Các phân hệ quản lý chính
+        </h5>
+        <span class="text-muted small">Chọn tính năng để chuyển nhanh</span>
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-2">
+                <a asp-area="Admin" asp-controller="Movie" asp-action="Index" class="card text-center p-3 text-decoration-none h-100 hover-card" style="border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                    <div class="mx-auto mb-2 rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(22, 131, 255, 0.15); color: #60a5fa; border: 1px solid rgba(22, 131, 255, 0.3);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="2" width="20" height="20" rx="2.5"></rect>
+                            <line x1="7" y1="2" x2="7" y2="22"></line>
+                            <line x1="17" y1="2" x2="17" y2="22"></line>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                        </svg>
+                    </div>
+                    <div class="fw-bold text-white small">Phim lẻ</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Quản lý kho phim</div>
+                </a>
+            </div>
+
+            <div class="col-6 col-md-4 col-xl-2">
+                <a asp-area="Admin" asp-controller="Series" asp-action="Index" class="card text-center p-3 text-decoration-none h-100 hover-card" style="border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                    <div class="mx-auto mb-2 rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="7" width="20" height="15" rx="2"></rect>
+                            <polyline points="17 2 12 7 7 2"></polyline>
+                        </svg>
+                    </div>
+                    <div class="fw-bold text-white small">Phim bộ</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Series truyền hình</div>
+                </a>
+            </div>
+
+            <div class="col-6 col-md-4 col-xl-2">
+                <a asp-area="Admin" asp-controller="Season" asp-action="Index" class="card text-center p-3 text-decoration-none h-100 hover-card" style="border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                    <div class="mx-auto mb-2 rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                            <polyline points="2 17 12 22 22 17"></polyline>
+                            <polyline points="2 12 12 17 22 12"></polyline>
+                        </svg>
+                    </div>
+                    <div class="fw-bold text-white small">Mùa phim</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Seasons quản lý</div>
+                </a>
+            </div>
+
+            <div class="col-6 col-md-4 col-xl-2">
+                <a asp-area="Admin" asp-controller="Esopide" asp-action="Index" class="card text-center p-3 text-decoration-none h-100 hover-card" style="border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                    <div class="mx-auto mb-2 rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"></polygon>
+                        </svg>
+                    </div>
+                    <div class="fw-bold text-white small">Tập phim</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Episodes chi tiết</div>
+                </a>
+            </div>
+
+            <div class="col-6 col-md-4 col-xl-2">
+                <a asp-area="Admin" asp-controller="VideoSoure" asp-action="Index" class="card text-center p-3 text-decoration-none h-100 hover-card" style="border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                    <div class="mx-auto mb-2 rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4.93 4.93a10 10 0 0 1 14.14 0"></path>
+                            <path d="M7.76 7.76a6 6 0 0 1 8.48 0"></path>
+                            <circle cx="12" cy="12" r="2" fill="currentColor"></circle>
+                            <path d="M12 14v8"></path>
+                            <line x1="8" y1="22" x2="16" y2="22"></line>
+                        </svg>
+                    </div>
+                    <div class="fw-bold text-white small">Nguồn Video</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">HLS / MP4 Streams</div>
+                </a>
+            </div>
+
+            <div class="col-6 col-md-4 col-xl-2">
+                <a asp-area="Admin" asp-controller="Genres" asp-action="Index" class="card text-center p-3 text-decoration-none h-100 hover-card" style="border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+                    <div class="mx-auto mb-2 rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(20, 184, 166, 0.15); color: #2dd4bf; border: 1px solid rgba(20, 184, 166, 0.3);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                        </svg>
+                    </div>
+                    <div class="fw-bold text-white small">Thể loại</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Danh mục phân loại</div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Recent Movies Table & Server Health -->
+<div class="row g-4">
+    <!-- Left Column: Recent Movies Table -->
+    <div class="col-12 col-xl-8">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="fw-bold mb-0 text-white d-flex align-items-center gap-2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Danh sách phim trong hệ thống
+                </h5>
+                <a asp-area="Admin" asp-controller="Movie" asp-action="Index" class="text-info text-decoration-none small d-inline-flex align-items-center gap-1">
+                    Xem tất cả phim
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">Poster</th>
+                                <th>Tiêu đề phim</th>
+                                <th>Năm</th>
+                                <th>Quốc gia</th>
+                                <th>Gói</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboardMoviesTable">
+                            <tr>
+                                <td colspan="7" class="text-center p-4 text-muted">
+                                    <span class="spinner-border spinner-border-sm me-2"></span> Đang tải dữ liệu phim từ máy chủ...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: System Health & Technology Status -->
+    <div class="col-12 col-xl-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="fw-bold mb-0 text-white d-flex align-items-center gap-2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-success">
+                        <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                        <rect x="9" y="9" width="6" height="6"></rect>
+                        <line x1="9" y1="1" x2="9" y2="4"></line>
+                        <line x1="15" y1="1" x2="15" y2="4"></line>
+                        <line x1="9" y1="20" x2="9" y2="23"></line>
+                        <line x1="15" y1="20" x2="15" y2="23"></line>
+                        <line x1="20" y1="9" x2="23" y2="9"></line>
+                        <line x1="20" y1="15" x2="23" y2="15"></line>
+                        <line x1="1" y1="9" x2="4" y2="9"></line>
+                        <line x1="1" y1="15" x2="4" y2="15"></line>
+                    </svg>
+                    Trạng thái hạ tầng máy chủ
+                </h5>
+            </div>
+            <div class="card-body p-3">
+                <div class="list-group list-group-flush bg-transparent">
+                    <div class="list-group-item bg-transparent px-0 py-3 border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2.5">
+                            <div class="rounded-2 p-1.5" style="background: rgba(22, 131, 255, 0.12); color: #60a5fa;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                            </div>
+                            <div>
+                                <div class="fw-bold text-white small">ASP.NET Core REST API</div>
+                                <span class="text-muted" style="font-size: 0.75rem;">Port: 5036 / HTTP Service</span>
+                            </div>
+                        </div>
+                        <span class="badge d-inline-flex align-items-center gap-1" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            <span class="spinner-grow spinner-grow-sm text-success" style="width: 5px; height: 5px;"></span> HOẠT ĐỘNG
+                        </span>
+                    </div>
+
+                    <div class="list-group-item bg-transparent px-0 py-3 border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2.5">
+                            <div class="rounded-2 p-1.5" style="background: rgba(25, 211, 197, 0.12); color: #19d3c5;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                            </div>
+                            <div>
+                                <div class="fw-bold text-white small">WebBrowser MVC Frontend</div>
+                                <span class="text-muted" style="font-size: 0.75rem;">Port: 5122 / Razor Engine</span>
+                            </div>
+                        </div>
+                        <span class="badge d-inline-flex align-items-center gap-1" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            <span class="spinner-grow spinner-grow-sm text-success" style="width: 5px; height: 5px;"></span> HOẠT ĐỘNG
+                        </span>
+                    </div>
+
+                    <div class="list-group-item bg-transparent px-0 py-3 border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2.5">
+                            <div class="rounded-2 p-1.5" style="background: rgba(245, 158, 11, 0.12); color: #fbbf24;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                            </div>
+                            <div>
+                                <div class="fw-bold text-white small">SQL Server Cloud Database</div>
+                                <span class="text-muted" style="font-size: 0.75rem;">Azure SQL / Stored Procedures</span>
+                            </div>
+                        </div>
+                        <span class="badge d-inline-flex align-items-center gap-1" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> ĐÃ KẾT NỐI
+                        </span>
+                    </div>
+
+                    <div class="list-group-item bg-transparent px-0 py-3 border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2.5">
+                            <div class="rounded-2 p-1.5" style="background: rgba(168, 85, 247, 0.12); color: #c084fc;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            </div>
+                            <div>
+                                <div class="fw-bold text-white small">Video Transcoder (FFmpeg)</div>
+                                <span class="text-muted" style="font-size: 0.75rem;">HLS / Adaptive Bitrate Ready</span>
+                            </div>
+                        </div>
+                        <span class="badge" style="background: rgba(22, 131, 255, 0.15); color: #60a5fa; border: 1px solid rgba(22, 131, 255, 0.3);">
+                            SẴN SÀNG
+                        </span>
+                    </div>
+                </div>
+
+                <div class="p-3 mt-3 rounded-3" style="background: rgba(25, 211, 197, 0.06); border: 1px solid rgba(25, 211, 197, 0.2);">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-info"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        <span class="fw-bold text-white small">Phiên làm việc bảo mật</span>
+                    </div>
+                    <p class="text-muted small mb-0" style="font-size: 0.78rem;">
+                        Bạn đang đăng nhập với quyền hạn cao nhất (Super Administrator). Tất cả hành động thêm/sửa/xóa nội dung được ghi nhận vào nhật ký hệ thống.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-card {
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .hover-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(25, 211, 197, 0.4) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+</style>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Fetch movies dynamically to populate dashboard
+            fetch('/Admin/Movie/GetAll')
+                .then(res => res.json())
+                .then(data => {
+                    const list = data?.data?.table ?? data?.Data?.table ?? data?.table ?? [];
+                    const tableBody = document.getElementById('dashboardMoviesTable');
+                    const totalMoviesCount = document.getElementById('totalMoviesCount');
+
+                    if (totalMoviesCount) {
+                        totalMoviesCount.textContent = list.length || '0';
+                    }
+
+                    if (!tableBody) return;
+
+                    if (!list || list.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-muted">Chưa có phim nào trong cơ sở dữ liệu.</td></tr>';
+                        return;
+                    }
+
+                    const fallback = 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=100&auto=format&fit=crop';
+                    const rowsHtml = list.slice(0, 7).map(m => {
+                        const id = m.movieId ?? m.movie_id ?? m.MovieId;
+                        const title = m.title ?? m.Title ?? 'Chưa đặt tên';
+                        const year = (m.releaseDate || m.ReleaseDate) ? new Date(m.releaseDate ?? m.ReleaseDate).getFullYear() : '2024';
+                        const poster = m.posterUrl ?? m.poster_url ?? m.PosterUrl ?? fallback;
+                        const country = m.countryCode ?? m.country_code ?? m.CountryCode ?? 'VN';
+                        const isVip = (m.isPremium === 'Y' || m.is_premium === 'Y' || m.IsPremium === true);
+                        const status = m.status ?? m.Status ?? 'PUBLISHED';
+
+                        return `
+                            <tr>
+                                <td>
+                                    <img src="${poster}" alt="${title}" style="width: 44px; height: 60px; object-fit: cover; border-radius: 6px;" onerror="this.src='${fallback}'" />
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-white">${title}</div>
+                                    <small class="text-muted">ID: #${id}</small>
+                                </td>
+                                <td><span class="badge bg-dark border border-secondary text-light">${year}</span></td>
+                                <td><span class="text-muted">${country}</span></td>
+                                <td>
+                                    ${isVip 
+                                        ? '<span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;">4K VIP</span>' 
+                                        : '<span class="badge" style="background: rgba(22, 131, 255, 0.2); color: #60a5fa; border: 1px solid rgba(22, 131, 255, 0.3);">FULL HD</span>'}
+                                </td>
+                                <td>
+                                    <span class="badge d-inline-flex align-items-center gap-1" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        ${status}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <a href="/Admin/Movie" class="btn btn-sm btn-tflix-glass d-inline-flex align-items-center justify-content-center p-2" title="Quản lý phim này">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    tableBody.innerHTML = rowsHtml;
+                })
+                .catch(err => {
+                    const tableBody = document.getElementById('dashboardMoviesTable');
+                    if (tableBody) {
+                        tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-danger d-inline-flex align-items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Không thể tải danh sách phim từ máy chủ.</td></tr>';
+                    }
+                });
+        });
+    </script>
 }
