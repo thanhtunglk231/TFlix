@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos;
+using CoreLib.Dtos;
 using CoreLib.Dtos.VideSoure;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -295,7 +295,6 @@ namespace Server.Controllers
             return Ok(new { success = true, chunkIndex, totalChunks });
         }
 
-        [Authorize]
         [HttpGet("mp4-uploads/{uploadId:guid}/status")]
         public async Task<IActionResult> GetMp4UploadStatus(
             Guid uploadId,
@@ -648,7 +647,6 @@ namespace Server.Controllers
             }
         }
 
-        [Authorize]
         [HttpPost("mp4-uploads/{uploadId:guid}/cancel")]
         public async Task<IActionResult> CancelMp4Upload(Guid uploadId, CancellationToken cancellationToken)
         {
@@ -744,6 +742,58 @@ namespace Server.Controllers
         {
             var result = _videoSourceService.get_bu_id(id);
             return Ok(result);
+        }
+
+        // =========================================================
+        //  DELETE VIDEO SOURCE
+        // =========================================================
+        [HttpPost("delete")]
+        [HttpDelete("{id:decimal}")]
+        public async Task<IActionResult> DeleteSource([FromBody] System.Text.Json.JsonElement? body, [FromRoute] decimal? id, [FromQuery] string? streamUrl = null)
+        {
+            decimal sourceId = id ?? 0;
+            string? effectiveStreamUrl = streamUrl;
+
+            if (body.HasValue)
+            {
+                var el = body.Value;
+                if (el.ValueKind == System.Text.Json.JsonValueKind.Number)
+                {
+                    sourceId = el.GetDecimal();
+                }
+                else if (el.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    if (el.TryGetProperty("id", out var idProp) || el.TryGetProperty("Id", out idProp) || el.TryGetProperty("sourceId", out idProp) || el.TryGetProperty("SourceId", out idProp))
+                    {
+                        if (idProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                            sourceId = idProp.GetDecimal();
+                        else if (idProp.ValueKind == System.Text.Json.JsonValueKind.String && decimal.TryParse(idProp.GetString(), out var parsedId))
+                            sourceId = parsedId;
+                    }
+                    if (string.IsNullOrWhiteSpace(effectiveStreamUrl) && (el.TryGetProperty("streamUrl", out var urlProp) || el.TryGetProperty("StreamUrl", out urlProp)))
+                    {
+                        effectiveStreamUrl = urlProp.GetString();
+                    }
+                }
+            }
+
+            if (sourceId <= 0)
+                return BadRequest(new { code = "400", message = "Source ID không hợp lệ." });
+
+            _logger.LogInformation("Deleting video source {SourceId}", sourceId);
+            var response = await _videoSourceService.Delete_video_source(sourceId);
+            if (response.code != "200" && !response.Success)
+                return StatusCode(500, new { code = response.code, message = response.message });
+
+            if (!string.IsNullOrWhiteSpace(effectiveStreamUrl))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await DeletePreviousStorageObjectAsync(effectiveStreamUrl); } catch { }
+                });
+            }
+
+            return Ok(new { code = "200", message = "Xóa video source thành công.", success = true });
         }
 
         // =========================================================

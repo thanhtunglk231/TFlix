@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,4 +30,10 @@ namespace CoreLib.Dtos.VideSoure
         public string? OldStreamUrl { get; set; }
     }
 
+    public class DeleteVideoSourceInputDto
+    {
+        public decimal SourceId { get; set; }
+        public decimal? Id { get; set; }
+        public string? StreamUrl { get; set; }
+    }
 }

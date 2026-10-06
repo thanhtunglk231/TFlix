@@ -121,13 +121,17 @@ namespace WebBrowser.Areas.Admin.Controllers
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CancelMp4Upload(Guid uploadId)
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> CancelMp4Upload([FromQuery] Guid? uploadId, [FromForm(Name = "uploadId")] Guid? formUploadId)
         {
-            if (uploadId == Guid.Empty)
+            var effectiveUploadId = uploadId.HasValue && uploadId.Value != Guid.Empty
+                ? uploadId.Value
+                : formUploadId ?? Guid.Empty;
+
+            if (effectiveUploadId == Guid.Empty)
                 return BadRequest(new { success = false, message = "UploadId không hợp lệ." });
 
-            await _videoSoureService.CancelMp4UploadAsync(uploadId);
+            await _videoSoureService.CancelMp4UploadAsync(effectiveUploadId);
             return Ok(new { success = true });
         }
 
@@ -146,6 +150,18 @@ namespace WebBrowser.Areas.Admin.Controllers
         public async Task<IActionResult> Update(decimal sourceId, IFormFile file, [FromForm] UpdateVideoSourceInputDto meta)
         {
             var result = await _videoSoureService.uppdate_VideoSoure(sourceId, file, meta);
+            return Ok(result);
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> Delete([FromQuery] decimal? id, [FromForm(Name = "id")] decimal? formId, [FromBody] DeleteVideoSourceInputDto? body)
+        {
+            var effectiveId = id ?? formId ?? body?.SourceId ?? body?.Id ?? 0;
+            if (effectiveId <= 0)
+                return BadRequest(new { success = false, message = "ID nguồn video không hợp lệ." });
+
+            var result = await _videoSoureService.Delete_video_source(effectiveId, body?.StreamUrl);
             return Ok(result);
         }
     }

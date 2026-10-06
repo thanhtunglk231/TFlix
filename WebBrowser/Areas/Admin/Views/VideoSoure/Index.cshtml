@@ -1,4 +1,4 @@
-﻿@{
+@{
     Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Quản lý Video Sources · Admin";
 
@@ -11,6 +11,7 @@
     var urlCompleteMp4Upload = Url.Action("CompleteMp4Upload", "VideoSoure", new { area = "Admin" });
     var urlCancelMp4Upload = Url.Action("CancelMp4Upload", "VideoSoure", new { area = "Admin" });
     var urlUpdate = Url.Action("Update", "VideoSoure", new { area = "Admin" });
+    var urlDelete = Url.Action("Delete", "VideoSoure", new { area = "Admin" });
 
     // Nguồn dữ liệu tham chiếu
     var urlGetAllMovies = Url.Action("GetAll", "Movie", new { area = "Admin" });
@@ -157,32 +158,109 @@
         vertical-align: bottom;
     }
 
-    /* Select2 trong modal - đồng bộ với theme Bootstrap */
+    /* Select2 & Dropdowns Dark Theme - Không còn nền trắng */
+    #MovieId, #EpisodeId,
+    #sourceModal .form-select,
+    #slType, #pageSize,
+    .select2-container--default .select2-selection--single {
+        background-color: #171920 !important;
+        color: #f1f5f9 !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        border-radius: 8px !important;
+    }
+
+    #MovieId option, #EpisodeId option,
+    #sourceModal .form-select option,
+    #slType option, #pageSize option {
+        background-color: #171920 !important;
+        color: #f1f5f9 !important;
+    }
+
     .select2-container {
         width: 100% !important;
     }
 
     .select2-container--default .select2-selection--single {
-        height: 38px;
-        padding: 4px 8px;
-        background-color: var(--bs-body-bg);
-        color: var(--bs-body-color);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .375rem;
+        height: 40px !important;
+        padding: 4px 10px !important;
+        display: flex !important;
+        align-items: center !important;
     }
 
-    .select2-selection__rendered {
-        line-height: 28px !important;
+    .select2-container--default .select2-selection--single:focus,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #19d3c5 !important;
+        box-shadow: 0 0 0 3px rgba(25, 211, 197, 0.25) !important;
+        outline: none !important;
     }
 
-    .select2-selection__arrow {
-        height: 36px !important;
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #f1f5f9 !important;
+        line-height: 32px !important;
+        padding-left: 2px !important;
+        padding-right: 20px !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #9aa0aa !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 38px !important;
+        right: 8px !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow b {
+        border-color: #9aa0aa transparent transparent transparent !important;
+    }
+
+    .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+        border-color: transparent transparent #19d3c5 transparent !important;
     }
 
     .select2-dropdown {
-        background-color: var(--bs-body-bg);
-        color: var(--bs-body-color);
-        border-color: var(--bs-border-color);
+        background-color: #171920 !important;
+        color: #f1f5f9 !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6) !important;
+        z-index: 1065 !important;
+    }
+
+    .select2-container--default .select2-search--dropdown {
+        padding: 8px !important;
+        background-color: #171920 !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        background-color: #111318 !important;
+        color: #f1f5f9 !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 6px !important;
+        padding: 6px 10px !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #19d3c5 !important;
+        outline: none !important;
+    }
+
+    .select2-container--default .select2-results__option {
+        background-color: #171920 !important;
+        color: #cbd5e1 !important;
+        padding: 8px 12px !important;
+        font-size: 0.9rem !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+        background: linear-gradient(135deg, rgba(22, 131, 255, 0.35) 0%, rgba(25, 211, 197, 0.35) 100%) !important;
+        color: #ffffff !important;
+    }
+
+    .select2-container--default .select2-results__option[aria-selected="true"] {
+        background-color: rgba(25, 211, 197, 0.18) !important;
+        color: #19d3c5 !important;
+        font-weight: 600;
     }
 </style>
 
@@ -273,6 +351,50 @@
         </div>
 
         <div id="pagerWrap" class="mt-2"></div>
+    </div>
+</div>
+
+<!-- Modal Confirm Resume / Delete Incomplete Upload -->
+<div class="modal fade" id="resumeConfirmModal" tabindex="-1" aria-labelledby="resumeConfirmModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: #171920; border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; box-shadow: 0 16px 48px rgba(0,0,0,0.7);">
+            <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
+                <h5 class="modal-title d-flex align-items-center gap-2 text-warning" id="resumeConfirmModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>Chưa hoàn tất tải lên file</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng" id="btnResumeDismiss"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-light mb-3" id="resumeModalMessage">
+                    File video chưa được gửi hết lên server. Hệ thống phát hiện các phần đã lưu trước đó.
+                </p>
+                <div class="p-3 rounded-3 mb-3" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+                    <div class="d-flex justify-content-between mb-1 small text-muted">
+                        <span>Tiến độ đã nhận trên server:</span>
+                        <span class="text-info fw-bold" id="resumeModalProgressText">0 / 0 phần</span>
+                    </div>
+                    <div class="progress" style="height: 8px; background: rgba(255,255,255,0.1);">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" id="resumeModalProgressBar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="text-secondary small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Bạn có muốn tiếp tục tải lên (Resume) không?</strong><br />
+                    Nếu <strong>Không</strong>, toàn bộ các file tạm đã lưu trên server sẽ bị xóa bỏ hoàn toàn.
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary border-opacity-25 pt-3 d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-danger d-flex align-items-center gap-2" id="btnResumeReject">
+                    <i class="bi bi-trash3"></i>
+                    <span>Không, xóa hết file cũ ở server</span>
+                </button>
+                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" id="btnResumeAccept" style="background: linear-gradient(135deg, #1683ff 0%, #19d3c5 100%); border: none; color: #0b141e; font-weight: 600;">
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span>Có, tiếp tục Resume</span>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -399,9 +521,14 @@
 
                 </form>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-danger d-none" id="btnDeleteCurrentSource">
+                    <i class="bi bi-trash me-1"></i>Xóa nguồn này
+                </button>
+                <div class="d-flex gap-2 ms-auto">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
+                </div>
             </div>
         </div>
     </div>
@@ -441,6 +568,7 @@
             completeMp4Upload: '@urlCompleteMp4Upload',
             cancelMp4Upload: '@urlCancelMp4Upload',
             update:  '@urlUpdate',
+            deleteSource: '@urlDelete',
             movies:  '@urlGetAllMovies',
             eps:     '@urlGetAllEpisodes'
           };
@@ -632,8 +760,11 @@
                 <td>${status}</td>
                 <td class="text-end">
                   <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}">
+                    <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}" title="Sửa nguồn">
                       <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${id}" data-url="${url}" title="Xóa nguồn">
+                      <i class="bi bi-trash"></i>
                     </button>
                   </div>
                 </td>
@@ -711,6 +842,8 @@
             $('#modeFile').prop('checked', true);
             toggleInputMode();
 
+            $('#btnDeleteCurrentSource').addClass('d-none').data('id', '').data('url', '');
+
             $('#SourceType').val('movie');
             toggleTypeUI();
 
@@ -751,6 +884,8 @@
             $('#IsPrimary').val( (String(gv(it,'isPrimary','IsPrimary','iS_PRIMARY'))==='Y'||String(gv(it,'isPrimary','IsPrimary','iS_PRIMARY'))==='true'||gv(it,'isPrimary')===true) ? 'true':'false' );
             $('#Status').val(gv(it,'status','Status')||'ACTIVE');
 
+            $('#btnDeleteCurrentSource').removeClass('d-none').data('id', id).data('url', streamUrl);
+
             $('#File').val('').prop('disabled', false);
             $('#modeFile').prop('checked', true);
             toggleInputMode();
@@ -775,6 +910,85 @@
             combined.set(new Uint8Array(tail), metadata.length + head.byteLength);
             const digest = await crypto.subtle.digest('SHA-256', combined);
             return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+          }
+
+          async function cancelAndCleanupServerUpload(currentUploadId, token, storageKey){
+            if (!currentUploadId) return;
+            try {
+              await $.ajax({
+                url: `${urls.cancelMp4Upload}?uploadId=${encodeURIComponent(currentUploadId)}`,
+                type: 'POST',
+                data: { uploadId: currentUploadId },
+                headers: token ? { 'RequestVerificationToken': token } : {}
+              });
+            } catch (err){
+              console.warn('Lỗi khi xóa file tạm trên server:', err);
+            }
+            if (storageKey){
+              localStorage.removeItem(storageKey);
+            }
+          }
+
+          function promptResumeDecision(uploadedCount, totalChunks, sentBytes, totalBytes, customMessage){
+            return new Promise((resolve) => {
+              const $modalEl = $('#resumeConfirmModal');
+              const modal = new bootstrap.Modal($modalEl[0], { backdrop: 'static', keyboard: false });
+
+              const percent = totalChunks > 0 ? Math.round(uploadedCount * 100 / totalChunks) : 0;
+              const sentMb = (sentBytes / (1024 * 1024)).toFixed(1);
+              const totalMb = (totalBytes / (1024 * 1024)).toFixed(1);
+
+              if (customMessage){
+                $('#resumeModalMessage').text(customMessage);
+              } else {
+                $('#resumeModalMessage').text(`Quá trình tải lên MP4 chưa gửi hết lên server. Đã nhận được ${uploadedCount}/${totalChunks} phần (${sentMb} / ${totalMb} MiB).`);
+              }
+
+              $('#resumeModalProgressText').text(`${uploadedCount}/${totalChunks} phần (${percent}%)`);
+              $('#resumeModalProgressBar').css('width', `${percent}%`);
+
+              let resolved = false;
+              const cleanup = () => {
+                $('#btnResumeAccept').off('click');
+                $('#btnResumeReject').off('click');
+                $('#btnResumeDismiss').off('click');
+                $modalEl.off('hidden.bs.modal');
+              };
+
+              $('#btnResumeAccept').on('click', () => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                modal.hide();
+                resolve(true);
+              });
+
+              $('#btnResumeReject').on('click', () => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                modal.hide();
+                resolve(false);
+              });
+
+              $('#btnResumeDismiss').on('click', () => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                modal.hide();
+                resolve(true);
+              });
+
+              $modalEl.on('hidden.bs.modal', () => {
+                if (!resolved){
+                  resolved = true;
+                  cleanup();
+                  resolve(true);
+                }
+              });
+
+              modal.show();
+            });
           }
 
           async function uploadMp4AsHls(file, payload, antiForgeryToken, sourceId=null, oldStreamUrl=null){
@@ -804,11 +1018,7 @@
                 uploadStatus = await getStatus(uploadId);
               } catch (xhr){
                 if (xhr?.status !== 409) throw xhr;
-                await $.ajax({
-                  url: `${urls.cancelMp4Upload}?uploadId=${encodeURIComponent(uploadId)}`,
-                  type: 'POST',
-                  headers: antiForgeryToken ? { 'RequestVerificationToken': antiForgeryToken } : {}
-                }).catch(()=>{});
+                await cancelAndCleanupServerUpload(uploadId, antiForgeryToken, sessionKey);
                 uploadId = crypto.randomUUID();
                 localStorage.setItem(sessionKey, uploadId);
                 uploadStatus = await getStatus(uploadId);
@@ -817,9 +1027,34 @@
               if (uploadStatus.resumeAvailable || uploadStatus.ResumeAvailable){
                 const savedTotal = uploadStatus.totalChunks ?? uploadStatus.TotalChunks;
                 if (savedTotal !== totalChunks){
-                  throw new Error('Phiên upload đã lưu không khớp số lượng phần của file này.');
+                  await cancelAndCleanupServerUpload(uploadId, antiForgeryToken, sessionKey);
+                  uploadId = crypto.randomUUID();
+                  localStorage.setItem(sessionKey, uploadId);
+                  uploadStatus = await getStatus(uploadId);
+                } else {
+                  const savedChunks = uploadStatus.uploadedChunks ?? uploadStatus.UploadedChunks ?? [];
+                  if (savedChunks.length > 0 && savedChunks.length < totalChunks){
+                    const sentBytes = savedChunks.reduce((acc, cIdx) => acc + Math.max(0, Math.min(chunkSize, file.size - cIdx * chunkSize)), 0);
+                    const wantResume = await promptResumeDecision(
+                      savedChunks.length,
+                      totalChunks,
+                      sentBytes,
+                      file.size,
+                      "Hệ thống phát hiện phiên tải lên trước đó chưa hoàn tất trên server. Bạn có muốn tiếp tục tải lên (Resume) không? Nếu không, hệ thống sẽ xóa toàn bộ file tạm cũ ở server."
+                    );
+                    if (!wantResume){
+                      await cancelAndCleanupServerUpload(uploadId, antiForgeryToken, sessionKey);
+                      uploadId = crypto.randomUUID();
+                      localStorage.setItem(sessionKey, uploadId);
+                      uploadedChunks = new Set();
+                      showToast("Đã xóa toàn bộ file tạm cũ trên server. Bắt đầu tải mới từ đầu.", false, 4000);
+                    } else {
+                      uploadedChunks = new Set(savedChunks);
+                    }
+                  } else if (savedChunks.length >= totalChunks){
+                    uploadedChunks = new Set(savedChunks);
+                  }
                 }
-                uploadedChunks = new Set(uploadStatus.uploadedChunks ?? uploadStatus.UploadedChunks ?? []);
               }
 
               const updateChunkProgress = () => {
@@ -913,10 +1148,25 @@
             } catch (xhr){
               const uploadedCount = uploadedChunks.size;
               const detail = xhr?.responseJSON?.message || xhr?.responseText || xhr?.message || 'Mạng bị ngắt hoặc server gặp lỗi.';
-              const resumeMessage = uploadId && uploadedCount > 0
-                ? `${detail} Đã giữ ${uploadedCount}/${totalChunks} phần trên server; chọn lại đúng file và bấm Lưu để tiếp tục.`
-                : detail;
-              showToast(resumeMessage, false, 9000);
+              if (uploadId && uploadedCount > 0 && uploadedCount < totalChunks){
+                const sentBytes = Array.from(uploadedChunks).reduce((total, chunkIndex) =>
+                  total + Math.max(0, Math.min(chunkSize, file.size - chunkIndex * chunkSize)), 0);
+                const wantResume = await promptResumeDecision(
+                  uploadedCount,
+                  totalChunks,
+                  sentBytes,
+                  file.size,
+                  `${detail} Quá trình tải lên chưa gửi hết lên server (${uploadedCount}/${totalChunks} phần). Bạn có muốn lưu lại để tiếp tục tải lên (Resume) lần sau không?`
+                );
+                if (!wantResume){
+                  await cancelAndCleanupServerUpload(uploadId, antiForgeryToken, sessionKey);
+                  showToast("Đã hủy và xóa toàn bộ file cũ ở server theo yêu cầu.", false, 6000);
+                } else {
+                  showToast(`Đã giữ ${uploadedCount}/${totalChunks} phần trên server. Khi chọn lại file này, bạn có thể tiếp tục (Resume).`, true, 8000);
+                }
+              } else {
+                showToast(detail, false, 8000);
+              }
             } finally {
               stopProgressPolling = true;
               if (progressPollTask) await progressPollTask;
@@ -1156,8 +1406,50 @@
           $('#slType').on('change', ()=> { applyFilter(); page=1; renderTablePage(); });
           $('#pageSize').on('change', ()=> { page=1; renderTablePage(); });
 
+          function confirmAndDeleteSource(sourceId, streamUrl){
+            if (!sourceId){ showToast("Không tìm thấy ID nguồn để xóa.", false); return; }
+            if (!confirm(`Bạn có chắc chắn muốn xóa nguồn video #${sourceId} này không? Thao tác này không thể hoàn tác.`)) {
+              return;
+            }
+            showLoading();
+            const anti = $('input[name="__RequestVerificationToken"]').val();
+            $.ajax({
+              url: urls.deleteSource,
+              type: 'POST',
+              data: JSON.stringify({ sourceId: Number(sourceId), streamUrl: streamUrl || '' }),
+              contentType: 'application/json',
+              headers: anti ? { "RequestVerificationToken": anti } : {},
+              success(res){
+                const ok = res && (res.success === true || res.code === "200" || res.Success === true);
+                if (ok){
+                  showToast("Đã xóa nguồn video thành công.", true);
+                  sourceModal.hide();
+                  loadAll();
+                } else {
+                  showToast(res?.message || res?.Message || "Xóa nguồn video thất bại.", false);
+                }
+              },
+              error(xhr){
+                showToast(xhr?.responseJSON?.message || xhr?.responseText || "Lỗi khi xóa nguồn video.", false);
+              },
+              complete(){
+                hideLoading();
+              }
+            });
+          }
+
           // CRUD row buttons
           $tbody.on('click', '.btn-edit', function(){ openEdit($(this).data('id')); });
+          $tbody.on('click', '.btn-delete', function(){
+            const id = $(this).data('id');
+            const url = $(this).data('url');
+            confirmAndDeleteSource(id, url);
+          });
+          $('#btnDeleteCurrentSource').on('click', function(){
+            const id = $(this).data('id');
+            const url = $(this).data('url');
+            confirmAndDeleteSource(id, url);
+          });
 
           // Modal UI
           $('#SourceType').on('change', toggleTypeUI);
