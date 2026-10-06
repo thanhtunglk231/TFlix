@@ -55,6 +55,7 @@ builder.Services.AddScoped<IPreView, PreView>();
 builder.Services.AddScoped<ICHome, CHome>();
 builder.Services.AddScoped<ICNews, CNews>();
 builder.Services.AddScoped<ICComment, CComment>();
+builder.Services.AddScoped<ICFavorite, CFavorite>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 

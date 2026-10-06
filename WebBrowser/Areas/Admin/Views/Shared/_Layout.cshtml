@@ -1,25 +1,62 @@
-﻿@{
+@{
     var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var act = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
     Func<string, string, bool> isActive = (c, a) =>
         string.Equals(ctrl, c, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(act, a, StringComparison.OrdinalIgnoreCase);
+        (string.IsNullOrEmpty(a) || string.Equals(act, a, StringComparison.OrdinalIgnoreCase));
 }
 <!doctype html>
 <html lang="vi" data-bs-theme="dark">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@(ViewData["Title"] ?? "Admin · Movie App")</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>@(ViewData["Title"] ?? "Quản trị hệ thống · TFlix Admin")</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap & Icons (CSS) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+
     <style>
         :root {
-            --sidebar-width: 280px;
+            --sidebar-width: 270px;
+            --bg-main: #111318;
+            --bg-surface: #17191f;
+            --bg-card: #1c1f26;
+            --bg-card-hover: #222630;
+            --bg-sidebar: #14171d;
+            
+            --primary-blue: #1683ff;
+            --primary-cyan: #19d3c5;
+            --accent-gradient: linear-gradient(135deg, #1683ff 0%, #19d3c5 100%);
+            --accent-gradient-hover: linear-gradient(135deg, #2f94ff 0%, #30dfd2 100%);
+            --accent-gradient-subtle: linear-gradient(135deg, rgba(22, 131, 255, 0.15) 0%, rgba(25, 211, 197, 0.15) 100%);
+            
+            --text-main: #ffffff;
+            --text-muted: #9aa0aa;
+            --text-subtle: #6e7683;
+            
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-card: rgba(255, 255, 255, 0.09);
+            --border-glow: rgba(22, 131, 255, 0.4);
+            
+            --card-radius: 14px;
+            --font-family-base: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
         html, body {
             height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family-base);
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            color-scheme: dark;
+            -webkit-font-smoothing: antialiased;
         }
 
         body {
@@ -36,68 +73,326 @@
             display: grid;
             grid-template-columns: var(--sidebar-width) 1fr;
             min-height: 0;
+            height: 100%;
         }
 
+        /* Sidebar Styling */
         .sidebar {
-            overflow: auto;
-            border-right: 1px solid var(--bs-border-color);
+            overflow-y: auto;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            padding: 1.25rem 1rem;
         }
 
+        .sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #252a35;
+            border-radius: 4px;
+        }
+
+        .sidebar-brand-box {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.25rem 0.5rem 1.25rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-subtle);
+            text-decoration: none;
+        }
+
+        .sidebar-brand-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0b141e;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 14px rgba(25, 211, 197, 0.4);
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand-text {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+        }
+
+        .sidebar-brand-text span {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-subtle);
+            margin: 1.25rem 0.6rem 0.45rem;
+        }
+
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.95rem;
+            margin-bottom: 0.25rem;
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .sidebar-nav-link i,
+        .sidebar-nav-link .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-nav-link:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(3px);
+        }
+
+        .sidebar-nav-link:hover i,
+        .sidebar-nav-link:hover .nav-icon {
+            color: var(--primary-cyan);
+            transform: scale(1.1);
+        }
+
+        .sidebar-nav-link.active {
+            color: #ffffff;
+            background: var(--accent-gradient-subtle);
+            font-weight: 600;
+            border: 1px solid rgba(22, 131, 255, 0.3);
+            box-shadow: 0 4px 14px rgba(22, 131, 255, 0.15);
+        }
+
+        .sidebar-nav-link.active i,
+        .sidebar-nav-link.active .nav-icon {
+            color: var(--primary-cyan);
+        }
+
+        .sidebar-nav-link.active::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 20%;
+            bottom: 20%;
+            width: 3.5px;
+            border-radius: 0 4px 4px 0;
+            background: var(--accent-gradient);
+        }
+
+        /* SVG Icon Utilities */
+        .svg-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+
+        .stat-icon-wrapper {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover .stat-icon-wrapper {
+            transform: scale(1.08);
+        }
+
+        /* Content Area */
         .content {
-            overflow: auto;
+            overflow-y: auto;
+            background-color: var(--bg-main);
+            padding: 1.5rem;
         }
 
-        @@media (max-width: 991.98px) {
-            .app-main
-
-        {
-            grid-template-columns: 0 1fr;
+        .content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .content::-webkit-scrollbar-thumb {
+            background: #252a35;
+            border-radius: 4px;
         }
 
-        .sidebar {
-            position: fixed;
-            inset: 0 auto 0 0;
-            width: var(--sidebar-width);
-            z-index: 1050;
-            transform: translateX(-100%);
-            transition: transform .25s ease;
+        /* Topbar */
+        .admin-topbar {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1020;
         }
 
-            .sidebar.show {
-                transform: translateX(0);
-                box-shadow: 0 0 2rem rgba(0,0,0,.4);
-            }
+        /* Global Cards & Tables in Admin */
+        .card, .admin-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: var(--card-radius);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+            color: #ffffff;
+        }
 
-        body.sidebar-open {
+        .card-header {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 1rem 1.25rem;
+        }
+
+        .table-responsive {
+            border-radius: 12px;
             overflow: hidden;
+            border: 1px solid var(--border-subtle);
         }
 
-        }
-
-        .sidebar .nav-link {
-            color: var(--bs-body-color);
-        }
-
-            .sidebar .nav-link.active, .sidebar .nav-link:hover {
-                background: rgba(255,255,255,.06);
-            }
-
-        .card {
-            border-radius: 1rem;
+        .table {
+            color: #ffffff;
+            margin-bottom: 0;
+            --bs-table-bg: var(--bg-card);
+            --bs-table-border-color: rgba(255, 255, 255, 0.06);
         }
 
         .table thead th {
             position: sticky;
             top: 0;
-            background: var(--bs-body-bg);
+            background: #15181e;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             z-index: 1;
         }
 
-        .chip {
-            border: 1px solid var(--bs-border-color);
-            padding: .125rem .5rem;
-            border-radius: 10rem;
-            font-size: .75rem;
+        .table tbody td {
+            padding: 0.85rem 1rem;
+            vertical-align: middle;
+            font-size: 0.9rem;
+            background: var(--bg-card);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background-color 0.2s;
+        }
+
+        .table tbody tr:hover td {
+            background-color: rgba(25, 211, 197, 0.05);
+        }
+
+        /* Buttons */
+        .btn-tflix-primary {
+            background: var(--accent-gradient);
+            border: none;
+            color: #0c151f;
+            font-weight: 700;
+            font-size: 0.88rem;
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            box-shadow: 0 4px 14px rgba(22, 131, 255, 0.35);
+            transition: all 0.25s ease;
+            text-decoration: none;
+        }
+
+        .btn-tflix-primary:hover {
+            background: var(--accent-gradient-hover);
+            color: #050d17;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(25, 211, 197, 0.5);
+        }
+
+        .btn-tflix-glass {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 0.88rem;
+            padding: 0.5rem 1.15rem;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            transition: all 0.25s ease;
+            text-decoration: none;
+        }
+
+        .btn-tflix-glass:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            transform: translateY(-2px);
+        }
+
+        /* Form controls */
+        .form-control, .form-select {
+            background-color: #15181e;
+            border: 1px solid var(--border-card);
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 0.55rem 0.85rem;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: #1a1e26;
+            border-color: var(--primary-cyan);
+            box-shadow: 0 0 0 3px rgba(25, 211, 197, 0.2);
+            color: #ffffff;
+        }
+
+        /* Responsive Mobile Drawer */
+        @@media (max-width: 991.98px) {
+            .app-main {
+                grid-template-columns: 0 1fr;
+            }
+
+            .sidebar {
+                position: fixed;
+                inset: 0 auto 0 0;
+                width: var(--sidebar-width);
+                z-index: 1050;
+                transform: translateX(-100%);
+                transition: transform .28s cubic-bezier(0.16, 1, 0.3, 1);
+                box-shadow: 0 0 30px rgba(0, 0, 0, 0.75);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            body.sidebar-open {
+                overflow: hidden;
+            }
         }
     </style>
     @RenderSection("Styles", required: false)
@@ -107,8 +402,8 @@
         @await Html.PartialAsync("_Topbar")
         <div class="app-main">
             @await Html.PartialAsync("_Sidebar", new ViewDataDictionary(ViewData) { { "isActive", isActive } })
-            <main class="content p-3 p-lg-4 bg-body-tertiary">
-                <div class="container-fluid">
+            <main class="content" id="mainContent">
+                <div class="container-fluid px-0">
                     @RenderBody()
                 </div>
             </main>
@@ -118,8 +413,6 @@
     @await Html.PartialAsync("_Toast")
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-   
     @RenderSection("Scripts", required: false)
 </body>
 </html>

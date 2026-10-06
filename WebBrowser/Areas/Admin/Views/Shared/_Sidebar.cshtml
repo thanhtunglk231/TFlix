@@ -1,92 +1,169 @@
-﻿@{
+@{
     var active = (Func<string, string, bool>)ViewData["isActive"] ?? ((_, __) => false);
 }
-<aside class="sidebar p-3 bg-body" id="sidebar" aria-hidden="true">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div class="d-flex align-items-center">
-            <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji/assets/svg/1f39e.svg" width="28" height="28" class="me-2" alt="">
-            <span class="fw-semibold">Bảng điều khiển</span>
+<aside class="sidebar" id="sidebar" aria-label="Thanh điều hướng quản trị">
+    <!-- Brand Box -->
+    <a class="sidebar-brand-box" asp-area="Admin" asp-controller="Home" asp-action="Index">
+        <div class="sidebar-brand-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 3.5L19 12L5 20.5V3.5Z" fill="currentColor"/>
+            </svg>
+        </div>
+        <div class="d-flex flex-column">
+            <span class="sidebar-brand-text">T<span>Flix</span></span>
+            <span class="text-muted" style="font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;">Admin Studio</span>
         </div>
         <!-- Nút đóng sidebar (mobile) -->
-        <button class="btn btn-sm btn-outline-secondary d-lg-none" id="sidebarClose" aria-label="Close sidebar" aria-controls="sidebar">
+        <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none ms-auto border-0 text-white" id="sidebarClose" aria-label="Đóng menu">
             <i class="bi bi-x-lg"></i>
         </button>
-    </div>
+    </a>
 
-    <small class="text-secondary text-uppercase">Tổng quan</small>
-    <nav class="nav flex-column mb-3">
-        <a class="nav-link @(active("Home", "Index") ? "active" : "")"
+    <!-- Navigation Groups -->
+    <div class="sidebar-section-label">Tổng quan</div>
+    <nav class="nav flex-column">
+        <a class="sidebar-nav-link @(active("Home", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="Home" asp-action="Index">
-            <i class="bi bi-speedometer2 me-2"></i>Dashboard
-        </a>
-        <a class="nav-link @(active("Home", "Reports") ? "active" : "")"
-           asp-area="Admin" asp-controller="Home" asp-action="Reports">
-            <i class="bi bi-graph-up-arrow me-2"></i>Báo cáo
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="9" rx="1.5"></rect>
+                <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
+                <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
+                <rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
+            </svg>
+            <span>Bảng điều khiển</span>
         </a>
     </nav>
 
-    <small class="text-secondary text-uppercase">Nội dung</small>
-    <nav class="nav flex-column mb-3">
-        <a class="nav-link @(active("Movie", "index") ? "active" : "")"
-           asp-area="Admin" asp-controller="Movie" asp-action="index">
-            <i class="bi bi-file-earmark-play me-2"></i>Phim
+    <div class="sidebar-section-label">Quản lý nội dung</div>
+    <nav class="nav flex-column">
+        <a class="sidebar-nav-link @(active("Movie", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="Movie" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="2.5"></rect>
+                <line x1="7" y1="2" x2="7" y2="22"></line>
+                <line x1="17" y1="2" x2="17" y2="22"></line>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="2" y1="7" x2="7" y2="7"></line>
+                <line x1="2" y1="17" x2="7" y2="17"></line>
+                <line x1="17" y1="17" x2="22" y2="17"></line>
+                <line x1="17" y1="7" x2="22" y2="7"></line>
+            </svg>
+            <span>Kho phim lẻ</span>
         </a>
-        <a class="nav-link @(active("Series", "Index") ? "active" : "")"
-           asp-area="Admin"
-           asp-controller="Series"
-           asp-action="Index">
-            <i class="bi bi-collection-play me-2"></i>Series
+        <a class="sidebar-nav-link @(active("Series", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="Series" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="15" rx="2"></rect>
+                <polyline points="17 2 12 7 7 2"></polyline>
+            </svg>
+            <span>Phim bộ (Series)</span>
         </a>
-
-        <a class="nav-link @(active("Season", "Index") ? "active" : "")"
-           asp-area="Admin"
-           asp-controller="Season"
-           asp-action="Index">
-            <i class="bi bi-collection-play me-2"></i>Season
+        <a class="sidebar-nav-link @(active("Season", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="Season" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            <span>Mùa phim (Season)</span>
         </a>
-        <a class="nav-link @(active("Esopide", "Index") ? "active" : "")"
-           asp-area="Admin"
-           asp-controller="Esopide"
-           asp-action="Index">
-            <i class="bi bi-collection-play me-2"></i>Esopide
+        <a class="sidebar-nav-link @(active("Esopide", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="Esopide" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"></polygon>
+            </svg>
+            <span>Tập phim (Episode)</span>
         </a>
-
-        <a class="nav-link @(active("VideoSoure", "Index") ? "active" : "")"
-           asp-area="Admin"
-           asp-controller="VideoSoure"
-           asp-action="Index">
-            <i class="bi bi-collection-play me-2"></i>Video Soure
+        <a class="sidebar-nav-link @(active("VideoSoure", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="VideoSoure" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.93 4.93a10 10 0 0 1 14.14 0"></path>
+                <path d="M7.76 7.76a6 6 0 0 1 8.48 0"></path>
+                <circle cx="12" cy="12" r="2" fill="currentColor"></circle>
+                <path d="M12 14v8"></path>
+                <line x1="8" y1="22" x2="16" y2="22"></line>
+            </svg>
+            <span>Nguồn phát (Video)</span>
         </a>
-        <a class="nav-link @(active("Genres", "Index") ? "active" : "")"
-           asp-area="Admin"
-           asp-controller="Genres"
-           asp-action="Index">
-            <i class="bi bi-collection-play me-2"></i>thể loại
+        <a class="sidebar-nav-link @(active("Genres", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="Genres" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+            </svg>
+            <span>Thể loại phim</span>
         </a>
-
-        
+        <a class="sidebar-nav-link @(active("MovieAsset", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="MovieAsset" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            <span>Poster & Backdrop</span>
+        </a>
     </nav>
+
+    <div class="sidebar-section-label">Hệ thống</div>
+    <nav class="nav flex-column">
+        <a class="sidebar-nav-link @(active("Permission", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="Permission" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <rect x="9" y="11" width="6" height="5" rx="1"></rect>
+                <path d="M10 11V9a2 2 0 1 1 4 0v2"></path>
+            </svg>
+            <span>Phân quyền Admin</span>
+        </a>
+    </nav>
+
+    <!-- Server Status Mini Card at bottom of sidebar -->
+    <div class="mt-auto pt-3 border-top border-secondary border-opacity-25">
+        <div class="p-2 rounded-3" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); font-size: 0.76rem;">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="text-muted d-flex align-items-center gap-1">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                    API Server:
+                </span>
+                <span class="text-success fw-bold d-flex align-items-center gap-1">
+                    <span class="spinner-grow spinner-grow-sm text-success" style="width: 6px; height: 6px;" role="status"></span>
+                    5036 Online
+                </span>
+            </div>
+            <div class="d-flex align-items-center justify-content-between">
+                <span class="text-muted d-flex align-items-center gap-1">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    Web MVC:
+                </span>
+                <span class="text-success fw-bold d-flex align-items-center gap-1">
+                    <span class="spinner-grow spinner-grow-sm text-success" style="width: 6px; height: 6px;" role="status"></span>
+                    5122 Online
+                </span>
+            </div>
+        </div>
+    </div>
 </aside>
 
-<!-- JS toggle cho sidebar -->
+<!-- JS toggle cho sidebar mobile -->
 <script>
     (function () {
-      const sidebar  = document.getElementById('sidebar');
-      if (!sidebar || sidebar.dataset.tglInit === '1') return;   // tránh khởi tạo lặp
+      const sidebar = document.getElementById('sidebar');
+      if (!sidebar || sidebar.dataset.tglInit === '1') return;
       sidebar.dataset.tglInit = '1';
 
-      const btnOpen  = document.getElementById('sidebarToggle'); // ở Topbar
+      const btnOpen  = document.getElementById('sidebarToggle');
       const btnClose = document.getElementById('sidebarClose');
 
-      // Tạo overlay nếu chưa có
       let overlay = document.getElementById('sidebarOverlay');
       if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'sidebarOverlay';
         overlay.style.position = 'fixed';
         overlay.style.inset = '0';
-        overlay.style.zIndex = '1049';           // nhỏ hơn sidebar (1050)
-        overlay.style.background = 'rgba(0,0,0,.35)';
+        overlay.style.zIndex = '1049';
+        overlay.style.background = 'rgba(0,0,0,.6)';
+        overlay.style.backdropFilter = 'blur(4px)';
         overlay.style.display = 'none';
         document.body.appendChild(overlay);
       }
@@ -96,7 +173,6 @@
         document.body.classList.add('sidebar-open');
         overlay.style.display = 'block';
         btnOpen?.setAttribute('aria-expanded', 'true');
-        sidebar.setAttribute('aria-hidden', 'false');
       };
 
       const closeSidebar = () => {
@@ -104,33 +180,27 @@
         document.body.classList.remove('sidebar-open');
         overlay.style.display = 'none';
         btnOpen?.setAttribute('aria-expanded', 'false');
-        sidebar.setAttribute('aria-hidden', 'true');
       };
 
-      // Mở từ topbar
       btnOpen?.addEventListener('click', function (e) {
         e.preventDefault();
         openSidebar();
       });
 
-      // Đóng từ nút trong sidebar
       btnClose?.addEventListener('click', function (e) {
         e.preventDefault();
         closeSidebar();
       });
 
-      // Click overlay → đóng
       overlay.addEventListener('click', closeSidebar);
 
-      // ESC → đóng
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closeSidebar();
       });
 
-      // Trên mobile, click menu link → tự đóng
       sidebar.addEventListener('click', function (e) {
         const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
-        if (isMobile && e.target.closest('.nav-link')) closeSidebar();
+        if (isMobile && e.target.closest('.sidebar-nav-link')) closeSidebar();
       });
     })();
 </script>

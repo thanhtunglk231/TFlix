@@ -59,6 +59,8 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.INewsService,
                            NewsService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.ICommentService,
                            WebBrowser.Services.Implements.CommentService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IFavoriteService,
+                           WebBrowser.Services.Implements.FavoriteService>();
 builder.Services.AddSignalR();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>

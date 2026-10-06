@@ -29,12 +29,6 @@ namespace WebBrowser.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? q, int? genreId, string? countryCode, int? year, string sortBy = "newest", int page = 1)
         {
-            // Kiểm tra Đăng nhập (Authentication check)
-            if (!IsUserAuthenticated())
-            {
-                string returnUrl = Url.Action("Index", "Single", new { q, genreId, countryCode, year, sortBy, page }) ?? "/Single";
-                return RedirectToAction("Index", "Auth", new { returnUrl });
-            }
 
             var filter = new MovieCatalogFilterDto
             {
