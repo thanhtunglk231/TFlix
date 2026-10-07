@@ -95,6 +95,43 @@ namespace WebBrowser.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RequestRegisterOtp([FromBody] OtpRequestDto request)
+        {
+            request.Purpose = "REGISTER";
+            var response = await _authService.RequestOtpAsync(request);
+            return new JsonResult(response) { StatusCode = response.Success || response.code == "200" ? 200 : 400 };
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RequestLoginOtp([FromBody] OtpRequestDto request)
+        {
+            request.Purpose = "LOGIN";
+            var response = await _authService.RequestOtpAsync(request);
+            return new JsonResult(response) { StatusCode = response.Success || response.code == "200" ? 200 : 400 };
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> LoginWithOtp([FromBody] OtpLoginDto request)
+        {
+            var response = await _authService.LoginWithOtpAsync(request);
+            var ok = response != null && (response.Success || response.code == "200");
+            if (!ok || response?.Data == null)
+                return new JsonResult(response) { StatusCode = response?.code == "401" ? 401 : 400 };
+
+            var data = JsonConvert.DeserializeObject<LoginResponseData>(JsonConvert.SerializeObject(response.Data));
+            if (string.IsNullOrWhiteSpace(data?.token))
+                return new JsonResult(new CResponseMessage { Success = false, code = "502", message = "Phản hồi đăng nhập OTP không hợp lệ." }) { StatusCode = 502 };
+
+            HttpContext.Session.SetString("JWToken", data.token);
+            if (data.user != null)
+                HttpContext.Session.SetString("CurrentUser", JsonConvert.SerializeObject(data.user));
+            return Json(new { success = true, code = "200", message = "Đăng nhập OTP thành công." });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
             if (registerDto == null || string.IsNullOrWhiteSpace(registerDto.FullName) ||

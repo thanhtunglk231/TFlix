@@ -9,6 +9,7 @@ using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Server.Services;
 
 namespace Server.Controllers
 {
@@ -20,12 +21,14 @@ namespace Server.Controllers
         private readonly ICBaseProvider _BaseProvider;
         private readonly IConfiguration _jwtSection;
         private readonly ICAuth _auth;
+        private readonly IAuthOtpService _otpService;
 
-        public AuthController(ICBaseProvider baseProvider, IConfiguration configuration, ICAuth cAuth)
+        public AuthController(ICBaseProvider baseProvider, IConfiguration configuration, ICAuth cAuth, IAuthOtpService otpService)
         {
             _BaseProvider = baseProvider;
             _jwtSection = configuration.GetSection("JwtSettings");
             _auth = cAuth;
+            _otpService = otpService;
         }
 
         [HttpPost("login")]
@@ -99,11 +102,81 @@ namespace Server.Controllers
             if (registerDto.Password.Length < 8)
                 return BadRequest(new { code = "400", success = false, message = "Mật khẩu phải có ít nhất 8 ký tự." });
 
+            if (string.IsNullOrWhiteSpace(registerDto.Otp))
+                return BadRequest(new { code = "400", success = false, message = "Vui lòng nhập mã OTP đăng ký." });
+
+            var otpResponse = await _otpService.VerifyAsync(registerDto.Email, AuthOtpService.RegisterPurpose, registerDto.Otp);
+            if (!otpResponse.Success)
+                return BadRequest(new { code = otpResponse.code, success = false, message = otpResponse.message });
+
             var response = await _auth.Register(registerDto);
             if (response.code != "200")
                 return BadRequest(new { code = response.code, success = false, message = response.message });
 
             return Ok(new { code = "200", success = true, message = response.message });
+        }
+
+        [HttpPost("otp/register/request")]
+        public async Task<IActionResult> RequestRegisterOtp([FromBody] OtpRequestDto request)
+        {
+            if (request == null || !System.Net.Mail.MailAddress.TryCreate(request.Email?.Trim(), out _))
+                return BadRequest(new { code = "400", success = false, message = "Email không đúng định dạng." });
+            var response = await _otpService.RequestAsync(request.Email, AuthOtpService.RegisterPurpose);
+            return StatusCode(response.Success ? 200 : 400, response);
+        }
+
+        [HttpPost("otp/admin/request")]
+        public async Task<IActionResult> RequestAdminOtp([FromBody] OtpRequestDto request)
+        {
+            if (request == null || !System.Net.Mail.MailAddress.TryCreate(request.Email?.Trim(), out _))
+                return BadRequest(new { code = "400", success = false, message = "Email không đúng định dạng." });
+            var response = await _otpService.RequestAsync(request.Email, AuthOtpService.AdminLoginPurpose);
+            return StatusCode(response.Success ? 200 : response.code == "403" ? 403 : 400, response);
+        }
+
+        [HttpPost("otp/login/request")]
+        public async Task<IActionResult> RequestLoginOtp([FromBody] OtpRequestDto request)
+        {
+            if (request == null || !System.Net.Mail.MailAddress.TryCreate(request.Email?.Trim(), out _))
+                return BadRequest(new { code = "400", success = false, message = "Email không đúng định dạng." });
+            var response = await _otpService.RequestAsync(request.Email, AuthOtpService.LoginPurpose);
+            return StatusCode(response.Success ? 200 : 400, response);
+        }
+
+        [HttpPost("otp/login")]
+        public async Task<IActionResult> OtpLogin([FromBody] OtpLoginDto request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Otp))
+                return BadRequest(new { code = "400", success = false, message = "Vui lòng nhập email và mã OTP." });
+
+            var response = await _otpService.VerifyAsync(request.Email, AuthOtpService.LoginPurpose, request.Otp);
+            if (!response.Success)
+                return StatusCode(response.code == "401" ? 401 : 400, response);
+
+            var user = MapUserFromDataSet(response.Data as DataSet);
+            if (user == null)
+                return StatusCode(500, new { code = "500", success = false, message = "Không đọc được thông tin tài khoản." });
+
+            return Ok(new
+            {
+                code = "200",
+                success = true,
+                message = "Đăng nhập OTP thành công.",
+                data = new { token = GenerateJwtToken(user.Email ?? request.Email, user.Roles), user }
+            });
+        }
+
+        [HttpPost("otp/admin-login")]
+        public async Task<IActionResult> AdminOtpLogin([FromBody] OtpLoginDto request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Otp))
+                return BadRequest(new { code = "400", success = false, message = "Vui lòng nhập email và mã OTP." });
+            var response = await _otpService.VerifyAsync(request.Email, AuthOtpService.AdminLoginPurpose, request.Otp);
+            if (!response.Success) return StatusCode(response.code == "401" ? 401 : 400, response);
+            var user = MapUserFromDataSet(response.Data as DataSet);
+            if (user == null || !user.Roles.Any(x => x.Equals("ADMIN", StringComparison.OrdinalIgnoreCase) || x.Equals("SUPER_ADMIN", StringComparison.OrdinalIgnoreCase)))
+                return StatusCode(403, new { code = "403", success = false, message = "Tài khoản không có quyền Quản trị." });
+            return Ok(new { code = "200", success = true, message = "Đăng nhập OTP thành công.", data = new { token = GenerateJwtToken(user.Email ?? request.Email, user.Roles), user } });
         }
         private string GenerateJwtToken(string email, IEnumerable<string> roles)
         {

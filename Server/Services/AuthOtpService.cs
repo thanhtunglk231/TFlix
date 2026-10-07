@@ -10,6 +10,7 @@ namespace Server.Services
     {
         public const string RegisterPurpose = "REGISTER";
         public const string LoginPurpose = "LOGIN";
+        public const string AdminLoginPurpose = "ADMIN_LOGIN";
 
         private readonly ICAuth _auth;
         private readonly IEmailSender _emailSender;
@@ -72,6 +73,12 @@ namespace Server.Services
             var payload = $"{email.Trim().ToLowerInvariant()}|{purpose}|{otp.Trim()}";
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
             return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
+        }
+
+        public Task<CResponseMessage> VerifyAsync(string email, string purpose, string otp)
+        {
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            return _auth.VerifyOtpAsync(normalizedEmail, purpose, Hash(normalizedEmail, purpose, otp));
         }
     }
 }

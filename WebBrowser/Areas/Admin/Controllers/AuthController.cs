@@ -32,6 +32,34 @@ namespace WebBrowser.Areas.Admin.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> RequestOtp([FromBody] OtpRequestDto request)
+        {
+            request.Purpose = "ADMIN_LOGIN";
+            var response = await _authService.RequestOtpAsync(request);
+            return new JsonResult(response) { StatusCode = response.Success || response.code == "200" ? 200 : 400 };
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> LoginWithOtp([FromBody] OtpLoginDto request, [FromQuery] string? returnUrl)
+        {
+            var response = await _authService.LoginWithOtpAsync(request, adminLogin: true);
+            var ok = response != null && (response.Success || response.code == "200");
+            if (!ok || response?.Data == null)
+                return new JsonResult(response) { StatusCode = response?.code == "401" ? 401 : 400 };
+
+            var data = JsonConvert.DeserializeObject<LoginResponseData>(JsonConvert.SerializeObject(response.Data));
+            var isAdmin = data?.user?.roles?.Any(role =>
+                string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(role, "SUPER_ADMIN", StringComparison.OrdinalIgnoreCase)) == true;
+            if (!isAdmin || string.IsNullOrWhiteSpace(data?.token))
+                return new JsonResult(new CResponseMessage { Success = false, code = "403", message = "Tài khoản không có quyền Quản trị." }) { StatusCode = 403 };
+
+            HttpContext.Session.SetString("AdminJWToken", data.token);
+            HttpContext.Session.SetString("AdminCurrentUser", JsonConvert.SerializeObject(data.user));
+            return Json(new { success = true, code = "200", message = "Đăng nhập OTP thành công.", redirectUrl = string.IsNullOrWhiteSpace(returnUrl) ? "/Admin" : returnUrl });
+        }
+
+        [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto, [FromQuery] string? returnUrl)
         {
             if (loginDto == null || string.IsNullOrWhiteSpace(loginDto.Username) || string.IsNullOrWhiteSpace(loginDto.Password))

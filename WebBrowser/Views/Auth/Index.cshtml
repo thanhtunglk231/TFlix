@@ -93,7 +93,7 @@
 
             <ul class="nav nav-pills nav-fill auth-tabs mb-4" role="tablist">
                 <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#loginPane" type="button">Đăng nhập</button></li>
-                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#registerPane" type="button">Đăng ký</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#registerPane" type="button"><i class="bi bi-shield-check me-1"></i>Đăng ký OTP</button></li>
             </ul>
 
             <div id="msgBox" class="alert d-none" role="alert"></div>
@@ -101,6 +101,12 @@
 
             <div class="tab-content">
                 <div class="tab-pane fade show active" id="loginPane">
+                    <ul class="nav nav-pills nav-fill auth-tabs mb-3" role="tablist" aria-label="Chọn hình thức đăng nhập">
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#userPasswordPane" type="button"><i class="bi bi-key me-1"></i>Mật khẩu</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#userOtpPane" type="button"><i class="bi bi-shield-check me-1"></i>OTP</button></li>
+                    </ul>
+                    <div class="tab-content">
+                    <div class="tab-pane fade show active" id="userPasswordPane">
                     <form id="loginForm" autocomplete="on">
                         <div class="form-floating mb-3">
                             <input type="email" class="form-control" id="username" placeholder="name@example.com" required>
@@ -120,6 +126,28 @@
                             </button>
                         </div>
                     </form>
+                    </div>
+                    <div class="tab-pane fade" id="userOtpPane">
+                        <form id="loginOtpForm" autocomplete="on">
+                            <div class="input-group mb-3">
+                                <div class="form-floating">
+                                    <input type="email" class="form-control" id="loginOtpEmail" placeholder="name@example.com" required>
+                                    <label for="loginOtpEmail"><i class="bi bi-envelope me-1"></i>Email</label>
+                                </div>
+                                <button type="button" id="btnLoginSendOtp" class="btn btn-outline-info">Gửi OTP</button>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" inputmode="numeric" class="form-control" id="loginOtp" placeholder="OTP" maxlength="6" required>
+                                <label for="loginOtp"><i class="bi bi-shield-check me-1"></i>Mã OTP</label>
+                            </div>
+                            <div class="d-grid">
+                                <button id="btnLoginOtp" type="submit" class="btn btn-brand">
+                                    <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>Đăng nhập bằng OTP
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    </div>
                 </div>
 
                 <div class="tab-pane fade" id="registerPane">
@@ -139,6 +167,13 @@
                         <div class="form-floating mb-3">
                             <input type="password" class="form-control" id="confirmPassword" placeholder="Xác nhận mật khẩu" minlength="8" required>
                             <label for="confirmPassword"><i class="bi bi-key-fill me-1"></i>Xác nhận mật khẩu</label>
+                        </div>
+                        <div class="input-group mb-3">
+                            <div class="form-floating">
+                                <input type="text" inputmode="numeric" class="form-control" id="registerOtp" placeholder="OTP" maxlength="6" required>
+                                <label for="registerOtp"><i class="bi bi-shield-check me-1"></i>Mã OTP email</label>
+                            </div>
+                            <button type="button" id="btnRegisterOtp" class="btn btn-outline-info">Gửi mã</button>
                         </div>
                         <p class="small text-secondary"><i class="bi bi-info-circle me-1"></i>Tài khoản đăng ký tại đây chỉ có quyền người xem, không thể truy cập trang Admin.</p>
                         <div class="d-grid">
@@ -171,6 +206,26 @@
                 button.find(".spinner-border").toggleClass("d-none", !busy);
             };
 
+            const showOtpSending = button => {
+                button.prop("disabled", true).html('<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Đang gửi...');
+            };
+
+            const startOtpCountdown = (button, label, seconds = 60) => {
+                clearInterval(button.data("otpTimer"));
+                let remaining = seconds;
+                button.prop("disabled", true).text(`${label} (${remaining}s)`);
+                const timer = setInterval(() => {
+                    remaining -= 1;
+                    if (remaining <= 0) {
+                        clearInterval(timer);
+                        button.removeData("otpTimer").prop("disabled", false).text(label);
+                        return;
+                    }
+                    button.text(`${label} (${remaining}s)`);
+                }, 1000);
+                button.data("otpTimer", timer);
+            };
+
             $("#showLoginPassword").on("change", function () {
                 $("#password").attr("type", this.checked ? "text" : "password");
             });
@@ -190,6 +245,47 @@
                         setTimeout(() => window.location.href = returnUrl || "/", 500);
                     },
                     error: xhr => showMessage(xhr.responseJSON?.message || "Đăng nhập thất bại.", "danger"),
+                    complete: () => setBusy(button, false)
+                });
+            });
+
+            $("#btnLoginSendOtp").on("click", function () {
+                const email = $("#loginOtpEmail").val().trim();
+                if (!email) { showMessage("Vui lòng nhập email trước khi gửi OTP.", "warning"); return; }
+                const button = $(this);
+                let sent = false;
+                showOtpSending(button);
+                $.ajax({
+                    url: "/Auth/RequestLoginOtp",
+                    method: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    headers: { "RequestVerificationToken": antiForgeryToken },
+                    data: JSON.stringify({ email }),
+                    success: response => {
+                        sent = true;
+                        showMessage(response.message || "Đã gửi mã OTP.", "success");
+                        startOtpCountdown(button, "Gửi lại OTP");
+                    },
+                    error: xhr => showMessage(xhr.responseJSON?.message || "Không thể gửi OTP.", "danger"),
+                    complete: () => { if (!sent) button.prop("disabled", false).text("Gửi OTP"); }
+                });
+            });
+
+            $("#loginOtpForm").on("submit", function (event) {
+                event.preventDefault();
+                const button = $("#btnLoginOtp");
+                setBusy(button, true);
+                $.ajax({
+                    url: "/Auth/LoginWithOtp",
+                    method: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    headers: { "RequestVerificationToken": antiForgeryToken },
+                    data: JSON.stringify({ email: $("#loginOtpEmail").val().trim(), otp: $("#loginOtp").val().trim() }),
+                    success: response => {
+                        showMessage(response.message || "Đăng nhập OTP thành công.", "success");
+                        setTimeout(() => window.location.href = returnUrl || "/", 500);
+                    },
+                    error: xhr => showMessage(xhr.responseJSON?.message || "Đăng nhập OTP thất bại.", "danger"),
                     complete: () => setBusy(button, false)
                 });
             });
@@ -218,7 +314,8 @@
                     data: JSON.stringify({
                         fullName: $("#registerFullName").val().trim(),
                         email: $("#registerEmail").val().trim(),
-                        password
+                        password,
+                        otp: $("#registerOtp").val().trim()
                     }),
                     success: response => {
                         showMessage(response.message || "Đăng ký thành công. Bạn có thể đăng nhập ngay.", "success");
@@ -229,6 +326,28 @@
                     },
                     error: xhr => showMessage(xhr.responseJSON?.message || "Đăng ký thất bại.", "danger"),
                     complete: () => setBusy(button, false)
+                });
+            });
+
+            $("#btnRegisterOtp").on("click", function () {
+                const email = $("#registerEmail").val().trim();
+                if (!email) { showMessage("Vui lòng nhập email trước khi gửi OTP.", "warning"); return; }
+                const button = $(this);
+                let sent = false;
+                showOtpSending(button);
+                $.ajax({
+                    url: "/Auth/RequestRegisterOtp",
+                    method: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    headers: { "RequestVerificationToken": antiForgeryToken },
+                    data: JSON.stringify({ email }),
+                    success: response => {
+                        sent = true;
+                        showMessage(response.message || "Đã gửi mã OTP.", "success");
+                        startOtpCountdown(button, "Gửi lại mã");
+                    },
+                    error: xhr => showMessage(xhr.responseJSON?.message || "Không thể gửi OTP.", "danger"),
+                    complete: () => { if (!sent) button.prop("disabled", false).text("Gửi mã"); }
                 });
             });
         })();

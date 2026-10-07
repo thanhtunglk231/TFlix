@@ -53,6 +53,17 @@ namespace WebBrowser.Services.Implements
             return response!;
         }
 
+        public async Task<CResponseMessage> RequestOtpAsync(OtpRequestDto request)
+            => (await _httpService.PostAsync<CResponseMessage>(
+                string.Equals(request.Purpose, "ADMIN_LOGIN", StringComparison.OrdinalIgnoreCase)
+                    ? "/api/Auth/otp/admin/request"
+                    : string.Equals(request.Purpose, "LOGIN", StringComparison.OrdinalIgnoreCase)
+                        ? "/api/Auth/otp/login/request"
+                        : "/api/Auth/otp/register/request", request))!;
+
+        public async Task<CResponseMessage> LoginWithOtpAsync(OtpLoginDto request, bool adminLogin = false)
+            => (await _httpService.PostAsync<CResponseMessage>(adminLogin ? "/api/Auth/otp/admin-login" : "/api/Auth/otp/login", request))!;
+
         public void Logout()
         {
             _http.HttpContext?.Session.Remove("JWToken");

@@ -308,13 +308,33 @@ namespace DataServiceLib.Implements
 
         public async Task<CResponseMessage> IssueOtpAsync(string email, string purpose, string otpHash)
         {
-            await Task.CompletedTask;
-            return new CResponseMessage
+            return await ExecuteOtpProcedureAsync("sp_auth_otp_issue", email, purpose, otpHash);
+        }
+
+        public async Task<CResponseMessage> VerifyOtpAsync(string email, string purpose, string otpHash)
+        {
+            return await ExecuteOtpProcedureAsync("sp_auth_otp_verify", email, purpose, otpHash);
+        }
+
+        private async Task<CResponseMessage> ExecuteOtpProcedureAsync(string procedure, string email, string purpose, string otpHash)
+        {
+            try
             {
-                Success = true,
-                code = "200",
-                message = "OTP issued successfully"
-            };
+                var pEmail = new SqlParameter("@p_email", SqlDbType.NVarChar, 320) { Value = email };
+                var pPurpose = new SqlParameter("@p_purpose", SqlDbType.NVarChar, 30) { Value = purpose };
+                var pHash = new SqlParameter("@p_otp_hash", SqlDbType.NVarChar, 128) { Value = otpHash };
+                var oCode = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var oMessage = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+                var parameters = new IDbDataParameter[] { pEmail, pPurpose, pHash, oCode, oMessage };
+                var data = _baseProvider.GetDatasetFromSP(procedure, parameters, _connectionString);
+                var code = oCode.Value?.ToString() ?? "500";
+                return new CResponseMessage { Success = code == "200", code = code, message = oMessage.Value?.ToString(), Data = data };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CAuth.{procedure}] Exception: {ex.Message}");
+                return new CResponseMessage { Success = false, code = "500", message = "Không thể xử lý OTP. Vui lòng thử lại sau." };
+            }
         }
     }
 }
