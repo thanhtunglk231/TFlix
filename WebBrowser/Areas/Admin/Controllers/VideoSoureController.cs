@@ -161,7 +161,7 @@ namespace WebBrowser.Areas.Admin.Controllers
             if (effectiveId <= 0)
                 return BadRequest(new { success = false, message = "ID nguồn video không hợp lệ." });
 
-            var result = await _videoSoureService.Delete_video_source(effectiveId, body?.StreamUrl);
+            var result = await _videoSoureService.Delete_video_source(effectiveId);
             return Ok(result);
         }
     }

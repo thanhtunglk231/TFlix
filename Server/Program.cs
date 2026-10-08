@@ -54,6 +54,8 @@ builder.Services.AddScoped<ICMovieAsset, CMovieAsset>();
 builder.Services.AddScoped<ICGenres, CGenres>();
 builder.Services.AddScoped<ICMovieGenre, CMovieGenre>();
 builder.Services.AddScoped<ICSeriesGenres, CSeriesGenres>();
+builder.Services.AddScoped<ICPermission, CPermission>();
+builder.Services.AddScoped<ICAdminAccount, CAdminAccount>();
 builder.Services.AddScoped<IPreView, PreView>();
 builder.Services.AddScoped<ICHome, CHome>();
 builder.Services.AddScoped<ICNews, CNews>();

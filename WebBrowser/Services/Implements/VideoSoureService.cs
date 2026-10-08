@@ -258,12 +258,15 @@ namespace WebBrowser.Services.Implements
         }
 
 
-        public async Task<CResponseMessage> Delete_video_source(decimal sourceId, string? streamUrl = null)
+        public async Task<CResponseMessage> Delete_video_source(decimal sourceId)
         {
             var url = "/api/VideoSources/delete";
             _logger.LogInformation("Calling delete video source API for id {SourceId}", sourceId);
 
-            var resp = await _httpService.PostAsync<CResponseMessage>(url, new { id = sourceId, streamUrl });
+            var resp = await _httpService.PostAsync<CResponseMessage>(url, new DeleteVideoSourceInputDto
+            {
+                SourceId = sourceId
+            });
             if (resp != null)
             {
                 resp.Success = resp.Success || resp.code == "200";

@@ -45,24 +45,37 @@ namespace DataServiceLib.Implements.Admin.Episodes
             }
         }
 
-
-        public async Task<CResponseMessage> sp_get_by_id(decimal id)
+        public async Task<CResponseMessage> GetBySeriesAsync(long seriesId, bool publishedOnly)
         {
             try
             {
-                var p_asset_id = new SqlParameter("@p_asset_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = id };
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.BigInt) { Value = seriesId };
+                var p_published_only = new SqlParameter("@p_published_only", SqlDbType.Bit) { Value = publishedOnly };
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new IDbDataParameter[] { p_asset_id, o_code, o_message };
-                var dataset = _baseProvider.GetDatasetFromSP("sp_episode_asset_get_by_id", parameters, _connectionString);
+                var parameters = new IDbDataParameter[] { p_series_id, p_published_only, o_code, o_message };
+                var dataset = _baseProvider.GetDatasetFromSP("sp_episode_get", parameters, _connectionString);
+                var code = o_code.Value?.ToString();
+                var message = o_message.Value?.ToString();
+
+                if (string.IsNullOrWhiteSpace(code))
+                {
+                    return new CResponseMessage
+                    {
+                        Data = dataset,
+                        code = "503",
+                        message = "Không thể kết nối cơ sở dữ liệu để tải danh sách tập phim.",
+                        Success = false
+                    };
+                }
 
                 return new CResponseMessage
                 {
                     Data = dataset,
-                    code = o_code.Value?.ToString() ?? "400",
-                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
-                    Success = o_code.Value?.ToString() == "200"
+                    code = code,
+                    message = message ?? "Không lấy được phản hồi",
+                    Success = code == "200"
                 };
             }
             catch (Exception ex)
@@ -76,11 +89,11 @@ namespace DataServiceLib.Implements.Admin.Episodes
             try
             {
                 // IN
-                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = addEpisodeDto.SeriesId };
-                var p_season_id = new SqlParameter("@p_season_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = addEpisodeDto.SeasonId };
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = addEpisodeDto.SeriesId };
+                var p_season_id = new SqlParameter("@p_season_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = addEpisodeDto.SeasonId };
                 var p_episode_no = new SqlParameter("@p_episode_no", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = addEpisodeDto.EpisodeNo };
                 var p_title = new SqlParameter("@p_title", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.Title ?? DBNull.Value };
-                var p_air_date = new SqlParameter("@p_air_date", SqlDbType.DateTime) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.AirDate ?? DBNull.Value };
+                var p_air_date = new SqlParameter("@p_air_date", SqlDbType.Date) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.AirDate ?? DBNull.Value };
                 var p_duration_min = new SqlParameter("@p_duration_min", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.DurationMin ?? DBNull.Value };
                 var p_overview = new SqlParameter("@p_overview", SqlDbType.NVarChar, -1) { Direction = ParameterDirection.Input, Value = (object?)addEpisodeDto.Overview ?? DBNull.Value };
                 var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = string.IsNullOrWhiteSpace(addEpisodeDto.Status) ? "PUBLISHED" : addEpisodeDto.Status };
@@ -89,7 +102,7 @@ namespace DataServiceLib.Implements.Admin.Episodes
 
                 // OUT
 
-                var o_episode_id = new SqlParameter("@o_episode_id", SqlDbType.Decimal) { Direction = ParameterDirection.Output };
+                var o_episode_id = new SqlParameter("@o_episode_id", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
@@ -103,10 +116,10 @@ namespace DataServiceLib.Implements.Admin.Episodes
                 var dataset = _baseProvider.GetDatasetFromSP("sp_episode_add", parameters, _connectionString);
 
                 // Đọc output id từ SQL Server.
-                decimal? newId = null;
+                long? newId = null;
                 if (o_episode_id.Value != null && o_episode_id.Value != DBNull.Value)
                 {
-                    newId = Convert.ToDecimal(o_episode_id.Value);
+                    newId = Convert.ToInt64(o_episode_id.Value);
                 }
 
                 return new CResponseMessage
@@ -127,12 +140,12 @@ namespace DataServiceLib.Implements.Admin.Episodes
         {
             try
             {
-                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = dto.EpisodeId };
-                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = (object?)dto.SeriesId ?? DBNull.Value };
-                var p_season_id = new SqlParameter("@p_season_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = (object?)dto.SeasonId ?? DBNull.Value };
+                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = dto.EpisodeId };
+                var p_series_id = new SqlParameter("@p_series_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = dto.SeriesId };
+                var p_season_id = new SqlParameter("@p_season_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = dto.SeasonId };
                 var p_title = new SqlParameter("@p_title", SqlDbType.NVarChar, 500) { Direction = ParameterDirection.Input, Value = (object?)dto.Title ?? DBNull.Value };
                 var p_episode_no = new SqlParameter("@p_episode_no", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = dto.EpisodeNo };
-                var p_air_date = new SqlParameter("@p_air_date", SqlDbType.DateTime) { Direction = ParameterDirection.Input, Value = (object?)dto.AirDate ?? DBNull.Value };
+                var p_air_date = new SqlParameter("@p_air_date", SqlDbType.Date) { Direction = ParameterDirection.Input, Value = (object?)dto.AirDate ?? DBNull.Value };
                 var p_duration_min = new SqlParameter("@p_duration_min", SqlDbType.Int) { Direction = ParameterDirection.Input, Value = (object?)dto.DurationMin ?? DBNull.Value };
                 var p_overview = new SqlParameter("@p_overview", SqlDbType.NVarChar, -1) { Direction = ParameterDirection.Input, Value = (object?)dto.Overview ?? DBNull.Value };
                 var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = string.IsNullOrWhiteSpace(dto.Status) ? "PUBLISHED" : dto.Status };
@@ -164,11 +177,11 @@ namespace DataServiceLib.Implements.Admin.Episodes
             }
         }
 
-        public async Task<CResponseMessage> Delete_episode(decimal episodeId)
+        public async Task<CResponseMessage> Delete_episode(long episodeId)
         {
             try
             {
-                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = episodeId };
+                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = episodeId };
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 

@@ -1,0 +1,32 @@
+@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Quản lý tài khoản";
+}
+@Html.AntiForgeryToken()
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div><h4 class="mb-1"><i class="bi bi-people me-2"></i>Quản lý tài khoản</h4><p class="text-muted mb-0">Tạo tài khoản quản trị và gán vai trò phù hợp.</p></div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createAccountModal"><i class="bi bi-person-plus me-1"></i>Tạo tài khoản</button>
+</div>
+<div id="accountAlert" class="alert d-none" role="alert"></div>
+<div class="card"><div class="card-body">
+    <div id="accountLoading" class="py-5 text-center" role="status"><div class="spinner-border text-primary" aria-hidden="true"></div><div class="mt-2 text-muted">Đang tải tài khoản...</div></div>
+    <div id="accountEmpty" class="py-5 text-center d-none"><i class="bi bi-person-x fs-1 text-muted"></i><p class="mt-2 mb-0 text-muted">Chưa có tài khoản nào.</p></div>
+    <div id="accountTableWrap" class="table-responsive d-none"><table class="table table-hover align-middle mb-0"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th></tr></thead><tbody id="accountTableBody"></tbody></table></div>
+</div></div>
+
+<div class="modal fade" id="createAccountModal" tabindex="-1" aria-labelledby="createAccountTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+<form id="createAccountForm" novalidate><div class="modal-header"><h5 class="modal-title" id="createAccountTitle">Tạo tài khoản quản trị</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+<div class="modal-body">
+    <div class="mb-3"><label class="form-label" for="fullName">Họ và tên</label><input class="form-control" id="fullName" maxlength="150" minlength="2" required autocomplete="name" /><div class="invalid-feedback">Vui lòng nhập họ tên từ 2 ký tự.</div></div>
+    <div class="mb-3"><label class="form-label" for="email">Email</label><input class="form-control" id="email" type="email" maxlength="320" required autocomplete="email" /><div class="invalid-feedback">Vui lòng nhập email hợp lệ.</div></div>
+    <div class="mb-3"><label class="form-label" for="password">Mật khẩu</label><input class="form-control" id="password" type="password" minlength="8" maxlength="100" required autocomplete="new-password" /><div class="form-text">Tối thiểu 8 ký tự.</div><div class="invalid-feedback">Mật khẩu phải có ít nhất 8 ký tự.</div></div>
+    <fieldset><legend class="form-label fs-6">Vai trò</legend><div id="roleOptions" class="d-grid gap-2" aria-live="polite"></div><div id="roleError" class="text-danger small mt-1 d-none">Chọn ít nhất một vai trò.</div></fieldset>
+</div>
+<div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button><button type="submit" class="btn btn-primary" id="btnCreateAccount"><span class="submit-label">Tạo tài khoản</span><span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span></button></div></form>
+</div></div></div>
+
+@section Scripts {
+    <script>window.adminAccountConfig={dataUrl:'@Url.Action("ManagementData", "AccountManagement", new { area = "Admin" })',createUrl:'@Url.Action("Create", "AccountManagement", new { area = "Admin" })'};</script>
+    <script src="~/js/admin-account-management.js" asp-append-version="true"></script>
+}

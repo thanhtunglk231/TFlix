@@ -1,0 +1,11 @@
+using CoreLib.Dtos;
+using CoreLib.Models;
+
+namespace WebBrowser.Services.Interfaces
+{
+    public interface IAdminAccountService
+    {
+        Task<CResponseMessage> GetManagementDataAsync();
+        Task<CResponseMessage> CreateAsync(CreateAdminAccountDto dto);
+    }
+}

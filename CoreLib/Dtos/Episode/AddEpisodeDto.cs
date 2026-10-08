@@ -5,8 +5,8 @@ namespace CoreLib.Dtos.Episode
 {
     public class AddEpisodeDto
     {
-        public decimal SeriesId { get; set; }
-        public decimal SeasonId { get; set; }
+        public long SeriesId { get; set; }
+        public long SeasonId { get; set; }
         public int EpisodeNo { get; set; }
 
         public string Title { get; set; } = default!;
@@ -32,6 +32,6 @@ namespace CoreLib.Dtos.Episode
 
     public class UpdateEpisodeDto : AddEpisodeDto
     {
-        public decimal EpisodeId { get; set; }
+        public long EpisodeId { get; set; }
     }
 }

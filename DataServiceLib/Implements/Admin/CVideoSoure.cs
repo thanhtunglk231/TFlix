@@ -336,6 +336,56 @@ namespace DataServiceLib.Implements.Admin
             }
         }
 
+        // ===== STORAGE URLS =====
+        public async Task<CResponseMessage> Get_storage_urls(decimal sourceId)
+        {
+            try
+            {
+                var urls = new List<string>();
+                await using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                const string sql = @"
+                    SELECT COUNT_BIG(1) FROM dbo.video_sources WHERE source_id = @p_source_id;
+                    SELECT stream_url AS storage_url FROM dbo.video_sources WHERE source_id = @p_source_id
+                    UNION
+                    SELECT url AS storage_url FROM dbo.video_source_parts WHERE source_id = @p_source_id;";
+
+                await using var command = new SqlCommand(sql, connection);
+                command.Parameters.Add(new SqlParameter("@p_source_id", SqlDbType.Decimal)
+                {
+                    Precision = 18,
+                    Scale = 0,
+                    Value = sourceId
+                });
+
+                await using var reader = await command.ExecuteReaderAsync();
+                await reader.ReadAsync();
+                if (reader.GetInt64(0) == 0)
+                {
+                    return new CResponseMessage
+                    {
+                        Success = false,
+                        code = "404",
+                        message = "Không tìm thấy video source."
+                    };
+                }
+
+                await reader.NextResultAsync();
+                while (await reader.ReadAsync())
+                {
+                    if (!reader.IsDBNull(0) && !string.IsNullOrWhiteSpace(reader.GetString(0)))
+                        urls.Add(reader.GetString(0));
+                }
+
+                return new CResponseMessage { Data = urls, code = "200", message = "Lấy danh sách file nguồn thành công.", Success = true };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage { Success = false, code = "500", message = "Không lấy được danh sách file nguồn: " + ex.Message };
+            }
+        }
+
         // ===== DELETE =====
         public async Task<CResponseMessage> Delete_video_source(decimal sourceId)
         {

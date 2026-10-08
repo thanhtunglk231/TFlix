@@ -12,7 +12,7 @@ namespace DataServiceLib.Implements
 {
     public class SupabaseService : ISupabaseService
     {
-        private readonly RestClient _client;
+        private readonly RestClient? _client;
         private readonly string _supabaseUrl;
         private readonly string _storageBucket;
         private readonly ILogger<SupabaseService> _logger;
@@ -25,12 +25,14 @@ namespace DataServiceLib.Implements
             var apiKey = supabase["ApiKey"] ?? string.Empty;
             _storageBucket = supabase["Bucket"] ?? string.Empty;
 
-            if (string.IsNullOrWhiteSpace(_supabaseUrl))
-                throw new InvalidOperationException("SupabaseUrl chưa được cấu hình.");
-            if (string.IsNullOrWhiteSpace(apiKey))
-                throw new InvalidOperationException("SupabaseApiKey chưa được cấu hình.");
-            if (string.IsNullOrWhiteSpace(_storageBucket))
-                throw new InvalidOperationException("StorageBucket chưa được cấu hình.");
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) ||
+                string.IsNullOrWhiteSpace(apiKey) ||
+                string.IsNullOrWhiteSpace(_storageBucket))
+            {
+                _logger.LogWarning(
+                    "Supabase storage chưa được cấu hình đầy đủ. Các API đọc dữ liệu vẫn hoạt động; upload/xóa Supabase sẽ bị vô hiệu hóa.");
+                return;
+            }
 
             var options = new RestClientOptions(_supabaseUrl);
             _client = new RestClient(options);
@@ -85,6 +87,12 @@ namespace DataServiceLib.Implements
         /// </summary>
         public async Task<bool> DeleteFileAsync(string pathOrUrl)
         {
+            if (_client == null)
+            {
+                _logger.LogWarning("Không thể xóa file vì Supabase storage chưa được cấu hình.");
+                return false;
+            }
+
             if (string.IsNullOrWhiteSpace(pathOrUrl))
                 return false;
 
@@ -119,6 +127,12 @@ namespace DataServiceLib.Implements
         /// </summary>
         public async Task<string?> UploadFileAsync(IFormFile file, string objectPath)
         {
+            if (_client == null)
+            {
+                _logger.LogWarning("Không thể upload file vì Supabase storage chưa được cấu hình.");
+                return null;
+            }
+
             if (file == null || file.Length == 0)
                 return null;
 

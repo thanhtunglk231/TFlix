@@ -10,6 +10,7 @@ namespace WebBrowser.Models.Film
         public PreviewItem Content { get; set; } = new();
         public List<EpisodeItem> Episodes { get; set; } = new();
         public List<SourceItem> Sources { get; set; } = new();
-        public int? CurrentEpisodeId { get; set; }
+        public long? CurrentEpisodeId { get; set; }
+        public string? EpisodeLoadError { get; set; }
     }
 }

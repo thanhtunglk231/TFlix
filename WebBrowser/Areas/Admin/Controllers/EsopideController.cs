@@ -40,7 +40,7 @@ namespace WebBrowser.Areas.Admin.Controllers
             return Ok(result);
         }
 
-        public async Task<IActionResult> Delete([FromQuery] decimal id)
+        public async Task<IActionResult> Delete([FromQuery] long id)
         {
             Console.WriteLine("[Admin/Esopide] -> Delete() ENTER, id=" + id);
             if (id <= 0) return BadRequest(new { message = "Invalid id." });

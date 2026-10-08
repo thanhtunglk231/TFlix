@@ -39,17 +39,18 @@ namespace WebBrowser.Controllers
             return View();
         }
 
-        public async Task<IActionResult> Watch(long id, string kind)
+        public async Task<IActionResult> Watch(long id, string kind, long? episodeId = null)
         {
             // Kiểm tra Đăng nhập (Authentication check)
             var token = HttpContext.Session.GetString("JWToken");
             if (string.IsNullOrEmpty(token) && (User == null || !User.Identity.IsAuthenticated))
             {
                 // Chưa đăng nhập -> Chuyển hướng sang trang đăng nhập
-                string returnUrl = Url.Action("Watch", "Film", new { id, kind }) ?? "/Movies";
+                string returnUrl = Url.Action("Watch", "Film", new { id, kind, episodeId }) ?? "/Movies";
                 return RedirectToAction("Index", "Auth", new { returnUrl });
             }
 
+            var isSeries = string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase);
             var request = new GETCONTENTByID
             {
                 id = id,
@@ -59,7 +60,7 @@ namespace WebBrowser.Controllers
             Console.WriteLine($"[FilmController.Watch] id={id}, kind={kind}");
 
             PreviewItem? movie = null;
-            if (string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase))
+            if (isSeries)
             {
                 var seriesResponse = await _seriesService.get_all();
                 var series = seriesResponse?.Data?.Table?.FirstOrDefault(x => x.SeriesId == id);
@@ -91,17 +92,50 @@ namespace WebBrowser.Controllers
 
             Console.WriteLine(JsonConvert.SerializeObject(movie));
 
-            var episodesResponse = await _episodeService.get_all();
-            var sourcesResponse = await _videoSourceService.get_all();
-            var episodes = episodesResponse?.Data?.Table?
-                .Where(x => x.SeriesId == id && string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(x => x.SeasonNo)
-                .ThenBy(x => x.EpisodeNo)
-                .ToList() ?? new List<WebBrowser.Models.Episode.EpisodeItem>();
+            var episodes = new List<WebBrowser.Models.Episode.EpisodeItem>();
+            string? episodeLoadError = null;
+            if (isSeries)
+            {
+                try
+                {
+                    var episodesResponse = await _episodeService.GetBySeriesAsync(id);
+                    if (episodesResponse?.success == true && episodesResponse.Data?.Table != null)
+                    {
+                        episodes = episodesResponse.Data.Table
+                            .OrderBy(x => x.SeasonNo)
+                            .ThenBy(x => x.EpisodeNo)
+                            .ThenBy(x => x.EpisodeId)
+                            .ToList();
+                    }
+                    else
+                    {
+                        episodeLoadError = episodesResponse?.message ?? "Không thể tải danh sách tập phim.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    episodeLoadError = "Tạm thời không thể tải danh sách tập phim. Vui lòng tải lại trang.";
+                    _logger.LogError(ex, "Không thể tải tập phim cho SeriesId={SeriesId}", id);
+                }
+            }
+
+            WebBrowser.Models.ApiResponse<WebBrowser.Models.VideoSoure.SourceTableWrapper>? sourcesResponse = null;
+            try
+            {
+                sourcesResponse = await _videoSourceService.get_all();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Không thể tải nguồn video cho ContentId={ContentId}, Kind={Kind}. Trang xem vẫn hiển thị thông tin và danh sách tập.",
+                    id,
+                    kind);
+            }
 
             var episodeIds = episodes.Select(x => x.EpisodeId).ToHashSet();
             var sources = sourcesResponse?.Data?.Table?
-                .Where(x => string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase)
+                .Where(x => isSeries
                     ? x.EpisodeId.HasValue && episodeIds.Contains(x.EpisodeId.Value)
                     : x.MovieId == id)
                 .Where(x => string.Equals(x.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
@@ -127,7 +161,8 @@ namespace WebBrowser.Controllers
             }
 
             var currentEpisodeId = episodes
-                .FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId))?.EpisodeId
+                .FirstOrDefault(x => x.EpisodeId == episodeId)?.EpisodeId
+                ?? episodes.FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId))?.EpisodeId
                 ?? episodes.FirstOrDefault()?.EpisodeId;
 
             return View("Index", new WatchViewModel
@@ -136,7 +171,8 @@ namespace WebBrowser.Controllers
                 Content = movie,
                 Episodes = episodes,
                 Sources = sources,
-                CurrentEpisodeId = currentEpisodeId
+                CurrentEpisodeId = currentEpisodeId,
+                EpisodeLoadError = episodeLoadError
             });
         }
 

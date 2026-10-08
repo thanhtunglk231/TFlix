@@ -52,6 +52,10 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.ISerireGenreService,
                            SerireGenreService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IHomeService,
                            HomeService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPermissionService,
+                           WebBrowser.Services.Implements.PermissionService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IAdminAccountService,
+                           WebBrowser.Services.Implements.AdminAccountService>();
 
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPreviewService,
                            PreviewService>();

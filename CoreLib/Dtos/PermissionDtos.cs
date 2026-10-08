@@ -22,6 +22,7 @@ namespace CoreLib.Dtos
         public long RoleId { get; set; }
         public long PermissionId { get; set; }
         public bool IsAllowed { get; set; }
+        public long? ExpectedVersion { get; set; }
     }
 
     public class CheckPermissionDto

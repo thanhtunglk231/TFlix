@@ -304,9 +304,20 @@
                         <textarea class="form-control" id="Overview" rows="3"></textarea>
                     </div>
 
-                    <div class="col-md-12">
-                        <label class="form-label">Poster URL</label>
-                        <input class="form-control" id="PosterUrl" placeholder="https://..." />
+                    <div class="col-md-6">
+                        <label class="form-label" for="Status">Trạng thái</label>
+                        <select class="form-select" id="Status">
+                            <option value="PUBLISHED">Đã xuất bản</option>
+                            <option value="DRAFT">Bản nháp</option>
+                            <option value="HIDDEN">Ẩn</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="IsPremium" />
+                            <label class="form-check-label" for="IsPremium">Tập Premium</label>
+                        </div>
                     </div>
 
                     <!-- NÚT MỞ PANEL TÀI NGUYÊN -->
@@ -612,7 +623,7 @@
               const seriesId = idv(ep,'serieS_ID','SeriesId','seriesId');
               const seasonId = idv(ep,'seasoN_ID','SeasonId','seasonId');
               const epNo     = idv(ep,'episodE_NO','EpisodeNo','episodeNo');
-              const title    = (ep.seriesTitle ?? ep.Title ?? '').toLowerCase();
+              const title    = (ep.episodeTitle ?? ep.EpisodeTitle ?? ep.episodE_TITLE ?? '').toLowerCase();
 
               const okTitle  = !qTitle || title.includes(qTitle);
               const okSeries = !fSeries || String(seriesId??'')===String(fSeries);
@@ -631,7 +642,7 @@
               const seriesId = idv(ep,'serieS_ID','SeriesId','seriesId');
               const seasonId = idv(ep,'seasoN_ID','SeasonId','seasonId');
               const epNo     = idv(ep,'episodE_NO','EpisodeNo','episodeNo');
-              const title    = ep.seriesTitle ?? ep.Title ?? '';
+              const title    = ep.episodeTitle ?? ep.EpisodeTitle ?? ep.episodE_TITLE ?? '';
               const air      = toDateStr10(ep.airDate ?? ep.AirDate ?? ep.aiR_DATE);
               const dur      = toIntOrNull(ep.durationMin ?? ep.DuratioN_MIN ?? ep.duratioN_MIN);
               return `<tr>
@@ -717,11 +728,13 @@
             loadSeasonDropdown($('#SeasonId'), seriesId, seasonId);
 
             $('#EpisodeNo').val(idv(ep,'episodE_NO','EpisodeNo','episodeNo') ?? '');
-            $('#Title').val(ep.title ?? ep.Title ?? '');
+            $('#Title').val(ep.episodeTitle ?? ep.EpisodeTitle ?? ep.episodE_TITLE ?? '');
             $('#Overview').val(ep.overview ?? ep.Overview ?? '');
             $('#AirDate').val(toDateStr10(ep.aiR_DATE ?? ep.AirDate));
             $('#DurationMin').val(toIntOrNull(ep.duratioN_MIN ?? ep.DurationMin) ?? '');
-            $('#PosterUrl').val(ep.posteR_URL ?? ep.PosterUrl ?? '');
+            $('#Status').val((ep.status ?? ep.Status ?? 'PUBLISHED').toUpperCase());
+            const premiumValue = ep.isPremium ?? ep.IsPremium ?? ep.iS_PREMIUM;
+            $('#IsPremium').prop('checked', premiumValue === true || String(premiumValue).toUpperCase() === 'Y');
 
             // Asset panel: bind EpisodeId & load assets by id
             const epId = idv(ep,'episodE_ID','EpisodeId','episodeId');
@@ -754,7 +767,8 @@
               Overview   : ($('#Overview').val()||'').trim() || null,
               AirDate    : dateLocalStart($('#AirDate').val()),
               DurationMin: toIntOrNull(($('#DurationMin').val()||'').trim()),
-              PosterUrl  : ($('#PosterUrl').val()||'').trim() || null
+              Status     : $('#Status').val() || 'PUBLISHED',
+              IsPremium  : $('#IsPremium').is(':checked')
             };
 
             showLoading();

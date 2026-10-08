@@ -51,12 +51,12 @@ namespace WebBrowser.Services.Implements.Episodes
             return resp!;
         }
 
-        public async Task<CResponseMessage> delete_Episode(decimal id)
+        public async Task<CResponseMessage> delete_Episode(long id)
         {
             const string url = "/api/Episode/delete";
             Console.WriteLine($"[EpisodeService] -> delete_Episode ENTER url={url}, id={id}");
 
-            var resp = await _httpService.PostAsync<CResponseMessage>(url, new { id });
+            var resp = await _httpService.PostAsync<CResponseMessage>(url, id);
 
             Console.WriteLine("[EpisodeService] <- delete_Episode EXIT: " + JsonConvert.SerializeObject(resp));
             return resp!;
@@ -70,6 +70,14 @@ namespace WebBrowser.Services.Implements.Episodes
             var resp = await _httpService.GetAsync<ApiResponse<EpisodeTableWrapper>>(url);
 
             Console.WriteLine("[EpisodeService] <- get_all EXIT: " + JsonConvert.SerializeObject(resp));
+            resp.success = resp.success || resp.code == "200";
+            return resp;
+        }
+
+        public async Task<ApiResponse<EpisodeTableWrapper>> GetBySeriesAsync(long seriesId, bool publishedOnly = true)
+        {
+            var url = $"/api/Episode/series/{seriesId}?publishedOnly={publishedOnly.ToString().ToLowerInvariant()}";
+            var resp = await _httpService.GetAsync<ApiResponse<EpisodeTableWrapper>>(url);
             resp.success = resp.success || resp.code == "200";
             return resp;
         }

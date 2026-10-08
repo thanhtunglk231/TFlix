@@ -36,6 +36,11 @@ namespace WebBrowser.Areas.Admin.Controllers
         {
             Console.WriteLine("[Admin/PermissionController] SetRolePermission: " + JsonConvert.SerializeObject(dto));
             var result = await _permissionService.SetRolePermission(dto);
+            if (result.code == "409")
+            {
+                return Conflict(result);
+            }
+
             return Ok(result);
         }
     }

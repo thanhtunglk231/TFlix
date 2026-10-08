@@ -51,6 +51,7 @@
           let roles = [];
           let permissions = [];
           let rolePermissions = new Set();
+          let rolePermissionVersions = new Map();
 
           const $header = $('#permissionHeader');
           const $tbody = $('#tblPermissions tbody');
@@ -147,8 +148,18 @@
                 const tables = pickTables(res);
                 roles = tables[0] || [];
                 permissions = tables[1] || [];
-                const assigned = tables[2] || [];
-                rolePermissions = new Set(assigned.map(x => key(gv(x, 'RoleId', 'roleId', 'ROLE_ID'), gv(x, 'PermissionId', 'permissionId', 'PERMISSION_ID'))));
+                const matrix = tables[2] || [];
+                rolePermissions = new Set(matrix
+                  .filter(x => {
+                    const allowed = gv(x, 'IsAllowed', 'isAllowed', 'IS_ALLOWED');
+                    return allowed === true || allowed === 1 ||
+                      ['true', '1'].includes(String(allowed).toLowerCase());
+                  })
+                  .map(x => key(gv(x, 'RoleId', 'roleId', 'ROLE_ID'), gv(x, 'PermissionId', 'permissionId', 'PERMISSION_ID'))));
+                rolePermissionVersions = new Map(matrix.map(x => [
+                  key(gv(x, 'RoleId', 'roleId', 'ROLE_ID'), gv(x, 'PermissionId', 'permissionId', 'PERMISSION_ID')),
+                  Number(gv(x, 'Version', 'version', 'VERSION'))
+                ]));
                 renderRoleFilter();
                 render();
               })
@@ -160,8 +171,14 @@
             const payload = {
               RoleId: Number($cb.data('role-id')),
               PermissionId: Number($cb.data('permission-id')),
-              IsAllowed: $cb.is(':checked')
+              IsAllowed: $cb.is(':checked'),
+              ExpectedVersion: rolePermissionVersions.get(key($cb.data('role-id'), $cb.data('permission-id')))
             };
+            if (!Number.isSafeInteger(payload.ExpectedVersion) || payload.ExpectedVersion < 0) {
+              $cb.prop('checked', !payload.IsAllowed);
+              showToast('Không xác định được phiên bản quyền. Vui lòng nạp lại trang.', false);
+              return;
+            }
             $cb.prop('disabled', true);
             $.ajax({
               url: urls.set,
@@ -179,10 +196,14 @@
               const k = key(payload.RoleId, payload.PermissionId);
               if (payload.IsAllowed) rolePermissions.add(k);
               else rolePermissions.delete(k);
+              rolePermissionVersions.set(k, payload.ExpectedVersion + 1);
               showToast('Đã cập nhật phân quyền.', true);
             }).fail(xhr => {
               $cb.prop('checked', !payload.IsAllowed);
-              showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Cập nhật phân quyền thất bại.', false);
+              const isStale = xhr?.status === 409 || xhr?.responseJSON?.code === '409';
+              showToast(isStale
+                ? (xhr?.responseJSON?.message || 'Nội dung đã được quản trị viên khác thay đổi. Vui lòng nạp lại trang trước khi tiếp tục.')
+                : (xhr?.responseJSON?.message || xhr?.responseText || 'Cập nhật phân quyền thất bại.'), false, isStale ? 7000 : 2600);
             }).always(() => $cb.prop('disabled', false));
           });
 

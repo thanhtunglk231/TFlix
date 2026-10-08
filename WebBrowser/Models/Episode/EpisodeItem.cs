@@ -7,39 +7,42 @@ namespace WebBrowser.Models.Episode
 {
     public class EpisodeItem
     {
-        [JsonProperty("episodE_ID")]
+        [JsonProperty("episode_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int EpisodeId { get; set; }
+        public long EpisodeId { get; set; }
 
-        [JsonProperty("serieS_ID")]
+        [JsonProperty("series_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int SeriesId { get; set; }
+        public long SeriesId { get; set; }
 
         // Extra display fields
-        [JsonProperty("serieS_TITLE")]
+        [JsonProperty("series_title")]
         public string SeriesTitle { get; set; }
 
         // Season / Episode numbers
-        [JsonProperty("seasoN_ID")]
+        [JsonProperty("season_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int SeasonId { get; set; }
+        public long SeasonId { get; set; }
 
-        [JsonProperty("seasoN_NO")]
+        [JsonProperty("season_no")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int SeasonNo { get; set; }
 
-        [JsonProperty("episodE_NO")]
+        [JsonProperty("episode_no")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int EpisodeNo { get; set; }
 
-        [JsonProperty("episodE_TITLE")]
+        [JsonProperty("episode_title")]
         public string EpisodeTitle { get; set; }
 
+        [JsonProperty("overview")]
+        public string? Overview { get; set; }
+
         // Dates & duration
-        [JsonProperty("aiR_DATE")]
+        [JsonProperty("air_date")]
         public DateTime? AirDate { get; set; }
 
-        [JsonProperty("duratioN_MIN")]
+        [JsonProperty("duration_min")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int? DurationMin { get; set; }
 
@@ -47,19 +50,19 @@ namespace WebBrowser.Models.Episode
         [JsonProperty("status")]
         public string Status { get; set; }
 
-        [JsonProperty("iS_PREMIUM")]
+        [JsonProperty("is_premium")]
         [JsonConverter(typeof(FlexibleBoolYnConverter))] // "Y"/"N" -> bool
         public bool IsPremium { get; set; }
 
         // Media & metrics
-        [JsonProperty("coveR_URL")]
+        [JsonProperty("cover_url")]
         public string CoverUrl { get; set; }
 
-        [JsonProperty("avG_RATING")]
+        [JsonProperty("avg_rating")]
      
         public decimal? AvgRating { get; set; }
 
-        [JsonProperty("sourcE_COUNT")]
+        [JsonProperty("source_count")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int SourceCount { get; set; }
     }

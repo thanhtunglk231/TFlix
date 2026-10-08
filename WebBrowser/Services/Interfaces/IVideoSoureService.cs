@@ -22,6 +22,6 @@ namespace WebBrowser.Services.Interfaces
         Task<CResponseMessage> CancelMp4UploadAsync(Guid uploadId);
         Task<ApiResponse<SourceTableWrapper>> get_all();
         Task<CResponseMessage> uppdate_VideoSoure(decimal sourceId, IFormFile file, [FromBody] UpdateVideoSourceInputDto meta);
-        Task<CResponseMessage> Delete_video_source(decimal sourceId, string? streamUrl = null);
+        Task<CResponseMessage> Delete_video_source(decimal sourceId);
     }
 }

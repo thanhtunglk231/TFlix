@@ -39,10 +39,25 @@ namespace Server.Controllers
         [HttpPost("set-role-permission")]
         public async Task<IActionResult> SetRolePermission([FromBody] RolePermissionSetDto dto)
         {
+            if (dto == null || dto.RoleId <= 0 || dto.PermissionId <= 0 || dto.ExpectedVersion is null or < 0)
+            {
+                return BadRequest(new
+                {
+                    code = "400",
+                    Success = false,
+                    message = "Thông tin phân quyền không hợp lệ."
+                });
+            }
+
             var forbidden = await RequirePermission("Update");
             if (forbidden != null) return forbidden;
 
             var result = await _permission.SetRolePermission(dto);
+            if (result.code == "409")
+            {
+                return Conflict(result);
+            }
+
             return Ok(result);
         }
 

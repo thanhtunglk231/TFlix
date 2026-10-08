@@ -749,49 +749,71 @@ namespace Server.Controllers
         // =========================================================
         [HttpPost("delete")]
         [HttpDelete("{id:decimal}")]
-        public async Task<IActionResult> DeleteSource([FromBody] System.Text.Json.JsonElement? body, [FromRoute] decimal? id, [FromQuery] string? streamUrl = null)
+        public async Task<IActionResult> DeleteSource(
+            [FromBody] DeleteVideoSourceInputDto? body,
+            [FromRoute] decimal? id,
+            [FromQuery] string? streamUrl = null)
         {
-            decimal sourceId = id ?? 0;
-            string? effectiveStreamUrl = streamUrl;
-
-            if (body.HasValue)
-            {
-                var el = body.Value;
-                if (el.ValueKind == System.Text.Json.JsonValueKind.Number)
-                {
-                    sourceId = el.GetDecimal();
-                }
-                else if (el.ValueKind == System.Text.Json.JsonValueKind.Object)
-                {
-                    if (el.TryGetProperty("id", out var idProp) || el.TryGetProperty("Id", out idProp) || el.TryGetProperty("sourceId", out idProp) || el.TryGetProperty("SourceId", out idProp))
-                    {
-                        if (idProp.ValueKind == System.Text.Json.JsonValueKind.Number)
-                            sourceId = idProp.GetDecimal();
-                        else if (idProp.ValueKind == System.Text.Json.JsonValueKind.String && decimal.TryParse(idProp.GetString(), out var parsedId))
-                            sourceId = parsedId;
-                    }
-                    if (string.IsNullOrWhiteSpace(effectiveStreamUrl) && (el.TryGetProperty("streamUrl", out var urlProp) || el.TryGetProperty("StreamUrl", out urlProp)))
-                    {
-                        effectiveStreamUrl = urlProp.GetString();
-                    }
-                }
-            }
+            var sourceId = id ?? body?.SourceId ?? body?.Id ?? 0;
+            _logger.LogInformation(
+                "Delete video source request bound with route id {RouteId}, body source id {BodySourceId}, body id {BodyId}",
+                id,
+                body?.SourceId,
+                body?.Id);
 
             if (sourceId <= 0)
                 return BadRequest(new { code = "400", message = "Source ID không hợp lệ." });
 
-            _logger.LogInformation("Deleting video source {SourceId}", sourceId);
+            var storageResponse = await _videoSourceService.Get_storage_urls(sourceId);
+            if (!storageResponse.Success)
+            {
+                _logger.LogWarning(
+                    "Could not load storage objects for video source {SourceId}: {Message}",
+                    sourceId,
+                    storageResponse.message);
+                var statusCode = storageResponse.code == "404"
+                    ? StatusCodes.Status404NotFound
+                    : StatusCodes.Status500InternalServerError;
+                return StatusCode(statusCode, storageResponse);
+            }
+
+            var storageUrls = (storageResponse.Data as IEnumerable<string> ?? Enumerable.Empty<string>())
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            foreach (var storageUrl in storageUrls)
+            {
+                bool deleted;
+                try
+                {
+                    deleted = await DeletePreviousStorageObjectAsync(storageUrl);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Storage deletion threw for source {SourceId}", sourceId);
+                    deleted = false;
+                }
+
+                if (!deleted)
+                {
+                    _logger.LogError("Storage did not confirm deletion for video source {SourceId}", sourceId);
+                    return StatusCode(StatusCodes.Status502BadGateway, new
+                    {
+                        code = "502",
+                        success = false,
+                        message = "Không thể xóa file nguồn trên storage. Bản ghi database được giữ nguyên để thử lại."
+                    });
+                }
+            }
+
+            _logger.LogInformation(
+                "Deleted {StorageObjectCount} storage objects for video source {SourceId}; deleting database record",
+                storageUrls.Length,
+                sourceId);
             var response = await _videoSourceService.Delete_video_source(sourceId);
             if (response.code != "200" && !response.Success)
                 return StatusCode(500, new { code = response.code, message = response.message });
-
-            if (!string.IsNullOrWhiteSpace(effectiveStreamUrl))
-            {
-                _ = Task.Run(async () =>
-                {
-                    try { await DeletePreviousStorageObjectAsync(effectiveStreamUrl); } catch { }
-                });
-            }
 
             return Ok(new { code = "200", message = "Xóa video source thành công.", success = true });
         }

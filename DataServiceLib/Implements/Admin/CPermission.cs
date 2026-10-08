@@ -73,9 +73,10 @@ namespace DataServiceLib.Implements.Admin
                 var p_role_id = new SqlParameter("@p_role_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = dto.RoleId };
                 var p_permission_id = new SqlParameter("@p_permission_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = dto.PermissionId };
                 var p_is_allowed = new SqlParameter("@p_is_allowed", SqlDbType.Bit) { Direction = ParameterDirection.Input, Value = dto.IsAllowed };
+                var p_expected_version = new SqlParameter("@p_expected_version", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = (object?)dto.ExpectedVersion ?? DBNull.Value };
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
-                var parameters = new IDbDataParameter[] { p_role_id, p_permission_id, p_is_allowed, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_role_id, p_permission_id, p_is_allowed, p_expected_version, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_role_permission_set", parameters, _connectionString);
 

@@ -12,11 +12,11 @@ namespace WebBrowser.Models.VideoSoure
 
         [JsonProperty("movie_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int? MovieId { get; set; }         // JSON có thể null
+        public long? MovieId { get; set; }         // JSON có thể null
 
         [JsonProperty("episode_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int? EpisodeId { get; set; }       // JSON có thể null (1.0)
+        public long? EpisodeId { get; set; }       // JSON có thể null (1.0)
 
         [JsonProperty("movie_title")]
         public string? MovieTitle { get; set; }

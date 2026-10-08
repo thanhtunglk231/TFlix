@@ -99,17 +99,23 @@ namespace WebBrowser.Controllers
                 Console.WriteLine("[Preview.Details] Error loading genres: " + ex.Message);
             }
 
-            // 3. Fetch episodes if kind == "SERIES" or if episodes exist
+            // Episodes belong to series; movie and series IDs can overlap.
             List<EpisodeItem> episodes = new();
-            try
+            if (string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase))
             {
-                var episodesResp = await _episodeService.get_all();
-                var allEp = episodesResp?.Data?.Table ?? new List<EpisodeItem>();
-                episodes = allEp.Where(x => x.SeriesId == id).OrderBy(x => x.SeasonNo).ThenBy(x => x.EpisodeNo).ToList();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[Preview.Details] Error loading episodes: " + ex.Message);
+                try
+                {
+                    var episodesResp = await _episodeService.GetBySeriesAsync(id);
+                    episodes = episodesResp?.Data?.Table?
+                        .OrderBy(x => x.SeasonNo)
+                        .ThenBy(x => x.EpisodeNo)
+                        .ThenBy(x => x.EpisodeId)
+                        .ToList() ?? new List<EpisodeItem>();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[Preview.Details] Error loading episodes: " + ex.Message);
+                }
             }
 
             var vm = new PreviewDetailsViewModel
