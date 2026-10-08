@@ -111,6 +111,11 @@ namespace WebBrowser.Controllers
                         .ThenBy(x => x.EpisodeNo)
                         .ThenBy(x => x.EpisodeId)
                         .ToList() ?? new List<EpisodeItem>();
+
+                    if (episodes.Any())
+                    {
+                        movie.kind = "SERIES";
+                    }
                 }
                 catch (Exception ex)
                 {

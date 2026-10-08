@@ -134,45 +134,96 @@ namespace DataServiceLib.Implements
                                 SET @p_id = CAST(@p_code AS BIGINT);
                             END;
 
-                            SELECT TOP 1
-                                m.movie_id AS MovieId,
-                                m.movie_id AS id,
-                                m.title AS title,
-                                m.original_title AS OriginalTitle,
-                                m.overview AS OverviewText,
-                                m.release_date AS ReleaseOrAirDate,
-                                m.duration_min AS DurationMin,
-                                c.country_name AS CountryName,
-                                m.country_code AS CountryCode,
-                                l.language_name AS LanguageName,
-                                m.language_code AS LanguageCode,
-                                m.status AS Status,
-                                m.is_premium AS IsPremiumYN,
-                                COALESCE(ma.url, N'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop') AS PrimaryPosterUrl,
-                                vs.stream_url AS PrimaryStreamUrl,
-                                (
-                                    SELECT STRING_AGG(g.genre_name, N', ')
-                                    FROM dbo.movie_genres mg
-                                    JOIN dbo.genres g ON mg.genre_id = g.genre_id
-                                    WHERE mg.movie_id = m.movie_id
-                                ) AS genres,
-                                (
-                                    SELECT STRING_AGG(p.full_name, N', ')
-                                    FROM dbo.movie_people mp
-                                    JOIN dbo.people p ON mp.person_id = p.person_id
-                                    WHERE mp.movie_id = m.movie_id
-                                ) AS Casts,
-                                ISNULL(
-                                    (SELECT AVG(CAST(r.rating_val AS FLOAT)) FROM dbo.ratings r WHERE r.movie_id = m.movie_id),
-                                    8.5
-                                ) AS Rating
-                            FROM dbo.movies m
-                            LEFT JOIN dbo.countries c ON m.country_code = c.country_code
-                            LEFT JOIN dbo.languages l ON m.language_code = l.language_code
-                            LEFT JOIN dbo.movie_assets ma ON m.movie_id = ma.movie_id AND ma.asset_type = N'POSTER'
-                            LEFT JOIN dbo.video_sources vs ON m.movie_id = vs.movie_id
-                            WHERE (@p_id IS NOT NULL AND m.movie_id = @p_id)
-                               OR (@p_id IS NULL AND 1=1);
+                            DECLARE @targetKind NVARCHAR(50) = LOWER(ISNULL(@p_kind, 'movie'));
+
+                            IF @targetKind = 'series' OR (NOT EXISTS (SELECT 1 FROM dbo.movies WHERE movie_id = @p_id) AND EXISTS (SELECT 1 FROM dbo.series WHERE series_id = @p_id))
+                            BEGIN
+                                SELECT TOP 1
+                                    s.series_id AS MovieId,
+                                    s.series_id AS id,
+                                    s.title AS title,
+                                    s.original_title AS OriginalTitle,
+                                    s.overview AS OverviewText,
+                                    s.first_air_date AS ReleaseOrAirDate,
+                                    NULL AS DurationMin,
+                                    c.country_name AS CountryName,
+                                    s.country_code AS CountryCode,
+                                    l.language_name AS LanguageName,
+                                    s.language_code AS LanguageCode,
+                                    s.status AS Status,
+                                    s.is_premium AS IsPremiumYN,
+                                    COALESCE(sa.url, N'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop') AS PrimaryPosterUrl,
+                                    (SELECT TOP 1 vs.stream_url 
+                                     FROM dbo.episodes e 
+                                     JOIN dbo.video_sources vs ON vs.episode_id = e.episode_id 
+                                     WHERE e.series_id = s.series_id AND vs.status = 'ACTIVE'
+                                     ORDER BY vs.is_primary DESC, vs.source_id DESC) AS PrimaryStreamUrl,
+                                    (
+                                        SELECT STRING_AGG(g.genre_name, N', ')
+                                        FROM dbo.series_genres sg
+                                        JOIN dbo.genres g ON sg.genre_id = g.genre_id
+                                        WHERE sg.series_id = s.series_id
+                                    ) AS genres,
+                                    (
+                                        SELECT STRING_AGG(p.full_name, N', ')
+                                        FROM dbo.episodes e
+                                        JOIN dbo.episode_people ep ON ep.episode_id = e.episode_id
+                                        JOIN dbo.people p ON ep.person_id = p.person_id
+                                        WHERE e.series_id = s.series_id
+                                    ) AS Casts,
+                                    ISNULL(
+                                        (SELECT AVG(CAST(r.rating_val AS FLOAT)) FROM dbo.ratings r JOIN dbo.episodes ep ON r.episode_id = ep.episode_id WHERE ep.series_id = s.series_id),
+                                        8.5
+                                    ) AS Rating
+                                FROM dbo.series s
+                                LEFT JOIN dbo.countries c ON s.country_code = c.country_code
+                                LEFT JOIN dbo.languages l ON s.language_code = l.language_code
+                                LEFT JOIN dbo.series_assets sa ON s.series_id = sa.series_id AND sa.asset_type = N'POSTER'
+                                WHERE (@p_id IS NOT NULL AND s.series_id = @p_id)
+                                   OR (@p_id IS NULL AND 1=1);
+                            END
+                            ELSE
+                            BEGIN
+                                SELECT TOP 1
+                                    m.movie_id AS MovieId,
+                                    m.movie_id AS id,
+                                    m.title AS title,
+                                    m.original_title AS OriginalTitle,
+                                    m.overview AS OverviewText,
+                                    m.release_date AS ReleaseOrAirDate,
+                                    m.duration_min AS DurationMin,
+                                    c.country_name AS CountryName,
+                                    m.country_code AS CountryCode,
+                                    l.language_name AS LanguageName,
+                                    m.language_code AS LanguageCode,
+                                    m.status AS Status,
+                                    m.is_premium AS IsPremiumYN,
+                                    COALESCE(ma.url, N'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop') AS PrimaryPosterUrl,
+                                    vs.stream_url AS PrimaryStreamUrl,
+                                    (
+                                        SELECT STRING_AGG(g.genre_name, N', ')
+                                        FROM dbo.movie_genres mg
+                                        JOIN dbo.genres g ON mg.genre_id = g.genre_id
+                                        WHERE mg.movie_id = m.movie_id
+                                    ) AS genres,
+                                    (
+                                        SELECT STRING_AGG(p.full_name, N', ')
+                                        FROM dbo.movie_people mp
+                                        JOIN dbo.people p ON mp.person_id = p.person_id
+                                        WHERE mp.movie_id = m.movie_id
+                                    ) AS Casts,
+                                    ISNULL(
+                                        (SELECT AVG(CAST(r.rating_val AS FLOAT)) FROM dbo.ratings r WHERE r.movie_id = m.movie_id),
+                                        8.5
+                                    ) AS Rating
+                                FROM dbo.movies m
+                                LEFT JOIN dbo.countries c ON m.country_code = c.country_code
+                                LEFT JOIN dbo.languages l ON m.language_code = l.language_code
+                                LEFT JOIN dbo.movie_assets ma ON m.movie_id = ma.movie_id AND ma.asset_type = N'POSTER'
+                                LEFT JOIN dbo.video_sources vs ON m.movie_id = vs.movie_id AND vs.status = 'ACTIVE'
+                                WHERE (@p_id IS NOT NULL AND m.movie_id = @p_id)
+                                   OR (@p_id IS NULL AND 1=1);
+                            END;
 
                             SET @o_code = N'200';
                             SET @o_message = N'Thành công';

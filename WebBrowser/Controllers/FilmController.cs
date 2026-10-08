@@ -39,14 +39,15 @@ namespace WebBrowser.Controllers
             return View();
         }
 
-        public async Task<IActionResult> Watch(long id, string kind, long? episodeId = null)
+        public async Task<IActionResult> Watch(long id, string kind, long? episodeId = null, long? ep = null)
         {
+            var targetEpId = episodeId ?? ep;
             // Kiểm tra Đăng nhập (Authentication check)
             var token = HttpContext.Session.GetString("JWToken");
-            if (string.IsNullOrEmpty(token) && (User == null || !User.Identity.IsAuthenticated))
+            if (string.IsNullOrEmpty(token) && (User == null || User.Identity?.IsAuthenticated != true))
             {
                 // Chưa đăng nhập -> Chuyển hướng sang trang đăng nhập
-                string returnUrl = Url.Action("Watch", "Film", new { id, kind, episodeId }) ?? "/Movies";
+                string returnUrl = Url.Action("Watch", "Film", new { id, kind, episodeId = targetEpId }) ?? "/Movies";
                 return RedirectToAction("Index", "Auth", new { returnUrl });
             }
 
@@ -57,67 +58,130 @@ namespace WebBrowser.Controllers
                 kind = string.IsNullOrEmpty(kind) ? "movie" : kind
             };
 
-            Console.WriteLine($"[FilmController.Watch] id={id}, kind={kind}");
+            Console.WriteLine($"[FilmController.Watch] id={id}, kind={kind}, targetEpId={targetEpId}");
+
+            // 1. Lấy danh sách episodes và series để xác định chính xác loại nội dung
+            var episodesResponse = await _episodeService.get_all();
+            var allEpisodes = episodesResponse?.Data?.Table ?? new List<WebBrowser.Models.Episode.EpisodeItem>();
+
+            var seriesResponse = await _seriesService.get_all();
+            var allSeries = seriesResponse?.Data?.Table ?? new List<WebBrowser.Models.Series.SerieDto>();
+
+            var matchedSeries = allSeries.FirstOrDefault(x => x.SeriesId == id);
+            var seriesEpisodes = allEpisodes.Where(x => x.SeriesId == id).OrderBy(x => x.SeasonNo).ThenBy(x => x.EpisodeNo).ToList();
+
+            if (matchedSeries != null || seriesEpisodes.Any())
+            {
+                isSeries = true;
+                kind = "SERIES";
+            }
 
             PreviewItem? movie = null;
-            if (isSeries)
-            {
-                var seriesResponse = await _seriesService.get_all();
-                var series = seriesResponse?.Data?.Table?.FirstOrDefault(x => x.SeriesId == id);
-                if (series == null) return NotFound("Không tìm thấy series");
-
-                movie = new PreviewItem
-                {
-                    ContentId = series.SeriesId,
-                    kind = "SERIES",
-                    title = series.Title,
-                    OriginalTitle = series.OriginalTitle,
-                    ReleaseOrAirDate = series.FirstAirDate,
-                    CountryCode = series.CountryCode,
-                    LanguageCode = series.LanguageCode,
-                    status = series.Status,
-                    IsPremium = series.IsPremium,
-                    genres = series.Genres,
-                    PrimaryPosterUrl = series.PosterUrl
-                };
-            }
-            else
-            {
-                var resp = await _previewService.get_preview(request);
-                Console.WriteLine("[Preview.Details] resp = " + JsonConvert.SerializeObject(resp));
-                if (resp == null || resp.Data?.Table == null || resp.Data.Table.Count == 0)
-                    return NotFound("Không tìm thấy nội dung");
-                movie = resp.Data.Table[0];
-            }
-
-            Console.WriteLine(JsonConvert.SerializeObject(movie));
-
             var episodes = new List<WebBrowser.Models.Episode.EpisodeItem>();
             string? episodeLoadError = null;
+
             if (isSeries)
             {
+                if (matchedSeries != null)
+                {
+                    movie = new PreviewItem
+                    {
+                        ContentId = matchedSeries.SeriesId,
+                        kind = "SERIES",
+                        title = matchedSeries.Title,
+                        OriginalTitle = matchedSeries.OriginalTitle,
+                        ReleaseOrAirDate = matchedSeries.FirstAirDate,
+                        CountryCode = matchedSeries.CountryCode,
+                        LanguageCode = matchedSeries.LanguageCode,
+                        status = matchedSeries.Status,
+                        IsPremium = matchedSeries.IsPremium,
+                        genres = matchedSeries.Genres,
+                        PrimaryPosterUrl = matchedSeries.PosterUrl
+                    };
+                }
+                else
+                {
+                    var resp = await _previewService.get_preview(new GETCONTENTByID { id = id, kind = "SERIES" });
+                    if (resp?.Data?.Table != null && resp.Data.Table.Count > 0)
+                    {
+                        movie = resp.Data.Table[0];
+                    }
+                }
+
                 try
                 {
-                    var episodesResponse = await _episodeService.GetBySeriesAsync(id);
-                    if (episodesResponse?.success == true && episodesResponse.Data?.Table != null)
+                    var epResp = await _episodeService.GetBySeriesAsync(id);
+                    if (epResp?.success == true && epResp.Data?.Table != null)
                     {
-                        episodes = episodesResponse.Data.Table
+                        episodes = epResp.Data.Table
                             .OrderBy(x => x.SeasonNo)
                             .ThenBy(x => x.EpisodeNo)
                             .ThenBy(x => x.EpisodeId)
                             .ToList();
                     }
+                    else if (seriesEpisodes.Any())
+                    {
+                        episodes = seriesEpisodes;
+                    }
                     else
                     {
-                        episodeLoadError = episodesResponse?.message ?? "Không thể tải danh sách tập phim.";
+                        episodeLoadError = epResp?.message ?? "Không thể tải danh sách tập phim.";
                     }
                 }
                 catch (Exception ex)
                 {
-                    episodeLoadError = "Tạm thời không thể tải danh sách tập phim. Vui lòng tải lại trang.";
+                    if (seriesEpisodes.Any())
+                    {
+                        episodes = seriesEpisodes;
+                    }
+                    else
+                    {
+                        episodeLoadError = "Tạm thời không thể tải danh sách tập phim. Vui lòng tải lại trang.";
+                    }
                     _logger.LogError(ex, "Không thể tải tập phim cho SeriesId={SeriesId}", id);
                 }
             }
+            else
+            {
+                var resp = await _previewService.get_preview(request);
+                Console.WriteLine("[FilmController.Watch] resp = " + JsonConvert.SerializeObject(resp));
+                if (resp != null && resp.Data?.Table != null && resp.Data.Table.Count > 0)
+                {
+                    movie = resp.Data.Table[0];
+                }
+                else if (matchedSeries != null)
+                {
+                    isSeries = true;
+                    kind = "SERIES";
+                    movie = new PreviewItem
+                    {
+                        ContentId = matchedSeries.SeriesId,
+                        kind = "SERIES",
+                        title = matchedSeries.Title,
+                        OriginalTitle = matchedSeries.OriginalTitle,
+                        ReleaseOrAirDate = matchedSeries.FirstAirDate,
+                        CountryCode = matchedSeries.CountryCode,
+                        LanguageCode = matchedSeries.LanguageCode,
+                        status = matchedSeries.Status,
+                        IsPremium = matchedSeries.IsPremium,
+                        genres = matchedSeries.Genres,
+                        PrimaryPosterUrl = matchedSeries.PosterUrl
+                    };
+                    episodes = seriesEpisodes;
+                }
+
+                if (seriesEpisodes.Any())
+                {
+                    episodes = seriesEpisodes;
+                }
+            }
+
+            if (movie == null)
+            {
+                return NotFound("Không tìm thấy nội dung");
+            }
+
+            Console.WriteLine(JsonConvert.SerializeObject(movie));
 
             WebBrowser.Models.ApiResponse<WebBrowser.Models.VideoSoure.SourceTableWrapper>? sourcesResponse = null;
             try
@@ -136,17 +200,18 @@ namespace WebBrowser.Controllers
             var episodeIds = episodes.Select(x => x.EpisodeId).ToHashSet();
             var sources = sourcesResponse?.Data?.Table?
                 .Where(x => isSeries
-                    ? x.EpisodeId.HasValue && episodeIds.Contains(x.EpisodeId.Value)
-                    : x.MovieId == id)
+                    ? (x.EpisodeId.HasValue && episodeIds.Contains(x.EpisodeId.Value))
+                    : (x.MovieId == id || (x.EpisodeId.HasValue && episodeIds.Contains(x.EpisodeId.Value))))
                 .Where(x => string.Equals(x.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? new List<WebBrowser.Models.VideoSoure.SourceItem>();
 
             _logger.LogInformation(
-                "Film source debug: ContentId={ContentId}, Kind={Kind}, ApiSourceCount={ApiSourceCount}, MatchedSourceCount={MatchedSourceCount}",
+                "Film source debug: ContentId={ContentId}, Kind={Kind}, ApiSourceCount={ApiSourceCount}, MatchedSourceCount={MatchedSourceCount}, EpisodeCount={EpisodeCount}",
                 id,
                 kind,
                 sourcesResponse?.Data?.Table?.Count ?? 0,
-                sources.Count);
+                sources.Count,
+                episodes.Count);
 
             foreach (var source in sources)
             {
@@ -160,10 +225,11 @@ namespace WebBrowser.Controllers
                     source.StreamUrl);
             }
 
-            var currentEpisodeId = episodes
-                .FirstOrDefault(x => x.EpisodeId == episodeId)?.EpisodeId
-                ?? episodes.FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId))?.EpisodeId
-                ?? episodes.FirstOrDefault()?.EpisodeId;
+            // Chọn tập phim: Ưu tiên tập được chỉ định qua tham số episodeId/ep, nếu không thì chọn tập đầu tiên có video source hoạt động
+            var currentEpisodeId = (targetEpId.HasValue && episodes.Any(x => x.EpisodeId == (int)targetEpId.Value))
+                ? (int)targetEpId.Value
+                : episodes.FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId))?.EpisodeId
+                  ?? episodes.FirstOrDefault()?.EpisodeId;
 
             return View("Index", new WatchViewModel
             {
@@ -228,6 +294,65 @@ namespace WebBrowser.Controllers
             }
 
             return Json(new { success = true, data = result });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> HlsProxy([FromQuery] string url)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                return BadRequest("URL không hợp lệ.");
+            }
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return StatusCode((int)response.StatusCode);
+                }
+
+                var cleanPath = uri.AbsolutePath.ToLowerInvariant();
+                if (cleanPath.EndsWith(".m3u8"))
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var baseUrl = url.Substring(0, url.LastIndexOf('/') + 1);
+                    var lines = content.Split('\n');
+                    var sb = new System.Text.StringBuilder();
+
+                    foreach (var rawLine in lines)
+                    {
+                        var line = rawLine.TrimEnd('\r');
+                        var trimmed = line.Trim();
+                        if (!string.IsNullOrEmpty(trimmed) && !trimmed.StartsWith("#"))
+                        {
+                            var fullSegmentUrl = trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                                ? trimmed
+                                : baseUrl + trimmed;
+                            var proxiedUrl = Url.Action("HlsProxy", "Film", new { url = fullSegmentUrl });
+                            sb.AppendLine(proxiedUrl ?? fullSegmentUrl);
+                        }
+                        else
+                        {
+                            sb.AppendLine(line);
+                        }
+                    }
+
+                    Response.Headers["Access-Control-Allow-Origin"] = "*";
+                    return Content(sb.ToString(), "application/vnd.apple.mpegurl", System.Text.Encoding.UTF8);
+                }
+
+                Response.Headers["Access-Control-Allow-Origin"] = "*";
+                var stream = await response.Content.ReadAsStreamAsync();
+                var contentType = response.Content.Headers.ContentType?.ToString() ?? "video/mp2t";
+                return File(stream, contentType, enableRangeProcessing: true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi proxy HLS stream: {Url}", url);
+                return StatusCode(StatusCodes.Status502BadGateway, "Lỗi kết nối tới máy chủ lưu trữ video.");
+            }
         }
     }
 }

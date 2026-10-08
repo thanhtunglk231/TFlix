@@ -18,5 +18,7 @@ namespace CoreLib.Dtos.Movies
         public DateTime CreatedAt { get; set; }
         public string? PosterUrl { get; set; }
         public string? Genres { get; set; }
+        public string ContentType { get; set; } = "MOVIE";
+        public int EpisodeCount { get; set; } = 0;
     }
 }

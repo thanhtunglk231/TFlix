@@ -690,8 +690,19 @@
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.5"></rect><line x1="2" y1="2" x2="22" y2="22"></line><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line></svg>
                             </div>
                             <h3 class="fw-bold text-white mb-2">Chưa có nguồn phát video</h3>
-                            <p class="text-muted max-w-500 mx-auto mb-4" style="max-width: 480px; font-size: 0.95rem;">Bộ phim "<strong>@movieTitle</strong>" hiện đang được xử lý transcoder mã hóa định dạng HLS. Chúng tôi sẽ cập nhật sớm nhất.</p>
-                            <a href="/Movies" class="btn px-4 py-2.5 rounded-pill fw-bold d-inline-flex align-items-center gap-2" style="background: var(--brand-gradient); color: #081119; text-decoration: none;">
+                            <p class="text-muted max-w-500 mx-auto mb-4" style="max-width: 480px; font-size: 0.95rem;">@(currentEpisode != null ? $"Tập {currentEpisode.EpisodeNo} ({currentEpisode.EpisodeTitle}) của \"{movieTitle}\"" : $"Bộ phim \"{movieTitle}\"") hiện chưa có nguồn phát video hoặc đang được mã hóa transcoder. Chúng tôi sẽ cập nhật sớm nhất.</p>
+                            @if (episodes != null && episodes.Any(ep => Model.Sources.Any(s => s.EpisodeId == ep.EpisodeId)))
+                            {
+                                var availableEp = episodes.FirstOrDefault(ep => Model.Sources.Any(s => s.EpisodeId == ep.EpisodeId));
+                                if (availableEp != null)
+                                {
+                                    <a href="@Url.Action("Watch", "Film", new { id = contentId, kind = content.kind, ep = availableEp.EpisodeId })" class="btn px-4 py-2.5 rounded-pill fw-bold d-inline-flex align-items-center gap-2 mb-2" style="background: var(--brand-gradient); color: #081119; text-decoration: none;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                        Xem Tập @availableEp.EpisodeNo: @availableEp.EpisodeTitle
+                                    </a>
+                                }
+                            }
+                            <a href="/Movies" class="btn btn-outline-light px-4 py-2 rounded-pill fw-semibold d-inline-flex align-items-center gap-2" style="text-decoration: none; font-size: 0.88rem;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                                 Khám phá các phim khác
                             </a>
@@ -933,17 +944,24 @@
                                     .OrderByDescending(IsHlsSource)
                                     .ThenByDescending(x => x.IsPrimary)
                                     .FirstOrDefault();
-                                var hasEpisodeSource = !string.IsNullOrWhiteSpace(episodeSource?.StreamUrl);
-                                <div class="ep-item @act @(!hasEpisodeSource ? "unavailable" : "")"
+                                var hasEpSource = !string.IsNullOrWhiteSpace(episodeSource?.StreamUrl);
+                                <div class="ep-item @act @(!hasEpSource ? "unavailable" : "")"
                                      data-ep="@episode.EpisodeId"
-                                     data-source-url="@episodeSource?.StreamUrl"
-                                     title="@(hasEpisodeSource ? "Phát tập phim" : "Tập phim chưa có nguồn phát")">
+                                     data-source-url="@(hasEpSource ? episodeSource!.StreamUrl : "")"
+                                     data-has-source="@(hasEpSource ? "true" : "false")"
+                                     title="@(hasEpSource ? "Phát tập phim" : "Tập phim chưa có nguồn phát")">
                                     <div class="ep-num">@episode.EpisodeNo</div>
                                     <div class="flex-grow-1">
-                                        <div class="fw-semibold text-white small">@episode.EpisodeTitle</div>
+                                        <div class="fw-semibold text-white small d-flex align-items-center gap-2">
+                                            <span>@episode.EpisodeTitle</span>
+                                            @if (!hasEpSource)
+                                            {
+                                                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 0.65rem; font-weight: 500;">Đang cập nhật</span>
+                                            }
+                                        </div>
                                         <div class="text-muted small">Mùa @episode.SeasonNo • @(episode.DurationMin ?? 45) phút</div>
                                     </div>
-                                    @if (hasEpisodeSource)
+                                    @if (hasEpSource)
                                     {
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon></svg>
                                     }
@@ -1287,18 +1305,25 @@
                 }
             }
 
-            function loadSource(url){
+            function getPlayableUrl(url, useProxy) {
+                if (useProxy && url && !url.includes('/Film/HlsProxy')) {
+                    return '/Film/HlsProxy?url=' + encodeURIComponent(url);
+                }
+                return url;
+            }
+
+            function loadSource(rawUrl, useProxy = false){
                 if (!isLoggedIn) {
                     guardAuth();
                     return;
                 }
-                if (!url || typeof url !== 'string') {
+                if (!rawUrl || typeof rawUrl !== 'string') {
                     showPlayerError('Nguồn video không hợp lệ.');
                     return;
                 }
 
                 clearPlayerError();
-                localStorage.setItem(movieKey + ":server", url);
+                localStorage.setItem(movieKey + ":server", rawUrl);
 
                 if (video.hlsInstance) {
                     video.hlsInstance.destroy();
@@ -1308,7 +1333,9 @@
                 video.removeAttribute('src');
                 video.load();
 
-                if (isHlsSource(url) && window.Hls && Hls.isSupported()) {
+                const streamToLoad = getPlayableUrl(rawUrl, useProxy);
+
+                if (isHlsSource(rawUrl) && window.Hls && Hls.isSupported()) {
                     const hls = new Hls({
                         enableWorker: true,
                         lowLatencyMode: false,
@@ -1319,11 +1346,26 @@
                         maxBufferHole: 0.5,
                         startFragPrefetch: false
                     });
+                    let hlsNetworkRetryCount = 0;
                     hls.on(Hls.Events.ERROR, (_event, data) => {
                         if (!data.fatal) return;
                         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                            showPlayerError('Lỗi kết nối mạng khi tải HLS.');
-                            hls.startLoad();
+                            if (!useProxy) {
+                                console.warn('HLS trực tiếp gặp lỗi mạng/CORS. Tự động chuyển sang luồng Stream Proxy...');
+                                hls.destroy();
+                                video.hlsInstance = null;
+                                loadSource(rawUrl, true);
+                                return;
+                            }
+                            hlsNetworkRetryCount++;
+                            if (hlsNetworkRetryCount <= 2) {
+                                showPlayerError('Đang thử kết nối lại luồng HLS...');
+                                hls.startLoad();
+                            } else {
+                                showPlayerError('Không thể kết nối đến nguồn phát video (Lỗi mạng hoặc HTTP 404). Vui lòng chọn tập hoặc máy chủ khác.');
+                                hls.destroy();
+                                video.hlsInstance = null;
+                            }
                         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                             hls.recoverMediaError();
                         } else {
@@ -1332,7 +1374,7 @@
                             video.hlsInstance = null;
                         }
                     });
-                    hls.loadSource(url);
+                    hls.loadSource(streamToLoad);
                     hls.attachMedia(video);
                     video.hlsInstance = hls;
 
@@ -1384,7 +1426,12 @@
             (function initSelections(){
                 if (selServer) {
                     const last = localStorage.getItem(movieKey + ":server");
-                    if (last) [...selServer.options].forEach(o => { if (o.value === last) selServer.value = last; });
+                    const hasOption = last && [...selServer.options].some(o => o.value === last);
+                    if (hasOption) {
+                        selServer.value = last;
+                    } else if (last) {
+                        localStorage.removeItem(movieKey + ":server");
+                    }
                     selServer.addEventListener('change', e => guardAuth(()=> loadSource(e.target.value)));
                 }
             })();
@@ -1733,29 +1780,27 @@
                 if (ep === currentEp) return;
 
                 guardAuth(() => {
+                    const url = item.dataset.sourceUrl;
+                    if (!url) {
+                        // Tập phim chưa có source phát, chuyển hướng đến URL với tham số ep để hiển thị trạng thái chính xác
+                        window.location.href = '@Url.Action("Watch", "Film")?id=@contentId&kind=@content.kind&ep=' + ep;
+                        return;
+                    }
+
                     currentEp = ep;
                     document.querySelectorAll('.ep-item').forEach(i => i.classList.toggle('active', i === item));
-                    const url = (item.dataset.sourceUrl || '').trim();
                     localStorage.setItem(`${movieKey}:last_ep`, String(currentEp));
 
-                    if (url && selServer) {
+                    // Cập nhật tham số ep trên URL trình duyệt
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('ep', currentEp);
+                    newUrl.searchParams.set('episodeId', currentEp);
+                    window.history.replaceState({}, '', newUrl);
+
+                    if (selServer) {
                         selServer.value = url;
-                        if (typeof loadSource === 'function') loadSource(url);
-                    } else if (!url) {
-                        if (video) {
-                            video.pause();
-                            if (video.hlsInstance) {
-                                video.hlsInstance.destroy();
-                                video.hlsInstance = null;
-                            }
-                            video.removeAttribute('src');
-                            video.load();
-                        }
-                        if (playerError && playerErrorText) {
-                            playerErrorText.textContent = 'Tập phim này chưa có nguồn video.';
-                            playerError.classList.remove('d-none');
-                        }
                     }
+                    if (typeof loadSource === 'function') loadSource(url);
 
                     switchSignalRGroup();
                     loadComments();

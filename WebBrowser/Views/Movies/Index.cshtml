@@ -6,6 +6,7 @@
     ViewData["Title"] = "Kho Phim - TFlix";
     var filter = ViewBag.Filter as MovieCatalogFilterDto ?? new MovieCatalogFilterDto();
     var genres = ViewBag.Genres as List<GenreItem> ?? new List<GenreItem>();
+    var selectedType = ViewBag.Type as string ?? "all";
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token) || (User?.Identity?.IsAuthenticated ?? false);
     const string fallbackPoster = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
@@ -271,12 +272,21 @@
                 </select>
             </div>
 
+            <!-- Type -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select name="type" class="form-select filter-control shadow-none">
+                    <option value="all" selected="@(selectedType == "all" ? "selected" : null)">Tất cả (Lẻ & Bộ)</option>
+                    <option value="movie" selected="@(selectedType == "movie" ? "selected" : null)">Phim lẻ</option>
+                    <option value="series" selected="@(selectedType == "series" ? "selected" : null)">Phim bộ</option>
+                </select>
+            </div>
+
             <!-- Action Buttons -->
             <div class="col-12 col-lg-1 d-flex gap-2">
                 <button type="submit" class="btn btn-brand w-100">
                     <i class="bi bi-funnel-fill"></i> Lọc
                 </button>
-                @if (!string.IsNullOrEmpty(filter.Search) || filter.GenreId.HasValue || !string.IsNullOrEmpty(filter.CountryCode) || filter.Year.HasValue)
+                @if (!string.IsNullOrEmpty(filter.Search) || filter.GenreId.HasValue || !string.IsNullOrEmpty(filter.CountryCode) || filter.Year.HasValue || selectedType != "all")
                 {
                     <a href="/Movies" class="btn btn-outline-secondary text-white" title="Xóa bộ lọc">
                         <i class="bi bi-x-circle"></i>
@@ -300,7 +310,8 @@
             {
                 long mId = Convert.ToInt64(movie.MovieId);
                 string posterSrc = string.IsNullOrWhiteSpace(movie.PosterUrl) ? fallbackPoster : movie.PosterUrl;
-                string watchUrl = $"/Film/Watch?id={mId}&kind=movie";
+                bool isSeries = string.Equals(movie.ContentType, "SERIES", StringComparison.OrdinalIgnoreCase);
+                string watchUrl = isSeries ? $"/Film/Watch?id={mId}&kind=series" : $"/Film/Watch?id={mId}&kind=movie";
 
                 <div class="col">
                     <div class="card movie-card position-relative h-100" data-id="@mId" data-url="@watchUrl">
@@ -321,7 +332,16 @@
                                     {
                                         <span class="badge bg-success fw-bold">Miễn phí</span>
                                     }
-                                    <span class="badge bg-black bg-opacity-75 text-white fw-normal">HD</span>
+                                    @if (isSeries)
+                                    {
+                                        <span class="badge bg-info text-dark fw-bold">
+                                            @(movie.EpisodeCount > 0 ? $"{movie.EpisodeCount} Tập" : "Bộ")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-black bg-opacity-75 text-white fw-normal">HD</span>
+                                    }
                                 </div>
 
                                 <a href="@watchUrl" class="play-btn movie-link-btn" data-url="@watchUrl">
@@ -343,8 +363,8 @@
                                 </div>
                             </div>
                             <div class="mt-2 pt-2 border-top border-secondary border-opacity-25 d-flex justify-content-between text-secondary fs-8">
-                                <span class="text-truncate">@(string.IsNullOrEmpty(movie.Genres) ? "Phim Điện Ảnh" : movie.Genres)</span>
-                                <span>@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "")</span>
+                                <span class="text-truncate">@(string.IsNullOrEmpty(movie.Genres) ? (isSeries ? "Phim Bộ" : "Phim Điện Ảnh") : movie.Genres)</span>
+                                <span>@(isSeries ? (movie.EpisodeCount > 0 ? $"{movie.EpisodeCount} Tập" : "Trọn bộ") : (movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "HD"))</span>
                             </div>
                         </div>
                     </div>
@@ -358,7 +378,7 @@
             <nav aria-label="Page navigation" class="mt-4">
                 <ul class="pagination justify-content-center custom-pagination">
                     <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
-                        <a class="page-link" href="@Url.Action("Index", "Movies", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = Model.Page - 1 })">
+                        <a class="page-link" href="@Url.Action("Index", "Movies", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, type = selectedType, page = Model.Page - 1 })">
                             <i class="bi bi-chevron-left"></i> Trước
                         </a>
                     </li>
@@ -368,7 +388,7 @@
                         if (p == 1 || p == Model.TotalPages || (p >= Model.Page - 2 && p <= Model.Page + 2))
                         {
                             <li class="page-item @(p == Model.Page ? "active" : "")">
-                                <a class="page-link" href="@Url.Action("Index", "Movies", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = p })">@p</a>
+                                <a class="page-link" href="@Url.Action("Index", "Movies", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, type = selectedType, page = p })">@p</a>
                             </li>
                         }
                         else if (p == Model.Page - 3 || p == Model.Page + 3)
@@ -378,7 +398,7 @@
                     }
 
                     <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
-                        <a class="page-link" href="@Url.Action("Index", "Movies", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, page = Model.Page + 1 })">
+                        <a class="page-link" href="@Url.Action("Index", "Movies", new { q = filter.Search, genreId = filter.GenreId, countryCode = filter.CountryCode, year = filter.Year, sortBy = filter.SortBy, type = selectedType, page = Model.Page + 1 })">
                             Sau <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>
