@@ -3,6 +3,8 @@ using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using CoreLib.Models;
+using Server.Services;
 
 namespace Server.Controllers.Normal
 {
@@ -12,11 +14,13 @@ namespace Server.Controllers.Normal
     {
         private readonly ICFilm _cFilm;
         private readonly IConfiguration _configuration;
+        private readonly IRedisCacheService _cache;
 
-        public FilmController(ICFilm cFilm, IConfiguration configuration)
+        public FilmController(ICFilm cFilm, IConfiguration configuration, IRedisCacheService cache)
         {
             _cFilm = cFilm;
             _configuration = configuration;
+            _cache = cache;
         }
 
         [HttpGet("test-db")]
@@ -39,7 +43,11 @@ namespace Server.Controllers.Normal
         [HttpPost("GetFilmDetail")]
         public async Task<IActionResult> GetFilmDetail([FromBody] GetFilmDetail filmId)
         {
-            var result = _cFilm.Get_Film_Detail(filmId);
+            var cacheKey = $"tflix:movies:detail:{filmId.id}:{(filmId.genre ?? string.Empty).Trim().ToLowerInvariant()}";
+            var result = await _cache.GetAsync<CResponseMessage>(cacheKey)
+                ?? _cFilm.Get_Film_Detail(filmId);
+            if (result.Success)
+                await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10));
             return Ok(result);
         }
     }

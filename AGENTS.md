@@ -1,4 +1,4 @@
-# TFlix
+# TFlix - Agent Development Rules
 
 ## Project Overview
 
@@ -10,407 +10,291 @@ Không được xem đây là project demo.
 
 ---
 
-# Solution Structure
+## Solution Structure
 
-```text
-TFlix
-│
+TFlix/
 ├── CommonLib
 ├── CoreLib
 ├── DataServiceLib
 ├── Server
 ├── WebBrowser
-│
 ├── docker-compose.yml
 └── TFlix.sln
-```
 
 ---
 
-# Project Responsibilities
+## Project Responsibilities
 
-## WebBrowser
+### WebBrowser
 
-Frontend MVC.
+Frontend MVC, chứa Controllers, Views, ViewModels, Razor Pages, JavaScript, CSS và Bootstrap UI. Đây là website người dùng cuối.
 
-Chứa:
+### Server
 
-- Controllers
-- Views
-- ViewModels
-- Razor Pages
-- JavaScript
-- CSS
-- Bootstrap UI
+REST API Backend, chứa Authentication API, Movie API, Series API, Payment API, Streaming API và Admin API. Không chứa giao diện.
 
-Đây là website người dùng cuối.
+### CoreLib
 
----
+Business Layer, chứa Services, DTO, Business Rules, Validation và Domain Logic. Mọi nghiệp vụ phải ưu tiên xử lý tại đây.
 
-## Server
+### DataServiceLib
 
-REST API Backend.
+Data Access Layer, chứa Repository, Database Query, Stored Procedure, EF Core hoặc ADO.NET. Không viết business logic tại đây.
 
-Chứa:
+### CommonLib
 
-- Authentication API
-- Movie API
-- Series API
-- Payment API
-- Streaming API
-- Admin API
-
-Không chứa giao diện.
+Shared Library, bao gồm Helpers, Extensions, Constants, Shared Models và Utility Classes.
 
 ---
 
-## CoreLib
-
-Business Layer.
-
-Chứa:
-
-- Services
-- DTO
-- Business Rules
-- Validation
-- Domain Logic
-
-Mọi nghiệp vụ phải ưu tiên xử lý tại đây.
-
----
-
-## DataServiceLib
-
-Data Access Layer.
-
-Chứa:
-
-- Repository
-- Database Query
-- Stored Procedure
-- EF Core hoặc ADO.NET
-
-Không viết business logic tại đây.
-
----
-
-## CommonLib
-
-Shared Library.
-
-Bao gồm:
-
-- Helpers
-- Extensions
-- Constants
-- Shared Models
-- Utility Classes
-
----
-
-# Database Domain
+## Database Domain
 
 Database sử dụng SQL Server.
 
-## Authentication
+### Authentication
 
-Tables:
+Tables: app_users, roles, user_roles, user_devices, user_auth_providers.
 
-- app_users
-- roles
-- user_roles
-- user_devices
-- user_auth_providers
+Features: Email Login, OAuth Login, Multi Device Login, User Roles.
 
-Features:
+### Content Management
 
-- Email Login
-- OAuth Login
-- Multi Device Login
-- User Roles
+Tables: movies, series, seasons, episodes.
 
----
+Content Types: Movie, TV Series, Season, Episode.
 
-## Content Management
+### Classification
 
-Tables:
+Tables: genres, countries, languages.
 
-- movies
-- series
-- seasons
-- episodes
+### Cast & Crew
 
-Content Types:
+Tables: people, movie_people, episode_people.
 
-- Movie
-- TV Series
-- Season
-- Episode
+Jobs: ACTOR, DIRECTOR, WRITER, PRODUCER.
 
----
+### Media Assets
 
-## Classification
+Tables: movie_assets, series_assets, episode_assets, home_banners.
 
-Tables:
+Asset Types: Poster, Backdrop, Thumbnail, Trailer.
 
-- genres
-- countries
-- languages
+### Video Streaming
 
----
+Tables: video_sources, video_source_parts, subtitles.
 
-## Cast & Crew
+Supported: HLS, DASH, MP4.
 
-Tables:
+Video Providers: Cloudflare Stream, Bunny, Supabase Storage, Custom CDN.
 
-- people
-- movie_people
-- episode_people
+Quality: 360p, 480p, 720p, 1080p, 4K.
 
-Jobs:
+### User Features
 
-- ACTOR
-- DIRECTOR
-- WRITER
-- PRODUCER
+Tables: watch_progress, view_events, user_list_items, ratings, comments.
 
----
+Features: Continue Watching, Favorite, Watchlist, Rating, Comment.
 
-## Media Assets
+### Premium Subscription
 
-Tables:
+Tables: subscription_plans, subscriptions, payments, payment_providers.
 
-- movie_assets
-- series_assets
-- episode_assets
-- home_banners
+Supported Plans: BASIC, PREMIUM, FAMILY.
 
-Asset Types:
+Supported Payments: Momo, VNPay, Stripe, PayPal.
 
-- Poster
-- Backdrop
-- Thumbnail
-- Trailer
+### Notifications
 
----
+Tables: notifications, user_notifications.
 
-## Video Streaming
+Types: System, New Movie, New Episode, Marketing.
 
-Tables:
+### Advertisement
 
-- video_sources
-- video_source_parts
-- subtitles
+Tables: ad_campaigns, ad_creatives, ad_placements, ad_impressions.
 
-Supported:
+### CMS
 
-- HLS
-- DASH
-- MP4
+Tables: posts, post_categories, post_tags.
 
-Video Providers:
+Features: News, Blog, Announcement.
 
-- Cloudflare Stream
-- Bunny
-- Supabase Storage
-- Custom CDN
+### Forum
 
-Quality:
+Tables: forum_categories, forum_threads, forum_posts.
 
-- 360p
-- 480p
-- 720p
-- 1080p
-- 4K
+Features: Community Discussion, User Interaction.
+
+### Customer Support
+
+Tables: support_tickets, support_messages, support_attachments.
+
+### Analytics
+
+Tables: content_daily_stats, api_call_logs.
+
+Metrics: Views, Watch Time, Rating, Revenue, User Activity.
 
 ---
 
-## User Features
+## Development Rules
 
-Tables:
+### Always Specify Files
 
-- watch_progress
-- view_events
-- user_list_items
-- ratings
-- comments
+Khi viết code phải ghi rõ đường dẫn file:
 
-Features:
-
-- Continue Watching
-- Favorite
-- Watchlist
-- Rating
-- Comment
-
----
-
-## Premium Subscription
-
-Tables:
-
-- subscription_plans
-- subscriptions
-- payments
-- payment_providers
-
-Supported Plans:
-
-- BASIC
-- PREMIUM
-- FAMILY
-
-Supported Payments:
-
-- Momo
-- VNPay
-- Stripe
-- PayPal
-
----
-
-## Notifications
-
-Tables:
-
-- notifications
-- user_notifications
-
-Types:
-
-- System
-- New Movie
-- New Episode
-- Marketing
-
----
-
-## Advertisement
-
-Tables:
-
-- ad_campaigns
-- ad_creatives
-- ad_placements
-- ad_impressions
-
----
-
-## CMS
-
-Tables:
-
-- posts
-- post_categories
-- post_tags
-
-Features:
-
-- News
-- Blog
-- Announcement
-
----
-
-## Forum
-
-Tables:
-
-- forum_categories
-- forum_threads
-- forum_posts
-
-Features:
-
-- Community Discussion
-- User Interaction
-
----
-
-## Customer Support
-
-Tables:
-
-- support_tickets
-- support_messages
-- support_attachments
-
----
-
-## Analytics
-
-Tables:
-
-- content_daily_stats
-- api_call_logs
-
-Metrics:
-
-- Views
-- Watch Time
-- Rating
-- Revenue
-- User Activity
-
----
-
-# Development Rules
-
-## Always specify files
-
-Khi viết code phải ghi rõ:
-
-```text
 File:
 WebBrowser/Controllers/MovieController.cs
-```
 
-hoặc
+hoặc:
 
-```text
 File:
 Server/Controllers/MovieApiController.cs
-```
+
+### Never Change Architecture
+
+Không tự động đổi tên project, đổi namespace hàng loạt, đổi solution structure hoặc đổi database schema nếu chưa được yêu cầu.
+
+### Backend Standards
+
+- ASP.NET Core.
+- Dependency Injection.
+- Async/Await.
+- Repository Pattern.
+- Service Layer Pattern.
+
+### Frontend Standards
+
+- Razor View.
+- Bootstrap 5.
+- Responsive.
+- Mobile First.
+
+UI tham khảo: Netflix, Disney+, FPT Play, VieON, Galaxy Play. Không sao chép nguyên mẫu hoặc thương hiệu của các nền tảng này.
 
 ---
 
-## Never change architecture
+## UI/UX And Frontend Design Rules
 
-Không tự động:
+### General Principles
 
-- đổi tên project
-- đổi namespace hàng loạt
-- đổi solution structure
-- đổi database schema
+- WebBrowser là frontend dành cho người dùng cuối.
+- Ưu tiên trải nghiệm xem phim nhanh, rõ ràng và dễ sử dụng.
+- Thiết kế Mobile First.
+- Không xem giao diện là bản demo; mọi thành phần phải sẵn sàng mở rộng cho sản phẩm thực tế.
+- Không thay đổi business logic hoặc API chỉ để phục vụ giao diện.
+- Không hard-code dữ liệu phim trong Razor View nếu dữ liệu đã có từ API hoặc ViewModel.
+- Trước khi tạo component mới phải tìm component tương tự đang tồn tại.
 
-nếu chưa được yêu cầu.
+### Visual Style
 
----
+- Dark theme là giao diện chính.
+- Màu nền chính: #111318 hoặc tương đương.
+- Màu card: #1c1f26.
+- Chữ chính: #ffffff; chữ phụ: #9aa0aa.
+- Màu nhấn có thể dùng xanh dương, xanh ngọc hoặc đỏ tùy module.
+- Bảo đảm độ tương phản cao để dễ đọc.
+- Không lạm dụng màu sắc, gradient hoặc animation.
+- Border-radius, khoảng cách và kích thước component phải thống nhất.
 
-## Backend Standards
+### Layout
 
-- ASP.NET Core
-- Dependency Injection
-- Async/Await
-- Repository Pattern
-- Service Layer Pattern
+- Sử dụng Bootstrap 5 kết hợp CSS riêng của dự án.
+- Ưu tiên Bootstrap Grid, Flexbox và CSS Grid.
+- Container có max-width hợp lý, nội dung không bị dàn quá rộng.
+- Không để xuất hiện horizontal scrollbar.
+- Các section phải có khoảng cách rõ ràng.
+- Tái sử dụng layout, partial view và ViewComponent hiện có.
 
----
+### Header
 
-## Frontend Standards
+- Responsive trên desktop, tablet và mobile.
+- Menu hiện tại có trạng thái active rõ ràng.
+- Có thể sticky khi cuộn.
+- Logo phải có fallback dạng text hoặc SVG nếu ảnh lỗi.
+- Ô tìm kiếm phải có placeholder, icon và trạng thái focus.
+- Nút đăng nhập, đăng ký và avatar có hover, focus và disabled state.
+- Mobile dùng hamburger menu hoặc Bootstrap offcanvas.
 
-- Razor View
-- Bootstrap 5
-- Responsive
-- Mobile First
+### Home Page
 
-UI tham khảo:
+Trang chủ nên có Hero Banner, Phim hot, Phim mới cập nhật, Phim lẻ mới nhất, Phim bộ phổ biến, Tiếp tục xem, Phim được xem nhiều, Thể loại phim và Phim sắp chiếu.
 
-- Netflix
-- Disney+
-- FPT Play
-- VieON
+Mỗi section phải có tiêu đề rõ ràng, nút Xem tất cả nếu cần, không lặp dữ liệu không cần thiết, loading state, empty state và error state.
+
+### Hero Banner
+
+- Ảnh nền chất lượng tốt, có lớp phủ gradient để nội dung dễ đọc.
+- Hiển thị tên phim, mô tả, năm, thể loại, điểm đánh giá và nút xem phim.
+- Có thể có nút Chi tiết phim, điều hướng slide và indicator.
+- Nếu có carousel, tự động chuyển slide sau khoảng 5 giây và hỗ trợ keyboard navigation.
+- Banner phải co giãn tốt trên mobile, không chiếm quá nhiều chiều cao.
+
+### Movie Card
+
+- Poster đúng tỷ lệ 2:3, không bị méo hoặc vỡ.
+- Hình ảnh bắt buộc có alt text.
+- Hiển thị tên phim, tên gốc, năm, quốc gia, chất lượng, Vietsub/Thuyết minh và điểm đánh giá khi có dữ liệu.
+- Hover có thể hiển thị nút xem phim, yêu thích hoặc thông tin nhanh.
+- Không phóng to quá mức làm ảnh hưởng card xung quanh.
+- Card cùng danh sách phải đồng nhất kích thước.
+
+Responsive movie grid: Desktop 5–6 card/hàng; Laptop 4–5; Tablet 3–4; Mobile 2 card/hàng.
+
+### Movie Detail And Watch Page
+
+- Trang chi tiết ưu tiên thông tin quan trọng và nút xem phim.
+- Trang xem phim tập trung vào video, hạn chế thành phần gây xao nhãng.
+- Video player responsive theo tỷ lệ 16:9.
+- TV Series phải có danh sách tập, tập hiện tại, tập trước và tập tiếp theo.
+- Hiển thị trạng thái loading, lỗi phát video và video không khả dụng.
+- Không hard-code URL video trong Razor View nếu URL đến từ backend.
+- Không expose thông tin nhạy cảm của video source ra client nếu không cần thiết.
+
+### Forms And Interaction
+
+- Form có label hoặc aria-label đầy đủ.
+- Validation hiển thị gần field bị lỗi.
+- Không chỉ dùng màu để biểu thị lỗi hoặc trạng thái.
+- Button có hover, focus, active và disabled state.
+- Thao tác thành công/thất bại hiển thị bằng toast hoặc alert.
+- Modal có nút đóng, hỗ trợ Escape và không làm mất trạng thái trang.
+- Không gửi form nhiều lần khi request trước chưa hoàn thành.
+
+### Loading, Empty And Error States
+
+Mỗi màn hình gọi API phải xử lý loading bằng skeleton/spinner, empty state rõ ràng, error state thân thiện, retry state khi phù hợp và không để trang trắng khi API thất bại.
+
+### Accessibility
+
+- Sử dụng semantic HTML.
+- Hình ảnh có alt text.
+- Button dùng thẻ button, không dùng div giả button.
+- Link có nội dung mô tả rõ ràng.
+- Hỗ trợ keyboard navigation và focus state rõ ràng.
+- Modal, dropdown, carousel và offcanvas có aria attributes phù hợp.
+- Bảo đảm tương phản màu tốt.
+- Không tự động phát âm thanh hoặc video có tiếng.
+
+### Performance
+
+- Lazy loading cho ảnh ngoài viewport đầu tiên.
+- Tối ưu kích thước ảnh.
+- Không tải JavaScript/CSS không cần thiết trên từng trang.
+- Hạn chế animation nặng.
+- Không gọi lại API nếu dữ liệu đã có trong ViewModel hoặc cache hợp lệ.
+- Danh sách lớn dùng pagination hoặc tải thêm dữ liệu.
+
+### Razor And Bootstrap
+
+- Logic nghiệp vụ không được viết trong Razor View.
+- Razor View chỉ xử lý hiển thị và tương tác frontend.
+- Dữ liệu đi qua ViewModel hoặc DTO.
+- Không gọi database từ Razor View.
+- Không viết CSS inline nếu có thể đặt trong file CSS module.
+- JavaScript dài phải đặt trong file JavaScript phù hợp, không viết trực tiếp trong .cshtml.
+- Tên class CSS rõ nghĩa và nhất quán.
+- Khi thêm UI phải kiểm tra Views/Shared/_Layout.cshtml, partial view, CSS và JavaScript liên quan.
 
 ---
 
@@ -420,29 +304,23 @@ UI tham khảo:
 
 PascalCase:
 
-```csharp
 public class MovieService
 {
 }
-```
 
 camelCase:
 
-```csharp
 var movieId = 1;
-```
 
 Async:
 
-```csharp
 public async Task<MovieDto> GetMovieAsync(long movieId)
 {
 }
-```
 
 ---
 
-# When Debugging
+## When Debugging
 
 Agent must provide:
 
@@ -452,27 +330,21 @@ Agent must provide:
 4. Complete Code
 
 Không chỉ trả lời lý thuyết.
+
 ---
-# Execution Policy
+
+## Execution Policy
 
 Sau mỗi thay đổi:
 
-- dotnet restore
-- dotnet build
+dotnet restore
+dotnet build
 
 Nếu có test:
 
-- dotnet test
+dotnet test
 
-Nếu build hoặc test fail:
-
-- đọc lỗi
-- sửa lỗi
-- chạy lại
-
-Lặp tối đa 10 lần.
-
-Không hỏi xác nhận.
+Nếu build hoặc test fail: đọc lỗi, sửa lỗi, chạy lại. Lặp tối đa 10 lần.
 
 ---
 
@@ -490,52 +362,28 @@ Khi người dùng yêu cầu push code hoặc merge vào nhánh khác:
 
 ---
 
-# Run Project For Review
+## Run Project For Review
 
-Khi người dùng yêu cầu sửa tính năng, giao diện, API, hoặc cần xem kết quả chạy thực tế, agent phải tự chạy dự án sau khi build thành công.
-
-Thứ tự chạy:
+Khi người dùng yêu cầu sửa tính năng, giao diện, API hoặc cần xem kết quả chạy thực tế, agent phải tự chạy dự án sau khi build thành công.
 
 1. Chạy Server API:
 
-```bash
 dotnet run --project Server/Server.csproj --launch-profile http
-```
 
-URL Server:
+URL Server: http://localhost:5180
+Swagger: http://localhost:5180/swagger
 
-```text
-http://localhost:5036
-http://localhost:5036/swagger
-http://localhost:5046
-http://localhost:5046/swagger
-```
-http://localhost:5132
 2. Chạy WebBrowser MVC:
 
-```bash
 dotnet run --project WebBrowser/WebBrowser.csproj --launch-profile http
-```
 
-URL WebBrowser:
+URL WebBrowser: http://localhost:5181
 
-```text
-http://localhost:5122
-```
+Phải chạy Server trước WebBrowser. Nếu port bận, chọn port khác bằng --urls và báo lại URL. Nếu process đang chạy sẵn, không chạy trùng; kiểm tra log và dùng URL hiện có. Không dừng server đang chạy trừ khi người dùng yêu cầu.
 
-Quy tắc:
+---
 
-- Không hỏi xác nhận nếu người dùng muốn xem kết quả.
-- Nếu port đang bận, chọn port khác bằng `--urls` và báo lại URL mới.
-- Phải chạy Server trước WebBrowser vì WebBrowser gọi API từ Server.
-- Sau khi chạy, trả lời cho người dùng URL để mở trình duyệt.
-- Nếu một process đang chạy sẵn, không chạy trùng; kiểm tra log và dùng URL hiện có.
-- Không dừng server đang chạy trừ khi người dùng yêu cầu.
---- 
-
-# Current Priority
-
-Ưu tiên phát triển theo thứ tự:
+## Current Priority
 
 1. Authentication
 2. Movie Management
@@ -547,99 +395,48 @@ Quy tắc:
 8. Admin Dashboard
 9. Analytics
 10. Advertisement
----
-# Database Development Rules
-
-## Không tự ý tạo cấu trúc mới
-
-Khi thêm chức năng mới phải tuân thủ cấu trúc hiện có của dự án.
-
-Agent phải tìm các module tương tự đang tồn tại và code theo đúng pattern đó.
 
 ---
 
-# Stored Procedure Rules
+## Database Development Rules
 
-Nếu cần truy vấn dữ liệu:
+Không tự ý tạo cấu trúc mới. Khi thêm chức năng phải tìm module tương tự đang tồn tại và code theo đúng pattern đó.
 
-Ưu tiên:
+### Stored Procedure Rules
 
-1. Tạo Stored Procedure
-2. Gọi SP từ DataServiceLib
-3. Trả Model/DTO về CoreLib
-4. Trả dữ liệu qua Service
-5. Controller sử dụng Service
+Ưu tiên: tạo Stored Procedure, gọi SP từ DataServiceLib, trả Model/DTO về CoreLib, trả dữ liệu qua Service, sau đó Controller sử dụng Service.
 
 Không viết SQL trực tiếp trong Controller.
 
----
+### SQL Folder Structure
 
-# SQL Folder Structure
+Database/StoredProcedures/
+├── Movie
+├── Series
+├── User
+├── Payment
+├── Subscription
+└── Video
 
-Nếu tạo Stored Procedure mới:
-
-Tạo file theo cấu trúc:
-
-```text
-Database
-└── StoredProcedures
-    ├── Movie
-    ├── Series
-    ├── User
-    ├── Payment
-    ├── Subscription
-    └── Video
-```
-
-Ví dụ:
-
-```text
-Database
-└── StoredProcedures
-    └── Movie
-        ├── usp_Movie_Search.sql
-        ├── usp_Movie_Insert.sql
-        ├── usp_Movie_Update.sql
-        └── usp_Movie_Delete.sql
-```
+Ví dụ: Database/StoredProcedures/Movie/usp_Movie_Search.sql.
 
 ---
 
-# Backend Folder Structure
+## Backend Folder Structure
 
 Ví dụ module Movie:
 
-```text
-CoreLib
-└── Models
-    └── Movie
-
-CoreLib
-└── Services
-    └── Movie
-
-DataServiceLib
-└── Repositories
-    └── Movie
-
-Server
-└── Controllers
-    └── MovieController
-
-WebBrowser
-├── Controllers
-│   └── MovieController
-│
-├── Models
-│   └── Movie
-│
-└── Views
-    └── Movie
-```
+CoreLib/Models/Movie
+CoreLib/Services/Movie
+DataServiceLib/Repositories/Movie
+Server/Controllers/MovieController
+WebBrowser/Controllers/MovieController
+WebBrowser/Models/Movie
+WebBrowser/Views/Movie
 
 ---
 
-# Existing Pattern First
+## Existing Pattern First
 
 Trước khi code:
 
@@ -651,7 +448,7 @@ Không tự phát minh kiến trúc mới.
 
 ---
 
-# New Feature Checklist
+## New Feature Checklist
 
 Khi tạo chức năng mới phải tạo đầy đủ:
 
@@ -667,7 +464,24 @@ Nếu thiếu bước nào phải nêu rõ lý do.
 
 ---
 
-# Output Format
+## UI Review Checklist
+
+Sau mỗi thay đổi giao diện phải kiểm tra:
+
+- Desktop, tablet và mobile.
+- Header và menu.
+- Hero banner.
+- Movie card.
+- Modal và form.
+- Loading, empty và error state.
+- Không có lỗi console nghiêm trọng.
+- Không có horizontal scrollbar.
+- Không làm hỏng API hoặc chức năng hiện có.
+- Không phá vỡ layout của các trang khác.
+
+---
+
+## Output Format
 
 Luôn trả lời:
 

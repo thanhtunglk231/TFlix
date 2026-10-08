@@ -10,7 +10,11 @@ namespace CoreLib.Dtos.MovieAsset
     public class AddMovieAssetDto
     {
         [Required]
-     
+        public string OwnerType { get; set; } = "MOVIE";
+
+        [Range(1, long.MaxValue)]
+        public long OwnerId { get; set; }
+
         public decimal MovieId { get; set; }
 
         /// <summary>POSTER | BACKDROP | TRAILER | THUMB</summary>

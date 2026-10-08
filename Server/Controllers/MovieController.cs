@@ -2,6 +2,10 @@ using CoreLib.Dtos.Movies;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Server.Services;
+using System.Security.Cryptography;
+using System.Text;
+using Newtonsoft.Json;
 
 namespace Server.Controllers
 {
@@ -11,16 +15,25 @@ namespace Server.Controllers
     {
 
         private readonly ICMovie _cMovie;
-        public MovieController(ICMovie cMovie)
+        private readonly IRedisCacheService _cache;
+        private static readonly TimeSpan MovieCacheDuration = TimeSpan.FromMinutes(10);
+
+        public MovieController(ICMovie cMovie, IRedisCacheService cache)
         {
             _cMovie = cMovie;
+            _cache = cache;
         }
         [HttpGet("getall")]
         public async Task<IActionResult> GetAllMovies()
         {
-            var response = await _cMovie.get_all();
+            const string cacheKey = "tflix:movies:all";
+            var response = await _cache.GetAsync<CoreLib.Models.CResponseMessage>(cacheKey)
+                ?? await _cMovie.get_all();
             if (response == null)
                 return StatusCode(500, new { code = "500", message = "Null response from service" });
+
+            if (response.Success)
+                await _cache.SetAsync(cacheKey, response, MovieCacheDuration);
 
             return Ok(new { code = response.code, success = response.Success, message = response.message, Data = response.Data });
         }
@@ -44,7 +57,11 @@ namespace Server.Controllers
                 Query = query,
                 Limit = Math.Clamp(limit, 1, 12)
             };
-            var response = await _cMovie.Autocomplete(request);
+            var cacheKey = $"tflix:movies:autocomplete:{HashKey($"{request.Query.Trim().ToLowerInvariant()}|{request.Limit}")}";
+            var response = await _cache.GetAsync<CoreLib.Models.CResponseMessage>(cacheKey)
+                ?? await _cMovie.Autocomplete(request);
+            if (response.Success)
+                await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(2));
             return Ok(new
             {
                 code = response.code,
@@ -64,6 +81,9 @@ namespace Server.Controllers
             var response = await _cMovie.Add_movie(addMovieDto);
             if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
 
+            if (response.Success)
+                await _cache.RemoveByPrefixAsync("tflix:movies:");
+
             // Include returned data (e.g., new MovieId) in the CResponseMessage.Data if needed
             return Ok(response);
         }
@@ -77,6 +97,8 @@ namespace Server.Controllers
             }
             var response = await _cMovie.Update_movie(addMovieDto);
             if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+            if (response.Success)
+                await _cache.RemoveByPrefixAsync("tflix:movies:");
             return Ok(response);
         }
 
@@ -86,6 +108,8 @@ namespace Server.Controllers
             if (req == null || req.id <= 0) return BadRequest(new { code = "400", message = "Invalid id." });
             var response = await _cMovie.Delete_movie(req.id);
             if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+            if (response.Success)
+                await _cache.RemoveByPrefixAsync("tflix:movies:");
             return Ok(response);
         }
 
@@ -93,8 +117,13 @@ namespace Server.Controllers
         public async Task<IActionResult> GetCatalogMovies([FromQuery] MovieCatalogFilterDto filter)
         {
             filter ??= new MovieCatalogFilterDto();
-            var response = await _cMovie.GetCatalogMovies(filter);
+            var cacheKey = GetCatalogCacheKey(filter);
+            var response = await _cache.GetAsync<CoreLib.Models.CResponseMessage>(cacheKey)
+                ?? await _cMovie.GetCatalogMovies(filter);
             if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+
+            if (response.Success)
+                await _cache.SetAsync(cacheKey, response, MovieCacheDuration);
 
             return Ok(response);
         }
@@ -103,8 +132,13 @@ namespace Server.Controllers
         public async Task<IActionResult> PostCatalogMovies([FromBody] MovieCatalogFilterDto filter)
         {
             filter ??= new MovieCatalogFilterDto();
-            var response = await _cMovie.GetCatalogMovies(filter);
+            var cacheKey = GetCatalogCacheKey(filter);
+            var response = await _cache.GetAsync<CoreLib.Models.CResponseMessage>(cacheKey)
+                ?? await _cMovie.GetCatalogMovies(filter);
             if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+
+            if (response.Success)
+                await _cache.SetAsync(cacheKey, response, MovieCacheDuration);
 
             return Ok(response);
         }
@@ -114,8 +148,16 @@ namespace Server.Controllers
         {
             var response = await _cMovie.SeedSampleMovies();
             if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
+            if (response.Success)
+                await _cache.RemoveByPrefixAsync("tflix:movies:");
             return Ok(response);
         }
+
+        private static string GetCatalogCacheKey(MovieCatalogFilterDto filter)
+            => $"tflix:movies:catalog:{HashKey(JsonConvert.SerializeObject(filter))}";
+
+        private static string HashKey(string value)
+            => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
         public class IdRequest { public decimal id { get; set; } }
     }

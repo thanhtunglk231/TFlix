@@ -13,6 +13,12 @@ namespace CoreLib.Dtos.MovieAsset
   
         public decimal AssetId { get; set; }
 
+        [Required]
+        public string OwnerType { get; set; } = "MOVIE";
+
+        [Range(1, long.MaxValue)]
+        public long OwnerId { get; set; }
+
         /// <summary>POSTER | BACKDROP | TRAILER | THUMB</summary>
 
         public string AssetType { get; set; } = string.Empty;

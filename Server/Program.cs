@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Server.Services;
+using StackExchange.Redis;
 using System.Diagnostics;
 using System.Text;
 
@@ -33,6 +34,13 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+var redisConnectionString = builder.Configuration["Redis"]
+    ?? builder.Configuration.GetConnectionString("Redis")
+    ?? "localhost:6379";
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    ConnectionMultiplexer.Connect(ConfigurationOptions.Parse(redisConnectionString, true)));
+builder.Services.AddSingleton<IRedisCacheService, RedisCacheService>();
 
 builder.Services.AddScoped<ICBaseProvider, CBaseProvider>();
 builder.Services.AddScoped<ICFilm, CFilm>();

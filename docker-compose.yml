@@ -1,6 +1,18 @@
 services:
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - tflix-redis-data:/data
+    restart: unless-stopped
+
   webbrowser:
     image: ${DOCKER_REGISTRY-}webbrowser
     build:
       context: .
       dockerfile: WebBrowser/Dockerfile
+
+volumes:
+  tflix-redis-data:

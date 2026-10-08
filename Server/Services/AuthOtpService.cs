@@ -16,16 +16,19 @@ namespace Server.Services
         private readonly IEmailSender _emailSender;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthOtpService> _logger;
+        private readonly IRedisCacheService _cache;
 
         public AuthOtpService(
             ICAuth auth,
             IEmailSender emailSender,
             IConfiguration configuration,
+            IRedisCacheService cache,
             ILogger<AuthOtpService> logger)
         {
             _auth = auth;
             _emailSender = emailSender;
             _configuration = configuration;
+            _cache = cache;
             _logger = logger;
         }
 
@@ -33,10 +36,17 @@ namespace Server.Services
         {
             var normalizedEmail = email.Trim().ToLowerInvariant();
             var otp = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
-            var response = await _auth.IssueOtpAsync(normalizedEmail, purpose, Hash(normalizedEmail, purpose, otp));
+            var otpHash = Hash(normalizedEmail, purpose, otp);
+            var response = await _auth.IssueOtpAsync(normalizedEmail, purpose, otpHash);
 
             if (!response.Success)
                 return response;
+
+            await _cache.SetAsync(GetOtpCacheKey(normalizedEmail, purpose), otpHash, TimeSpan.FromMinutes(5));
+            _logger.LogInformation(
+                "OTP hash cached in Redis for {Purpose} and {MaskedEmail} with TTL 300 seconds",
+                purpose,
+                MaskEmail(normalizedEmail));
 
             try
             {
@@ -75,10 +85,44 @@ namespace Server.Services
             return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
         }
 
-        public Task<CResponseMessage> VerifyAsync(string email, string purpose, string otp)
+        public async Task<CResponseMessage> VerifyAsync(string email, string purpose, string otp)
         {
             var normalizedEmail = email.Trim().ToLowerInvariant();
-            return _auth.VerifyOtpAsync(normalizedEmail, purpose, Hash(normalizedEmail, purpose, otp));
+            var cacheKey = GetOtpCacheKey(normalizedEmail, purpose);
+            var submittedHash = Hash(normalizedEmail, purpose, otp);
+            var cachedHash = await _cache.GetAsync<string>(cacheKey);
+
+            if (!string.IsNullOrWhiteSpace(cachedHash) &&
+                !CryptographicOperations.FixedTimeEquals(
+                    Convert.FromHexString(cachedHash),
+                    Convert.FromHexString(submittedHash)))
+            {
+                _logger.LogWarning("OTP cache validation failed for {Purpose} and {MaskedEmail}", purpose, MaskEmail(normalizedEmail));
+            }
+
+            var response = await _auth.VerifyOtpAsync(normalizedEmail, purpose, submittedHash);
+            if (response.Success)
+            {
+                await _cache.RemoveAsync(cacheKey);
+                _logger.LogInformation(
+                    "OTP Redis cache removed after successful verification for {Purpose} and {MaskedEmail}",
+                    purpose,
+                    MaskEmail(normalizedEmail));
+            }
+
+            return response;
+        }
+
+        private static string GetOtpCacheKey(string email, string purpose)
+            => $"tflix:otp:{purpose.ToLowerInvariant()}:{email}";
+
+        private static string MaskEmail(string email)
+        {
+            var separator = email.IndexOf('@');
+            if (separator <= 1)
+                return "***";
+
+            return $"{email[0]}***{email[(separator - 1)..]}";
         }
     }
 }

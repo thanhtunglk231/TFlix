@@ -34,7 +34,8 @@ namespace WebBrowser.Services.Implements.Movies
             }
 
             // ✅ KHỚP với MovieAssetAddForm
-            if (dto.MovieId > 0) form.Add(new StringContent(dto.MovieId.ToString()), "MovieId");
+            if (dto.OwnerId > 0) form.Add(new StringContent(dto.OwnerId.ToString()), "OwnerId");
+            form.Add(new StringContent(dto.OwnerType), "OwnerType");
             if (!string.IsNullOrWhiteSpace(dto.AssetType)) form.Add(new StringContent(dto.AssetType), "AssetType");
             form.Add(new StringContent(dto.SortOrder.ToString()), "SortOrder");
 
@@ -58,7 +59,8 @@ namespace WebBrowser.Services.Implements.Movies
             }
 
             // ✅ KHỚP với MovieAssetReplaceForm
-            if (updateDto.MovieId > 0) form.Add(new StringContent(updateDto.MovieId.ToString()), "MovieId");
+            if (updateDto.OwnerId > 0) form.Add(new StringContent(updateDto.OwnerId.ToString()), "OwnerId");
+            form.Add(new StringContent(updateDto.OwnerType), "OwnerType");
             if (!string.IsNullOrWhiteSpace(updateDto.AssetType)) form.Add(new StringContent(updateDto.AssetType), "AssetType");
             form.Add(new StringContent(updateDto.SortOrder.ToString()), "SortOrder");
 
@@ -70,29 +72,39 @@ namespace WebBrowser.Services.Implements.Movies
         }
 
         // ========== 3) DELETE ==========
-        public async Task<CResponseMessage> delete(decimal id, string? fileUrl = null)
+        public async Task<CResponseMessage> delete(decimal id, string ownerType, string? fileUrl = null)
         {
-            var url = $"/api/MovieAsset/{id}";
+            var url = $"/api/MovieAsset/{id}?ownerType={Uri.EscapeDataString(ownerType)}";
             if (!string.IsNullOrWhiteSpace(fileUrl))
-                url += $"?url={Uri.EscapeDataString(fileUrl)}";
+                url += $"&url={Uri.EscapeDataString(fileUrl)}";
 
             var resp = await _httpService.DeleteResponseAsync(url);
             return resp!;
         }
 
-        // ========== 4) GET ALL ==========
-        public async Task<ApiResponse<MovieAssetTableWrapper>> get_all()
+        public async Task<ApiResponse<MovieAssetTableWrapper>> get_owners()
         {
-            const string url = "/api/MovieAsset/getall";
+            var resp = await _httpService.GetAsync<ApiResponse<MovieAssetTableWrapper>>("/api/MovieAsset/owners");
+            resp.success = resp.success || resp.code == "200";
+            return resp;
+        }
+
+        // ========== 4) GET ALL ==========
+        public async Task<ApiResponse<MovieAssetTableWrapper>> get_all(int pageSize = 25, string? cursorOwnerType = null, long? cursorAssetId = null, string? ownerType = null)
+        {
+            var url = $"/api/MovieAsset/getall?pageSize={Math.Clamp(pageSize, 1, 100)}";
+            if (!string.IsNullOrWhiteSpace(cursorOwnerType)) url += $"&cursorOwnerType={Uri.EscapeDataString(cursorOwnerType)}";
+            if (cursorAssetId.HasValue) url += $"&cursorAssetId={cursorAssetId.Value}";
+            if (!string.IsNullOrWhiteSpace(ownerType)) url += $"&ownerType={Uri.EscapeDataString(ownerType)}";
             var resp = await _httpService.GetAsync<ApiResponse<MovieAssetTableWrapper>>(url);
             resp.success = resp.success || resp.code == "200";
             return resp;
         }
 
         // ========== 5) GET BY ID ==========
-        public async Task<ApiResponse<MovieAssetTableWrapper>> getByid(decimal id)
+        public async Task<ApiResponse<MovieAssetTableWrapper>> getByid(decimal id, string ownerType)
         {
-            string url = $"/api/MovieAsset/getbyid/{id}";
+            string url = $"/api/MovieAsset/getbyid/{id}?ownerType={Uri.EscapeDataString(ownerType)}";
             var resp = await _httpService.GetAsync<ApiResponse<MovieAssetTableWrapper>>(url);
             Console.WriteLine("MovieAsset Getbyid " + resp);
             resp.success = resp.success || resp.code == "200";

@@ -3,6 +3,8 @@ using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using CoreLib.Models;
+using Server.Services;
 
 namespace Server.Controllers.Normal
 {
@@ -11,27 +13,35 @@ namespace Server.Controllers.Normal
     public class PreviewController : ControllerBase
     {
         private readonly IPreView _preView;
-        public PreviewController(IPreView preView) { 
+        private readonly IRedisCacheService _cache;
+        public PreviewController(IPreView preView, IRedisCacheService cache) {
         
         _preView = preView;
+        _cache = cache;
         }
 
         [HttpGet("movie")]
         public async Task<IActionResult> Preview_movie([FromQuery] int movieID) { 
         
-        var result =  _preView.get_all(movieID);
+        var cacheKey = $"tflix:movies:preview:{movieID}";
+        var result = await _cache.GetAsync<CResponseMessage>(cacheKey) ?? _preView.get_all(movieID);
+        if (result.Success)
+            await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10));
         return Ok(result);
         }
 
 
         [HttpGet("GetPreview")]
-        public IActionResult preview([FromQuery] GETCONTENTByID movie)
+        public async Task<IActionResult> preview([FromQuery] GETCONTENTByID movie)
         {
             Console.WriteLine("=== [Preview] Incoming Query ===");
             Console.WriteLine($"movie.id   = {movie?.id}");
             Console.WriteLine($"movie.kind = {movie?.kind}");
 
-            var result = _preView.GET_CONTENT_BY_ID(movie);
+            var cacheKey = $"tflix:movies:content:{movie.kind?.Trim().ToLowerInvariant()}:{movie.id}";
+            var result = await _cache.GetAsync<CResponseMessage>(cacheKey) ?? _preView.GET_CONTENT_BY_ID(movie);
+            if (result.Success)
+                await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10));
 
         
 

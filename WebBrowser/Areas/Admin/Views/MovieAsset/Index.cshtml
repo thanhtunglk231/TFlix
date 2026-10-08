@@ -1,6 +1,21 @@
-﻿@{
-    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
-    ViewData["Title"] = "Quản lý Movie Asset · Admin";
-
-  
-}
+@{ Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml"; ViewData["Title"] = "Quản lý media phim"; }
+<link rel="stylesheet" href="~/css/admin-movie-assets.css" asp-append-version="true" />
+<main class="container-fluid py-4" id="mediaAssetApp" data-list-url="/Admin/MovieAsset/getall" data-owners-url="/Admin/MovieAsset/owners" data-add-url="/Admin/MovieAsset/add">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4"><div><h1 class="h3 mb-1">Media phim</h1><p class="text-secondary mb-0">Quản lý poster, backdrop, thumbnail và trailer cho phim lẻ, bộ phim và tập phim.</p></div><button class="btn btn-primary" type="button" id="btnAddAsset">Thêm media</button></div>
+    <div id="assetAlert" class="alert d-none" role="alert"></div>
+    <div id="assetLoading" class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải</span></div></div>
+    <div id="assetEmpty" class="asset-empty d-none">Chưa có media asset nào.</div>
+    <div class="table-responsive d-none" id="assetTableWrap"><table class="table table-dark table-hover align-middle"><thead><tr><th>Preview</th><th>Đối tượng</th><th>Loại</th><th>Thứ tự</th><th class="text-end">Thao tác</th></tr></thead><tbody id="assetRows"></tbody></table><div class="text-center py-3"><button class="btn btn-outline-light d-none" id="btnLoadMore" type="button">Tải thêm</button></div></div>
+</main>
+<div class="modal fade" id="assetModal" tabindex="-1" aria-labelledby="assetModalTitle" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content bg-dark text-white"><form id="assetForm" enctype="multipart/form-data">
+    <div class="modal-header border-secondary"><h2 class="modal-title fs-5" id="assetModalTitle">Thêm media</h2><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+    <div class="modal-body"><input type="hidden" id="assetId"><input type="hidden" id="oldUrl"><div class="row g-3">
+        <div class="col-md-4"><label class="form-label" for="ownerType">Loại nội dung</label><select class="form-select" id="ownerType" required><option value="MOVIE">Phim lẻ</option><option value="SERIES">Bộ phim</option><option value="EPISODE">Tập phim</option></select></div>
+        <div class="col-md-8"><label class="form-label" for="ownerId">Nội dung</label><select class="form-select" id="ownerId" required><option value="">Chọn nội dung</option></select></div>
+        <div class="col-md-6"><label class="form-label" for="assetType">Loại asset</label><select class="form-select" id="assetType" required><option value="POSTER">Poster</option><option value="BACKDROP">Backdrop</option><option value="THUMB">Thumbnail</option><option value="STILL">Still</option><option value="TRAILER">Trailer</option></select></div>
+        <div class="col-md-3"><label class="form-label" for="sortOrder">Thứ tự</label><input class="form-control" id="sortOrder" type="number" min="0" value="0"></div>
+        <div class="col-12"><label class="form-label" for="assetFile">File media</label><input class="form-control" id="assetFile" type="file" accept="image/*,video/*" required><div class="form-text text-secondary">Chấp nhận ảnh hoặc video. Khi sửa cần chọn file thay thế.</div></div>
+    </div></div>
+    <div class="modal-footer border-secondary"><button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Hủy</button><button type="submit" class="btn btn-primary" id="btnSaveAsset">Lưu media</button></div>
+</form></div></div></div>
+<script src="~/js/admin-movie-assets.js" asp-append-version="true"></script>
