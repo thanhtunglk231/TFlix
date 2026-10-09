@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using CommonLib.Logging;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -104,6 +105,21 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
         opts.SaveTokens = true;
         opts.Scope.Clear();
         opts.Scope.Add("openid"); opts.Scope.Add("email"); opts.Scope.Add("profile");
+        opts.Events.OnCreatingTicket = context =>
+        {
+            if (context.TokenResponse.Response.RootElement.TryGetProperty("id_token", out var idTokenElement))
+            {
+                var idToken = idTokenElement.GetString();
+                if (!string.IsNullOrWhiteSpace(idToken))
+                {
+                    var tokens = context.Properties.GetTokens().ToList();
+                    tokens.Add(new AuthenticationToken { Name = "id_token", Value = idToken });
+                    context.Properties.StoreTokens(tokens);
+                    context.Identity?.AddClaim(new System.Security.Claims.Claim("id_token", idToken));
+                }
+            }
+            return Task.CompletedTask;
+        };
         opts.Events.OnRedirectToAuthorizationEndpoint = context =>
         {
             context.Response.Redirect(context.RedirectUri + "&prompt=select_account");

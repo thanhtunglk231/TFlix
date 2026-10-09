@@ -146,11 +146,13 @@ namespace WebBrowser.Controllers
                 await HttpContext.SignOutAsync("GoogleExternal");
                 return RedirectToAction(nameof(AuthenticationError), new { message = "Không xác minh được phản hồi từ Google." });
             }
-            var idToken = result.Properties.GetTokenValue("id_token");
+            var idToken = result.Properties.GetTokenValue("id_token")
+                ?? result.Principal?.FindFirst("id_token")?.Value;
             await HttpContext.SignOutAsync("GoogleExternal");
             if (string.IsNullOrWhiteSpace(idToken))
             {
-                _logger.LogWarning("Google sign-in ticket did not include an ID token.");
+                _logger.LogWarning("Google sign-in ticket did not include an ID token. Available claims: {Claims}",
+                    string.Join(", ", result.Principal?.Claims.Select(c => c.Type) ?? Enumerable.Empty<string>()));
                 return RedirectToAction(nameof(AuthenticationError), new { message = "Google không trả về thông tin định danh hợp lệ." });
             }
             var response = await _authService.GoogleLoginAsync(new GoogleLoginDto { IdToken = idToken });
