@@ -297,6 +297,54 @@ namespace WebBrowser.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> GetEpisodePlayInfo([FromQuery] long episodeId)
+        {
+            try
+            {
+                var episodesResponse = await _episodeService.get_all();
+                var allEpisodes = episodesResponse?.Data?.Table ?? new List<WebBrowser.Models.Episode.EpisodeItem>();
+                var episode = allEpisodes.FirstOrDefault(x => x.EpisodeId == episodeId);
+
+                var sourcesResponse = await _videoSourceService.get_all();
+                var allSources = sourcesResponse?.Data?.Table ?? new List<WebBrowser.Models.VideoSoure.SourceItem>();
+                var episodeSources = allSources
+                    .Where(x => x.EpisodeId == episodeId && string.Equals(x.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => string.Equals(x.Format, "HLS", StringComparison.OrdinalIgnoreCase))
+                    .ThenByDescending(x => x.IsPrimary)
+                    .Select(x => new
+                    {
+                        sourceId = x.SourceId,
+                        serverName = x.ServerName ?? x.Provider ?? "Cloudflare CDN",
+                        quality = x.Quality ?? "Auto",
+                        format = x.Format ?? "HLS",
+                        streamUrl = x.StreamUrl,
+                        isPrimary = x.IsPrimary
+                    })
+                    .ToList();
+
+                return Json(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        episodeId = episodeId,
+                        episodeNo = episode?.EpisodeNo ?? 1,
+                        episodeTitle = episode?.EpisodeTitle ?? $"Tập {episodeId}",
+                        durationMin = episode?.DurationMin ?? 45,
+                        hasSource = episodeSources.Any(),
+                        sources = episodeSources,
+                        primaryUrl = episodeSources.FirstOrDefault()?.streamUrl ?? ""
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy nguồn phát tập phim EpisodeId={EpisodeId}", episodeId);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = "Không thể tải nguồn phát tập phim." });
+            }
+        }
+
+        [HttpGet]
         public async Task<IActionResult> HlsProxy([FromQuery] string url)
         {
             if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))

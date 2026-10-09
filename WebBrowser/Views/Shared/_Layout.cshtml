@@ -21,5 +21,6 @@
     @RenderSection("ScriptsTop", required: false)
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     @RenderSection("Scripts", required: false)
+    @await Html.PartialAsync("_ChatbotAi")
 </body>
 </html>

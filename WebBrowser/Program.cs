@@ -65,6 +65,8 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.ICommentService,
                            WebBrowser.Services.Implements.CommentService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IFavoriteService,
                            WebBrowser.Services.Implements.FavoriteService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IChatService,
+                           WebBrowser.Services.Implements.ChatService>();
 builder.Services.AddSignalR();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>
@@ -155,6 +157,7 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapHub<WebBrowser.Hubs.CommentHub>("/commentHub");
+app.MapHub<WebBrowser.Hubs.SupportChatHub>("/supportChatHub");
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
