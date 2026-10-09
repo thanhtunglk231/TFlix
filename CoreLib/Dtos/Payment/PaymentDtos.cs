@@ -37,7 +37,15 @@ public sealed class SubscriptionStatusDto
 {
     public bool IsActive { get; set; }
     public long? SubscriptionId { get; set; }
+    public string? PlanCode { get; set; }
     public string? PlanName { get; set; }
+    public decimal? Price { get; set; }
+    public string? Currency { get; set; }
+    public DateTimeOffset? StartAt { get; set; }
     public DateTimeOffset? EndAt { get; set; }
+    public int? DurationDays { get; set; }
+    public int? MaxDevices { get; set; }
+    public string? QualityCap { get; set; }
+    public string? AdsFree { get; set; }
+    public string? Downloadable { get; set; }
 }
-

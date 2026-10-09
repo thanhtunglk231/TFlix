@@ -1,0 +1,43 @@
+@model WebBrowser.Models.Payment.PaymentSuccessViewModel
+@{
+    Layout = "/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Thanh toán thành công · TFlix";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/payment.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/payos-qr.css" asp-append-version="true" />
+}
+
+<main class="payment-page py-5">
+    <div class="container payos-qr-page">
+        <section class="payos-qr-card payment-success-card" aria-labelledby="paymentSuccessTitle">
+            <div class="payment-success-icon" aria-hidden="true"><i class="bi bi-check-lg"></i></div>
+            <span class="payment-kicker">PAYOS · ĐÃ XÁC NHẬN</span>
+            <h1 id="paymentSuccessTitle">Thanh toán thành công</h1>
+            <p class="payos-note">Gói Premium đã được kích hoạt cho tài khoản của bạn.</p>
+            <div class="payos-qr-detail">
+                <span>Mã giao dịch <strong>@Model.OrderCode</strong></span>
+            </div>
+
+            @if (Model.ActiveSubscriptions.Count > 0)
+            {
+                <div class="payment-success-plans">
+                    <h2 class="h5 text-white">Gói đang có trong tài khoản</h2>
+                    @foreach (var subscription in Model.ActiveSubscriptions)
+                    {
+                        <div class="payment-success-plan">
+                            <strong>@subscription.PlanName</strong>
+                            <span>@(subscription.EndAt.HasValue ? $"Có hiệu lực đến {subscription.EndAt.Value.ToLocalTime():dd/MM/yyyy}" : "Đang hoạt động")</span>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="d-flex flex-column flex-sm-row justify-content-center gap-2 mt-4">
+                <a asp-controller="Account" asp-action="Profile" class="btn-payment text-decoration-none">Xem tài khoản</a>
+                <a href="@Model.ReturnUrl" class="btn btn-outline-light rounded-pill px-4">Quay lại nơi đang xem</a>
+            </div>
+        </section>
+    </div>
+</main>

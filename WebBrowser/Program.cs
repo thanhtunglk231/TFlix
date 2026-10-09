@@ -111,6 +111,10 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
         };
         opts.Events.OnRemoteFailure = context =>
         {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("GoogleAuthentication");
+            logger.LogWarning(context.Failure, "Google OAuth callback failed.");
             context.HandleResponse();
             context.Response.Redirect("/Auth/AuthenticationError?message=" +
                 Uri.EscapeDataString("Bạn đã hủy hoặc Google từ chối yêu cầu đăng nhập."));
@@ -131,6 +135,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(o =>
 {
     o.IdleTimeout = TimeSpan.FromMinutes(60);
+    o.Cookie.Name = ".TFlix.WebBrowser.Session";
     o.Cookie.HttpOnly = true;
     o.Cookie.IsEssential = true;
     o.Cookie.SameSite = SameSiteMode.Lax;

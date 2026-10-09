@@ -11,3 +11,9 @@ public sealed class PaymentViewModel
     public PayOsCheckoutResultDto? PayOsPayment { get; set; }
 }
 
+public sealed class PaymentSuccessViewModel
+{
+    public long OrderCode { get; set; }
+    public string ReturnUrl { get; set; } = "/";
+    public List<SubscriptionStatusDto> ActiveSubscriptions { get; set; } = [];
+}

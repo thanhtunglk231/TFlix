@@ -172,7 +172,7 @@ namespace DataServiceLib.Implements
                         (
                             user_id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_app_users PRIMARY KEY,
                             email NVARCHAR(320) NOT NULL CONSTRAINT UQ_app_users_email UNIQUE,
-                            password_hash NVARCHAR(500) NOT NULL,
+                            password_hash NVARCHAR(500) NULL,
                             full_name NVARCHAR(200) NOT NULL,
                             avatar_url NVARCHAR(1000) NULL,
                             phone NVARCHAR(50) NULL,
@@ -183,6 +183,29 @@ namespace DataServiceLib.Implements
                             created_at DATETIMEOFFSET NOT NULL CONSTRAINT DF_app_users_created_at DEFAULT SYSDATETIMEOFFSET(),
                             updated_at DATETIMEOFFSET NULL
                         );
+                    END;
+
+                    IF COL_LENGTH(N'dbo.app_users', N'password_hash') IS NULL
+                    BEGIN
+                        ALTER TABLE dbo.app_users ADD password_hash NVARCHAR(500) NULL;
+                    END
+                    ELSE IF EXISTS
+                    (
+                        SELECT 1
+                        FROM sys.columns
+                        WHERE object_id = OBJECT_ID(N'dbo.app_users')
+                          AND name = N'password_hash'
+                          AND is_nullable = 0
+                    )
+                    BEGIN
+                        ALTER TABLE dbo.app_users ALTER COLUMN password_hash NVARCHAR(500) NULL;
+                    END;
+
+                    IF COL_LENGTH(N'dbo.app_users', N'password') IS NOT NULL
+                    BEGIN
+                        EXEC(N'UPDATE dbo.app_users
+                               SET password_hash = CONVERT(NVARCHAR(500), [password])
+                               WHERE password_hash IS NULL AND [password] IS NOT NULL;');
                     END;
 
                     IF NOT EXISTS (SELECT 1 FROM dbo.app_users WHERE email = N'thanhtung230323@gmail.com')
@@ -257,9 +280,10 @@ namespace DataServiceLib.Implements
                                     RETURN;
                                 END;
 
-                                IF @stored_hash <> @p_password
+                                IF @stored_hash IS NULL
+                                   OR (@stored_hash <> @p_password
                                    AND @stored_hash <> CONVERT(NVARCHAR(500), HASHBYTES(''SHA2_256'', @p_password), 2)
-                                   AND @stored_hash <> CONVERT(NVARCHAR(500), HASHBYTES(''MD5'', @p_password), 2)
+                                   AND @stored_hash <> CONVERT(NVARCHAR(500), HASHBYTES(''MD5'', @p_password), 2))
                                 BEGIN
                                     SET @o_code = N''401'';
                                     SET @o_message = N''Mật khẩu đăng nhập không chính xác.'';
@@ -316,8 +340,10 @@ namespace DataServiceLib.Implements
             return await ExecuteOtpProcedureAsync("sp_auth_otp_verify", email, purpose, otpHash);
         }
 
-        public Task<CResponseMessage> GoogleLoginAsync(GoogleIdentityDto identity)
+        public async Task<CResponseMessage> GoogleLoginAsync(GoogleIdentityDto identity)
         {
+            await EnsureStoredProceduresAndTablesExistAsync();
+
             var code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
             var message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
             var parameters = new IDbDataParameter[]
@@ -330,7 +356,7 @@ namespace DataServiceLib.Implements
             };
             var data = _baseProvider.GetDatasetFromSP("sp_auth_google_login", parameters, _connectionString);
             var responseCode = code.Value?.ToString() ?? "500";
-            return Task.FromResult(new CResponseMessage { Success=responseCode=="200",code=responseCode,message=message.Value?.ToString() ?? "Đăng nhập Google thất bại.",Data=data });
+            return new CResponseMessage { Success=responseCode=="200",code=responseCode,message=message.Value?.ToString() ?? "Đăng nhập Google thất bại.",Data=data };
         }
 
         private async Task<CResponseMessage> ExecuteOtpProcedureAsync(string procedure, string email, string purpose, string otpHash)

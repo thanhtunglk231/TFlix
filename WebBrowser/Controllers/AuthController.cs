@@ -14,11 +14,16 @@ namespace WebBrowser.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IAuthService authService, IConfiguration configuration)
+        public AuthController(
+            IAuthService authService,
+            IConfiguration configuration,
+            ILogger<AuthController> logger)
         {
             _authService = authService;
             _configuration = configuration;
+            _logger = logger;
         }
         public IActionResult Index()
         {
@@ -113,6 +118,7 @@ namespace WebBrowser.Controllers
             if (string.IsNullOrWhiteSpace(_configuration["Authentication:Google:ClientId"]) ||
                 string.IsNullOrWhiteSpace(_configuration["Authentication:Google:ClientSecret"]))
             {
+                _logger.LogWarning("Google sign-in is unavailable because WebBrowser Google credentials are not configured.");
                 return RedirectToAction(nameof(AuthenticationError), new
                 {
                     message = "Đăng nhập Google chưa được cấu hình. Vui lòng liên hệ quản trị viên."
@@ -128,17 +134,32 @@ namespace WebBrowser.Controllers
         {
             var safeReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action("Index", "Home")!;
             if (!string.IsNullOrWhiteSpace(remoteError))
+            {
+                _logger.LogWarning("Google returned an OAuth error during the sign-in callback.");
+                await HttpContext.SignOutAsync("GoogleExternal");
                 return RedirectToAction(nameof(AuthenticationError), new { message = "Bạn đã hủy hoặc Google từ chối yêu cầu đăng nhập." });
+            }
             var result = await HttpContext.AuthenticateAsync("GoogleExternal");
             if (!result.Succeeded || result.Properties == null)
+            {
+                _logger.LogWarning("Google sign-in callback did not produce an authenticated external ticket.");
+                await HttpContext.SignOutAsync("GoogleExternal");
                 return RedirectToAction(nameof(AuthenticationError), new { message = "Không xác minh được phản hồi từ Google." });
+            }
             var idToken = result.Properties.GetTokenValue("id_token");
             await HttpContext.SignOutAsync("GoogleExternal");
             if (string.IsNullOrWhiteSpace(idToken))
+            {
+                _logger.LogWarning("Google sign-in ticket did not include an ID token.");
                 return RedirectToAction(nameof(AuthenticationError), new { message = "Google không trả về thông tin định danh hợp lệ." });
+            }
             var response = await _authService.GoogleLoginAsync(new GoogleLoginDto { IdToken = idToken });
             if (!(response.Success || response.code == "200"))
+            {
+                _logger.LogWarning("Google login API returned code {ResponseCode}.", response.code);
                 return RedirectToAction(nameof(AuthenticationError), new { message = response.message });
+            }
+            _logger.LogInformation("Google sign-in completed successfully.");
             return LocalRedirect(safeReturnUrl);
         }
 

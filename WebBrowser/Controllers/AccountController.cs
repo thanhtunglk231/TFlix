@@ -10,11 +10,16 @@ public class AccountController : Controller
 {
     private readonly IFavoriteService _favoriteService;
     private readonly IPaymentService _paymentService;
+    private readonly ILogger<AccountController> _logger;
 
-    public AccountController(IFavoriteService favoriteService, IPaymentService paymentService)
+    public AccountController(
+        IFavoriteService favoriteService,
+        IPaymentService paymentService,
+        ILogger<AccountController> logger)
     {
         _favoriteService = favoriteService;
         _paymentService = paymentService;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Profile()
@@ -25,22 +30,37 @@ public class AccountController : Controller
         var user = JsonConvert.DeserializeObject<UserInfo>(json);
         if (user == null || user.userId <= 0) return RedirectToAction("Index", "Auth");
 
-        var subscriptionStatus = new SubscriptionStatusDto();
+        var activeSubscriptions = new List<SubscriptionStatusDto>();
         if (!string.IsNullOrWhiteSpace(HttpContext.Session.GetString("JWToken")))
         {
             try
             {
                 var response = await _paymentService.GetSubscriptionStatusAsync();
-                subscriptionStatus = ReadTable<SubscriptionStatusDto>(response.Data).FirstOrDefault() ?? subscriptionStatus;
+                if (response.Success)
+                {
+                    activeSubscriptions = ReadTable<SubscriptionStatusDto>(response.Data)
+                        .Where(subscription => subscription.IsActive && subscription.SubscriptionId.HasValue)
+                        .ToList();
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Could not load active subscriptions for account profile: {ResultCode} {Message}",
+                        response.code,
+                        response.message);
+                    ViewBag.SubscriptionLoadError = "Chưa thể tải danh sách gói. Vui lòng tải lại trang.";
+                }
             }
-            catch
+            catch (Exception exception)
             {
-                // Không chặn màn hình hồ sơ nếu API subscription tạm thời không khả dụng.
+                _logger.LogError(exception, "Could not load active subscriptions for account profile");
+                ViewBag.SubscriptionLoadError = "Chưa thể tải danh sách gói. Vui lòng tải lại trang.";
             }
         }
 
         ViewBag.CurrentUser = user;
-        ViewBag.SubscriptionStatus = subscriptionStatus;
+        ViewBag.ActiveSubscriptions = activeSubscriptions;
+        ViewBag.SubscriptionStatus = activeSubscriptions.FirstOrDefault() ?? new SubscriptionStatusDto();
         return View(await _favoriteService.GetMoviesAsync(user.userId));
     }
 

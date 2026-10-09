@@ -7,7 +7,7 @@ namespace Server.Controllers;
 
 [ApiController]
 [Route("api/admin/subscription-plans")]
-[Authorize(Roles = "ADMIN")]
+[Authorize(Roles = "ADMIN,SUPER_ADMIN")]
 public sealed class SubscriptionPlansController : ControllerBase
 {
     private readonly ICSubscriptionPlan _plans;
@@ -23,6 +23,7 @@ public sealed class SubscriptionPlansController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var result = await _plans.GetAllAsync();
+        LogResult("GetAll", null, null, result);
         return StatusCode(result.Success ? 200 : 500, result);
     }
 
@@ -30,7 +31,7 @@ public sealed class SubscriptionPlansController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateSubscriptionPlanDto dto)
     {
         var result = await _plans.CreateAsync(dto);
-        _logger.LogInformation("Admin created subscription plan {PlanCode}: {ResultCode}", dto.PlanCode, result.code);
+        LogResult("Create", null, dto.PlanCode, result);
         return StatusCode(ToStatusCode(result.code), result);
     }
 
@@ -40,7 +41,7 @@ public sealed class SubscriptionPlansController : ControllerBase
         if (planId != dto.PlanId)
             return BadRequest(new { success = false, code = "400", message = "PlanId không hợp lệ." });
         var result = await _plans.UpdateAsync(dto);
-        _logger.LogInformation("Admin updated subscription plan {PlanId}: {ResultCode}", planId, result.code);
+        LogResult("Update", planId, dto.PlanCode, result);
         return StatusCode(ToStatusCode(result.code), result);
     }
 
@@ -48,15 +49,37 @@ public sealed class SubscriptionPlansController : ControllerBase
     public async Task<IActionResult> Delete(long planId)
     {
         var result = await _plans.DeleteAsync(planId);
-        _logger.LogInformation("Admin deleted subscription plan {PlanId}: {ResultCode}", planId, result.code);
+        LogResult("Delete", planId, null, result);
         return StatusCode(ToStatusCode(result.code), result);
+    }
+
+    private void LogResult(string operation, long? planId, string? planCode, CoreLib.Models.CResponseMessage result)
+    {
+        var message = "Subscription plan operation {Operation} completed. TraceId={TraceId}, PlanId={PlanId}, PlanCode={PlanCode}, ResultCode={ResultCode}, Message={ResultMessage}";
+        var values = new object?[]
+        {
+            operation,
+            HttpContext.TraceIdentifier,
+            planId,
+            planCode,
+            result.code,
+            result.message
+        };
+
+        if (result.Success)
+            _logger.LogInformation(message, values);
+        else
+            _logger.LogWarning(message, values);
     }
 
     private static int ToStatusCode(string? code) => code switch
     {
         "200" => StatusCodes.Status200OK,
+        "400" => StatusCodes.Status400BadRequest,
+        "401" => StatusCodes.Status401Unauthorized,
+        "403" => StatusCodes.Status403Forbidden,
         "404" => StatusCodes.Status404NotFound,
         "409" => StatusCodes.Status409Conflict,
-        _ => StatusCodes.Status400BadRequest
+        _ => StatusCodes.Status500InternalServerError
     };
 }

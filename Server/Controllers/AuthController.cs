@@ -24,14 +24,21 @@ namespace Server.Controllers
         private readonly ICAuth _auth;
         private readonly IAuthOtpService _otpService;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(ICBaseProvider baseProvider, IConfiguration configuration, ICAuth cAuth, IAuthOtpService otpService)
+        public AuthController(
+            ICBaseProvider baseProvider,
+            IConfiguration configuration,
+            ICAuth cAuth,
+            IAuthOtpService otpService,
+            ILogger<AuthController> logger)
         {
             _BaseProvider = baseProvider;
             _jwtSection = configuration.GetSection("JwtSettings");
             _configuration = configuration;
             _auth = cAuth;
             _otpService = otpService;
+            _logger = logger;
         }
 
         [HttpPost("login")]
@@ -123,28 +130,50 @@ namespace Server.Controllers
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto request)
         {
             if (string.IsNullOrWhiteSpace(request?.IdToken))
+            {
+                _logger.LogWarning("Google login request did not contain an ID token.");
                 return BadRequest(new { code="400",success=false,message="Google ID token không hợp lệ." });
+            }
             try
             {
                 var audience = _configuration["Authentication:Google:ClientId"];
                 if (string.IsNullOrWhiteSpace(audience))
+                {
+                    _logger.LogError("Google login is unavailable because the API client ID is not configured.");
                     return StatusCode(503, new { code="503",success=false,message="Google Login chưa được cấu hình." });
+                }
                 var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken,
                     new GoogleJsonWebSignature.ValidationSettings { Audience = new[] { audience } });
                 if (payload.EmailVerified != true || string.IsNullOrWhiteSpace(payload.Subject) || string.IsNullOrWhiteSpace(payload.Email))
+                {
+                    _logger.LogWarning("Google login was rejected because the verified identity fields were incomplete.");
                     return Unauthorized(new { code="401",success=false,message="Tài khoản Google chưa xác minh email." });
+                }
                 var response = await _auth.GoogleLoginAsync(new GoogleIdentityDto
                 {
                     Subject=payload.Subject, Email=payload.Email, EmailVerified=true,
                     FullName=payload.Name ?? payload.Email, AvatarUrl=payload.Picture
                 });
-                if (!response.Success) return StatusCode(response.code == "409" ? 409 : response.code == "403" ? 403 : 400, response);
+                if (!response.Success)
+                {
+                    _logger.LogWarning("Google identity persistence failed with response code {ResponseCode}.", response.code);
+                    var statusCode = response.code switch
+                    {
+                        "400" => StatusCodes.Status400BadRequest,
+                        "403" => StatusCodes.Status403Forbidden,
+                        "409" => StatusCodes.Status409Conflict,
+                        _ => StatusCodes.Status500InternalServerError
+                    };
+                    return StatusCode(statusCode, response);
+                }
                 var user = MapUserFromDataSet(response.Data as DataSet);
                 if (user == null) return StatusCode(500, new { code="500",success=false,message="Không đọc được tài khoản Google." });
+                _logger.LogInformation("Google login completed successfully.");
                 return Ok(new { code="200",success=true,message=response.message,data=new { token=GenerateJwtToken(user.Email,user.Roles),user } });
             }
             catch (InvalidJwtException)
             {
+                _logger.LogWarning("Google login was rejected because ID token validation failed.");
                 return Unauthorized(new { code="401",success=false,message="Phiên xác thực Google không hợp lệ hoặc đã hết hạn." });
             }
         }

@@ -5,6 +5,7 @@ using DataServiceLib.Interfaces;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace DataServiceLib.Implements.Admin;
 
@@ -54,6 +55,7 @@ public sealed class CSubscriptionPlan : ICSubscriptionPlan
 
     private Task<CResponseMessage> ExecuteAsync(string procedure, IEnumerable<IDbDataParameter> input)
     {
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             var code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
@@ -61,13 +63,34 @@ public sealed class CSubscriptionPlan : ICSubscriptionPlan
             var parameters = input.Concat([code, message]).ToArray();
             var data = _baseProvider.GetDatasetFromSP(procedure, parameters, _connectionString);
             var resultCode = code.Value?.ToString() ?? "500";
-            return Task.FromResult(new CResponseMessage
+            var result = new CResponseMessage
             {
                 Success = resultCode == "200",
                 code = resultCode,
                 message = message.Value?.ToString() ?? "Không xử lý được gói Premium.",
                 Data = data
-            });
+            };
+
+            if (result.Success)
+            {
+                _logger.LogInformation(
+                    "Subscription plan stored procedure {Procedure} returned {ResultCode} in {ElapsedMilliseconds} ms with {RowCount} rows",
+                    procedure,
+                    result.code,
+                    stopwatch.ElapsedMilliseconds,
+                    data.Tables.Count > 0 ? data.Tables[0].Rows.Count : 0);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Subscription plan stored procedure {Procedure} returned {ResultCode} in {ElapsedMilliseconds} ms: {ResultMessage}",
+                    procedure,
+                    result.code,
+                    stopwatch.ElapsedMilliseconds,
+                    result.message);
+            }
+
+            return Task.FromResult(result);
         }
         catch (Exception exception)
         {

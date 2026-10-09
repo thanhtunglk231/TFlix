@@ -3,6 +3,8 @@
     ViewData["Title"] = "Hồ sơ tài khoản";
     var user = ViewBag.CurrentUser as WebBrowser.Models.AuthModels.UserInfo;
     var subscriptionStatus = ViewBag.SubscriptionStatus as CoreLib.Dtos.Payment.SubscriptionStatusDto ?? new CoreLib.Dtos.Payment.SubscriptionStatusDto();
+    var activeSubscriptions = ViewBag.ActiveSubscriptions as List<CoreLib.Dtos.Payment.SubscriptionStatusDto> ?? [];
+    var subscriptionLoadError = ViewBag.SubscriptionLoadError as string;
     var isPremium = subscriptionStatus.IsActive;
     var planName = string.IsNullOrWhiteSpace(subscriptionStatus.PlanName) ? "Gói thường" : subscriptionStatus.PlanName;
     const string fallback = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop";
@@ -68,6 +70,68 @@
                 </div>
             }
         </div>
+    </section>
+
+    <section class="mb-5" aria-labelledby="activeSubscriptionsTitle">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <h2 id="activeSubscriptionsTitle" class="h4 mb-0"><i class="bi bi-gem text-info me-2"></i>Các gói đang có</h2>
+            <span class="badge rounded-pill bg-secondary">@activeSubscriptions.Count gói</span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(subscriptionLoadError))
+        {
+            <div class="alert alert-warning" role="alert">@subscriptionLoadError</div>
+        }
+        else if (activeSubscriptions.Count == 0)
+        {
+            <div class="rounded-4 p-4 text-secondary" style="background:#17191f;border:1px solid rgba(255,255,255,.08)">
+                Tài khoản hiện chưa có gói Premium đang hoạt động.
+            </div>
+        }
+        else
+        {
+            <div class="row g-3">
+                @foreach (var subscription in activeSubscriptions)
+                {
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <article class="h-100 rounded-4 p-4" style="background:#17191f;border:1px solid rgba(25,211,197,.25)">
+                            <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
+                                <div>
+                                    <div class="small text-secondary">@subscription.PlanCode</div>
+                                    <h3 class="h5 mb-0">@subscription.PlanName</h3>
+                                </div>
+                                <span class="badge bg-success-subtle text-success">Đang hoạt động</span>
+                            </div>
+                            @if (subscription.Price.HasValue)
+                            {
+                                <div class="fs-5 fw-bold mb-3">@subscription.Price.Value.ToString("N0") @(subscription.Currency ?? "VND")</div>
+                            }
+                            <dl class="row small mb-0">
+                                @if (subscription.StartAt.HasValue)
+                                {
+                                    <dt class="col-6 text-secondary">Bắt đầu</dt>
+                                    <dd class="col-6 text-end">@subscription.StartAt.Value.ToLocalTime().ToString("dd/MM/yyyy")</dd>
+                                }
+                                @if (subscription.EndAt.HasValue)
+                                {
+                                    <dt class="col-6 text-secondary">Hết hạn</dt>
+                                    <dd class="col-6 text-end">@subscription.EndAt.Value.ToLocalTime().ToString("dd/MM/yyyy")</dd>
+                                }
+                                @if (subscription.MaxDevices.HasValue)
+                                {
+                                    <dt class="col-6 text-secondary">Thiết bị</dt>
+                                    <dd class="col-6 text-end">@subscription.MaxDevices</dd>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(subscription.QualityCap))
+                                {
+                                    <dt class="col-6 text-secondary">Chất lượng</dt>
+                                    <dd class="col-6 text-end">@subscription.QualityCap</dd>
+                                }
+                            </dl>
+                        </article>
+                    </div>
+                }
+            </div>
+        }
     </section>
 
     <section id="favoriteMovies">

@@ -18,6 +18,29 @@
     const yes = value => value === true || String(value).toUpperCase() === 'Y';
     const esc = text => { const el = document.createElement('div'); el.textContent = text ?? ''; return el.innerHTML; };
     const rowsOf = result => { const data = result?.data ?? result?.Data; return data?.table ?? data?.Table ?? (Array.isArray(data) ? data : []); };
+    const isSuccess = result => result?.success === true || result?.Success === true || String(result?.code ?? result?.Code) === '200';
+    function responseMessage(result) {
+        const direct = result?.message ?? result?.Message ?? result?.detail ?? result?.Detail ?? result?.title ?? result?.Title;
+        if (direct) return direct;
+        const errors = result?.errors ?? result?.Errors;
+        if (errors && typeof errors === 'object') {
+            return Object.values(errors).flat().join(' ');
+        }
+        return '';
+    }
+    async function readResponse(response, fallback) {
+        const text = await response.text();
+        let result;
+        try {
+            result = text ? JSON.parse(text) : null;
+        } catch {
+            throw new Error(`${fallback} (HTTP ${response.status}).`);
+        }
+        if (!response.ok || !isSuccess(result)) {
+            throw new Error(responseMessage(result) || `${fallback} (HTTP ${response.status}).`);
+        }
+        return result;
+    }
     function state(name) {
         ['Loading', 'Error', 'Empty'].forEach(value => field(`plan${value}`).classList.toggle('d-none', name !== value.toLowerCase()));
         field('planTableWrap').classList.toggle('d-none', name !== 'ready');
@@ -41,8 +64,7 @@
         state('loading');
         try {
             const response = await fetch(page.dataset.listUrl, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
-            const json = await response.json();
-            if (!response.ok || !(json.success || json.Success || json.code === '200')) throw new Error(json.message || 'Không tải được danh sách gói.');
+            const json = await readResponse(response, 'Không tải được danh sách gói.');
             plans = rowsOf(json); render();
         } catch (error) { field('planError').textContent = error.message; state('error'); }
     }
@@ -68,9 +90,9 @@
         const body = { planId: id, planCode: field('planCode').value.trim().toUpperCase(), name: field('planName').value.trim(), price: Number(field('planPrice').value), durationDays: Number(field('durationDays').value), maxDevices: Number(field('maxDevices').value), qualityCap: field('qualityCap').value || null, adsFree: field('adsFree').checked, downloadable: field('downloadable').checked };
         field('btnSavePlan').disabled = true;
         try {
-            const response = await fetch(id ? page.dataset.updateUrl : page.dataset.createUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', RequestVerificationToken: token, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) });
-            const json = await response.json(); if (!response.ok || !(json.success || json.Success || json.code === '200')) throw new Error(json.message || 'Không lưu được gói Premium.');
-            modal.hide(); toast(json.message || 'Đã lưu gói Premium.'); await load();
+            const response = await fetch(id ? page.dataset.updateUrl : page.dataset.createUrl, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8', RequestVerificationToken: token, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) });
+            const json = await readResponse(response, 'Không lưu được gói Premium.');
+            modal.hide(); toast(responseMessage(json) || 'Đã lưu gói Premium.'); await load();
         } catch (error) { field('formError').textContent = error.message; field('formError').classList.remove('d-none'); }
         finally { field('btnSavePlan').disabled = false; }
     });
@@ -83,9 +105,9 @@
     field('btnConfirmDelete').addEventListener('click', async () => {
         if (!deletePlanId) return; const button = field('btnConfirmDelete'); button.disabled = true;
         try {
-            const response = await fetch(page.dataset.deleteUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', RequestVerificationToken: token, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify({ planId: deletePlanId }) });
-            const json = await response.json(); if (!response.ok || !(json.success || json.Success || json.code === '200')) throw new Error(json.message || 'Không xóa được gói Premium.');
-            deleteModal.hide(); toast(json.message || 'Đã xóa gói Premium.'); deletePlanId = 0; await load();
+            const response = await fetch(page.dataset.deleteUrl, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8', RequestVerificationToken: token, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify({ planId: deletePlanId }) });
+            const json = await readResponse(response, 'Không xóa được gói Premium.');
+            deleteModal.hide(); toast(responseMessage(json) || 'Đã xóa gói Premium.'); deletePlanId = 0; await load();
         } catch (error) { deleteModal.hide(); toast(error.message, false); }
         finally { button.disabled = false; }
     });

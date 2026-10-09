@@ -30,7 +30,7 @@
                 Đang chờ PayOS xác nhận thanh toán...
             </div>
             <a href="@payment.CheckoutUrl" target="_blank" rel="noopener" class="btn-payment payos-open-link">Mở trang thanh toán PayOS</a>
-            <p class="payos-note">Trang sẽ tự động trở về trang chủ sau khi thanh toán thành công.</p>
+            <p class="payos-note">Trang sẽ tự động chuyển đến xác nhận thanh toán sau khi PayOS xác nhận giao dịch.</p>
         </div>
     </div>
 </main>
@@ -40,19 +40,18 @@
     <script>
         new QRCode(document.getElementById('payosQrCode'), { text: @Json.Serialize(payment.QrCode), width: 260, height: 260, correctLevel: QRCode.CorrectLevel.M });
         const statusUrl = @Json.Serialize(Url.Action("Status", "Payment", new { orderCode = payment.OrderCode }));
-        const homeUrl = @Json.Serialize(Url.Action("Index", "Home"));
+        const successUrl = @Json.Serialize(Url.Action("PaymentSuccess", "Payment", new { orderCode = payment.OrderCode }));
         const poll = setInterval(async () => {
             try {
                 const response = await fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
                 const result = await response.json();
-                if (result.paid) {
+                if (response.ok && result.paid && result.successUrl) {
                     clearInterval(poll);
                     document.getElementById('paymentWaiting').textContent = 'Thanh toán thành công. Đang nâng cấp tài khoản...';
-                    window.location.replace(homeUrl + '?payment=success');
+                    window.location.replace(result.successUrl || successUrl);
                 }
             } catch { }
         }, 5000);
         setTimeout(() => clearInterval(poll), 15 * 60 * 1000);
     </script>
 }
-
