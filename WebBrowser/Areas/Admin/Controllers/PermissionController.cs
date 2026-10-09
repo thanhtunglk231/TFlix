@@ -22,13 +22,13 @@ namespace WebBrowser.Areas.Admin.Controllers
         public async Task<IActionResult> Current([FromQuery] string? screenCode)
         {
             var result = await _permissionService.GetCurrentPermissions(screenCode);
-            return Ok(result);
+            return Content(JsonConvert.SerializeObject(result), "application/json");
         }
 
         public async Task<IActionResult> Matrix()
         {
             var result = await _permissionService.GetMatrix();
-            return Ok(result);
+            return Content(JsonConvert.SerializeObject(result), "application/json");
         }
 
         [HttpPost]
@@ -38,10 +38,10 @@ namespace WebBrowser.Areas.Admin.Controllers
             var result = await _permissionService.SetRolePermission(dto);
             if (result.code == "409")
             {
-                return Conflict(result);
+                return StatusCode(StatusCodes.Status409Conflict, result);
             }
 
-            return Ok(result);
+            return Content(JsonConvert.SerializeObject(result), "application/json");
         }
     }
 }

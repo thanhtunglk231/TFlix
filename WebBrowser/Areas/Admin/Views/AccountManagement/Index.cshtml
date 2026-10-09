@@ -5,28 +5,183 @@
 @Html.AntiForgeryToken()
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div><h4 class="mb-1"><i class="bi bi-people me-2"></i>Quản lý tài khoản</h4><p class="text-muted mb-0">Tạo tài khoản quản trị và gán vai trò phù hợp.</p></div>
-    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createAccountModal"><i class="bi bi-person-plus me-1"></i>Tạo tài khoản</button>
+    <div>
+        <h4 class="mb-1"><i class="bi bi-people me-2"></i>Quản lý tài khoản</h4>
+        <p class="text-muted mb-0">Quản lý danh sách người dùng, tài khoản quản trị và phân quyền vai trò.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" type="button" id="btnReloadAccounts" title="Tải lại danh sách">
+            <i class="bi bi-arrow-clockwise me-1"></i>Làm mới
+        </button>
+        <button class="btn btn-primary" type="button" id="btnOpenCreate">
+            <i class="bi bi-person-plus me-1"></i>Tạo tài khoản
+        </button>
+    </div>
 </div>
-<div id="accountAlert" class="alert d-none" role="alert"></div>
-<div class="card"><div class="card-body">
-    <div id="accountLoading" class="py-5 text-center" role="status"><div class="spinner-border text-primary" aria-hidden="true"></div><div class="mt-2 text-muted">Đang tải tài khoản...</div></div>
-    <div id="accountEmpty" class="py-5 text-center d-none"><i class="bi bi-person-x fs-1 text-muted"></i><p class="mt-2 mb-0 text-muted">Chưa có tài khoản nào.</p></div>
-    <div id="accountTableWrap" class="table-responsive d-none"><table class="table table-hover align-middle mb-0"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th></tr></thead><tbody id="accountTableBody"></tbody></table></div>
-</div></div>
 
-<div class="modal fade" id="createAccountModal" tabindex="-1" aria-labelledby="createAccountTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
-<form id="createAccountForm" novalidate><div class="modal-header"><h5 class="modal-title" id="createAccountTitle">Tạo tài khoản quản trị</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
-<div class="modal-body">
-    <div class="mb-3"><label class="form-label" for="fullName">Họ và tên</label><input class="form-control" id="fullName" maxlength="150" minlength="2" required autocomplete="name" /><div class="invalid-feedback">Vui lòng nhập họ tên từ 2 ký tự.</div></div>
-    <div class="mb-3"><label class="form-label" for="email">Email</label><input class="form-control" id="email" type="email" maxlength="320" required autocomplete="email" /><div class="invalid-feedback">Vui lòng nhập email hợp lệ.</div></div>
-    <div class="mb-3"><label class="form-label" for="password">Mật khẩu</label><input class="form-control" id="password" type="password" minlength="8" maxlength="100" required autocomplete="new-password" /><div class="form-text">Tối thiểu 8 ký tự.</div><div class="invalid-feedback">Mật khẩu phải có ít nhất 8 ký tự.</div></div>
-    <fieldset><legend class="form-label fs-6">Vai trò</legend><div id="roleOptions" class="d-grid gap-2" aria-live="polite"></div><div id="roleError" class="text-danger small mt-1 d-none">Chọn ít nhất một vai trò.</div></fieldset>
+<div id="accountAlert" class="alert d-none" role="alert"></div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div id="accountLoading" class="py-5 text-center" role="status">
+            <div class="spinner-border text-primary" aria-hidden="true"></div>
+            <div class="mt-2 text-muted">Đang tải danh sách tài khoản...</div>
+        </div>
+        <div id="accountEmpty" class="py-5 text-center d-none">
+            <i class="bi bi-person-x fs-1 text-muted"></i>
+            <p class="mt-2 mb-0 text-muted">Chưa có tài khoản nào trong hệ thống.</p>
+        </div>
+        <div id="accountTableWrap" class="table-responsive d-none">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="min-width: 180px;">Họ tên</th>
+                        <th style="min-width: 220px;">Email</th>
+                        <th style="min-width: 160px;">Vai trò</th>
+                        <th style="min-width: 120px;">Trạng thái</th>
+                        <th style="min-width: 160px;">Ngày tạo</th>
+                        <th class="text-end pe-3" style="min-width: 140px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="accountTableBody"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
-<div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button><button type="submit" class="btn btn-primary" id="btnCreateAccount"><span class="submit-label">Tạo tài khoản</span><span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span></button></div></form>
-</div></div></div>
+
+<!-- Modal Tạo / Sửa Tài khoản -->
+<div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="accountModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="accountForm" novalidate>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="accountModalTitle">Tạo tài khoản quản trị</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="userId" value="" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="fullName">Họ và tên <span class="text-danger">*</span></label>
+                        <input class="form-control" id="fullName" maxlength="150" minlength="2" required autocomplete="name" placeholder="Ví dụ: Nguyễn Văn A" />
+                        <div class="invalid-feedback">Vui lòng nhập họ tên từ 2 ký tự.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="email">Email <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input class="form-control" id="email" type="email" maxlength="320" required autocomplete="email" placeholder="admin@tflix.com" />
+                        </div>
+                        <div class="form-text text-muted" id="emailHelpText"></div>
+                        <div class="invalid-feedback">Vui lòng nhập email hợp lệ.</div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="statusGroup">
+                        <label class="form-label fw-semibold" for="accountStatus">Trạng thái tài khoản</label>
+                        <select class="form-select" id="accountStatus">
+                            <option value="ACTIVE">Hoạt động (ACTIVE)</option>
+                            <option value="INACTIVE">Tạm dừng (INACTIVE)</option>
+                            <option value="LOCKED">Đã khóa (LOCKED)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="password">Mật khẩu <span id="passwordRequiredStar" class="text-danger">*</span></label>
+                        <input class="form-control" id="password" type="password" minlength="8" maxlength="100" autocomplete="new-password" placeholder="••••••••" />
+                        <div class="form-text" id="passwordHelpText">Tối thiểu 8 ký tự.</div>
+                        <div class="invalid-feedback" id="passwordFeedback">Mật khẩu phải có ít nhất 8 ký tự.</div>
+                    </div>
+
+                    <fieldset>
+                        <legend class="form-label fw-semibold fs-6 mb-2">Vai trò người dùng <span class="text-danger">*</span></legend>
+                        <div id="roleOptions" class="d-grid gap-2" aria-live="polite">
+                            <div class="text-muted small">Đang tải danh sách vai trò...</div>
+                        </div>
+                        <div id="roleError" class="text-danger small mt-1 d-none">Vui lòng chọn ít nhất một vai trò.</div>
+                    </fieldset>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmitAccount">
+                        <span class="submit-label">Tạo tài khoản</span>
+                        <span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Xác nhận xóa tài khoản -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title text-danger" id="deleteAccountTitle"><i class="bi bi-exclamation-triangle me-2"></i>Xác nhận xóa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body py-3">
+                <p class="mb-1">Bạn có chắc chắn muốn xóa tài khoản:</p>
+                <div class="fw-semibold text-danger fs-6 text-break" id="deleteAccountName"></div>
+                <div class="small text-muted mt-2">Hành động này sẽ gỡ bỏ toàn bộ vai trò và tài khoản khỏi hệ thống.</div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger btn-sm" id="btnConfirmDelete">
+                    <span class="delete-label">Xóa tài khoản</span>
+                    <span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Đảm bảo giao diện modal đồng bộ, input email không bị màu trắng chói mắt */
+    #accountModal .form-control,
+    #accountModal .form-select,
+    #accountModal .input-group-text {
+        background-color: #1e222d;
+        border-color: #333b4f;
+        color: #f1f5f9;
+    }
+    #accountModal .form-control:focus,
+    #accountModal .form-select:focus {
+        background-color: #242938;
+        border-color: #3b82f6;
+        color: #ffffff;
+        box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+    }
+    #accountModal .form-control[readonly],
+    #accountModal .form-control:disabled {
+        background-color: #161922 !important;
+        border-color: #282f40 !important;
+        color: #94a3b8 !important;
+        cursor: not-allowed;
+    }
+    #accountModal .form-control::placeholder {
+        color: #64748b;
+    }
+    #accountModal .role-checkbox-label {
+        background-color: #161922;
+        border-color: #333b4f !important;
+        transition: all 0.2s ease;
+    }
+    #accountModal .role-checkbox-label:hover {
+        background-color: #242938;
+        border-color: #3b82f6 !important;
+    }
+</style>
 
 @section Scripts {
-    <script>window.adminAccountConfig={dataUrl:'@Url.Action("ManagementData", "AccountManagement", new { area = "Admin" })',createUrl:'@Url.Action("Create", "AccountManagement", new { area = "Admin" })'};</script>
+    <script>
+        window.adminAccountConfig = {
+            dataUrl: '@Url.Action("ManagementData", "AccountManagement", new { area = "Admin" })',
+            createUrl: '@Url.Action("Create", "AccountManagement", new { area = "Admin" })',
+            updateUrl: '@Url.Action("Update", "AccountManagement", new { area = "Admin" })',
+            deleteUrl: '@Url.Action("Delete", "AccountManagement", new { area = "Admin" })'
+        };
+    </script>
     <script src="~/js/admin-account-management.js" asp-append-version="true"></script>
 }

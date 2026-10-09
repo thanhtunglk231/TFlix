@@ -59,6 +59,50 @@ namespace Server.Controllers
             return result.code == "409" ? Conflict(result) : Ok(result);
         }
 
+        [HttpPut]
+        [HttpPost("update")]
+        public async Task<IActionResult> Update([FromBody] UpdateAdminAccountDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { Success = false, code = "400", message = "Thông tin tài khoản không hợp lệ." });
+            }
+
+            _logger.LogInformation("Admin account API update request started by {Actor} for user {UserId}", GetActor(), dto.UserId);
+            var forbidden = await RequirePermissionAsync("Update");
+            if (forbidden != null)
+            {
+                _logger.LogWarning("Admin account API update request forbidden for {Actor}", GetActor());
+                return forbidden;
+            }
+
+            var result = await _adminAccount.UpdateAsync(dto);
+            _logger.LogInformation("Admin account API update request completed with code {Code} and success {Success}", result.code, result.Success);
+            return result.code == "409" ? Conflict(result) : Ok(result);
+        }
+
+        [HttpDelete("{userId}")]
+        [HttpPost("delete/{userId}")]
+        public async Task<IActionResult> Delete(long userId)
+        {
+            if (userId <= 0)
+            {
+                return BadRequest(new { Success = false, code = "400", message = "ID tài khoản không hợp lệ." });
+            }
+
+            _logger.LogInformation("Admin account API delete request started by {Actor} for user {UserId}", GetActor(), userId);
+            var forbidden = await RequirePermissionAsync("Delete");
+            if (forbidden != null)
+            {
+                _logger.LogWarning("Admin account API delete request forbidden for {Actor}", GetActor());
+                return forbidden;
+            }
+
+            var result = await _adminAccount.DeleteAsync(userId);
+            _logger.LogInformation("Admin account API delete request completed with code {Code} and success {Success}", result.code, result.Success);
+            return result.code == "403" ? StatusCode(StatusCodes.Status403Forbidden, result) : Ok(result);
+        }
+
         private string GetActor() => User.FindFirst(ClaimTypes.Email)?.Value ?? "anonymous";
 
         private static string GetEmailDomain(string email) =>
@@ -66,6 +110,13 @@ namespace Server.Controllers
 
         private async Task<IActionResult?> RequirePermissionAsync(string permissionCode)
         {
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(role, "SUPER_ADMIN", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
             var email = User.FindFirst(ClaimTypes.Email)?.Value;
             if (string.IsNullOrWhiteSpace(email))
             {

@@ -65,13 +65,16 @@
           }
 
           function pickTables(res){
-            const d = res?.data ?? res?.Data;
+            let d = res?.data ?? res?.Data;
+            if (typeof d === 'string') {
+              try { d = JSON.parse(d); } catch (e) {}
+            }
             if (!d) return [];
             if (Array.isArray(d)) return d;
-            if (Array.isArray(d.Table) || Array.isArray(d.table)) {
-              return [d.Table || d.table, d.Table1 || d.table1 || [], d.Table2 || d.table2 || []];
-            }
-            return [];
+            const t0 = d.Table || d.table || [];
+            const t1 = d.Table1 || d.table1 || [];
+            const t2 = d.Table2 || d.table2 || [];
+            return [t0, t1, t2];
           }
 
           function gv(o, ...keys){

@@ -3,7 +3,7 @@
 @model WatchViewModel
 
 @{
-    Layout = "/Views/Shared/_Layout.cshtml";
+    Layout = "_Layout";
     ViewData["Title"] = (Model.Content.OriginalTitle ?? Model.Content.title ?? "Xem phim") + " · TFlix Streaming";
 
     // Lấy token đăng nhập & user
@@ -359,10 +359,7 @@
             color: #9fb1bd;
             font-size: .8rem;
         }
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+
         .tflix-panel-body {
             padding: 1.4rem;
         }
@@ -519,243 +516,6 @@
         body.lights-off .player-wrap {
             z-index: 1000;
             box-shadow: 0 0 100px rgba(0, 0, 0, 0.9);
-        }
-
-        /* ========================================================
-           REALTIME SUPPORT CHATBOX & FLOATING ACTION TRIGGER
-           ======================================================== */
-        .tflix-support-trigger {
-            position: fixed;
-            bottom: 96px;
-            right: 24px;
-            width: 54px;
-            height: 54px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #1683ff 0%, #19d3c5 100%);
-            box-shadow: 0 8px 24px rgba(22, 131, 255, 0.45);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #061219;
-            cursor: pointer;
-            z-index: 1030;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
-        .tflix-support-trigger:hover {
-            transform: scale(1.08) translateY(-3px);
-            box-shadow: 0 12px 30px rgba(25, 211, 197, 0.55);
-            color: #000;
-        }
-        .tflix-support-trigger .online-pulse {
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            width: 14px;
-            height: 14px;
-            background-color: #10b981;
-            border: 2px solid #111318;
-            border-radius: 50%;
-        }
-        .tflix-support-trigger .online-pulse::after {
-            content: '';
-            position: absolute;
-            inset: -2px;
-            border-radius: 50%;
-            background-color: #10b981;
-            opacity: 0.7;
-            animation: pulse-ring 2s infinite;
-        }
-        @@keyframes pulse-ring {
-            0% { transform: scale(1); opacity: 0.8; }
-            100% { transform: scale(2.2); opacity: 0; }
-        }
-
-        /* Chatbox Box Container */
-        .tflix-support-box {
-            position: fixed;
-            bottom: 162px;
-            right: 24px;
-            width: 380px;
-            max-width: calc(100vw - 32px);
-            height: 540px;
-            max-height: calc(100vh - 120px);
-            background: #15181f;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-            display: flex;
-            flex-direction: column;
-            z-index: 1050;
-            overflow: hidden;
-            backdrop-filter: blur(16px);
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(20px) scale(0.96);
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .tflix-support-box.open {
-            opacity: 1;
-            pointer-events: auto;
-            transform: translateY(0) scale(1);
-        }
-
-        /* Header */
-        .tflix-support-header {
-            padding: 14px 18px;
-            background: linear-gradient(135deg, rgba(22, 131, 255, 0.15) 0%, rgba(25, 211, 197, 0.15) 100%), #1c1f26;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .tflix-support-header .agent-avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: var(--brand-gradient);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #081119;
-            font-weight: bold;
-            font-size: 1.1rem;
-        }
-
-        /* Body & Message List */
-        .tflix-support-body {
-            flex: 1;
-            padding: 16px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            background: #111318;
-        }
-
-        /* Messages */
-        .support-bubble {
-            max-width: 82%;
-            padding: 10px 14px;
-            border-radius: 16px;
-            font-size: 0.88rem;
-            line-height: 1.5;
-            word-break: break-word;
-        }
-        .support-bubble.agent {
-            align-self: flex-start;
-            background: #1e222b;
-            color: #f1f5f9;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-bottom-left-radius: 4px;
-        }
-        .support-bubble.user {
-            align-self: flex-end;
-            background: linear-gradient(135deg, #1683ff 0%, #0284c7 100%);
-            color: #ffffff;
-            border-bottom-right-radius: 4px;
-        }
-        .support-msg-time {
-            font-size: 0.7rem;
-            opacity: 0.7;
-            margin-top: 4px;
-            text-align: right;
-        }
-
-        /* Quick FAQ Chips */
-        .support-quick-chips {
-            display: flex;
-            gap: 6px;
-            overflow-x: auto;
-            padding: 8px 14px;
-            background: #181b22;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            white-space: nowrap;
-            scrollbar-width: none;
-        }
-        .support-quick-chips::-webkit-scrollbar {
-            display: none;
-        }
-        .support-chip {
-            font-size: 0.76rem;
-            padding: 4px 10px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #94a3b8;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .support-chip:hover {
-            background: rgba(25, 211, 197, 0.15);
-            border-color: #19d3c5;
-            color: #ffffff;
-        }
-
-        /* Typing Dots */
-        .support-typing {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 8px 12px;
-            background: #1e222b;
-            border-radius: 14px;
-            width: fit-content;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .typing-dot {
-            width: 6px;
-            height: 6px;
-            background: #94a3b8;
-            border-radius: 50%;
-            animation: typingBounce 1.4s infinite ease-in-out;
-        }
-        .typing-dot:nth-child(1) { animation-delay: 0s; }
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-        @@keyframes typingBounce {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-4px); }
-        }
-
-        /* Footer / Input */
-        .tflix-support-footer {
-            padding: 10px 14px;
-            background: #1c1f26;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .support-input {
-            flex: 1;
-            background: #12141a;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #fff;
-            padding: 8px 14px;
-            border-radius: 20px;
-            font-size: 0.88rem;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .support-input:focus {
-            border-color: #19d3c5;
-        }
-        .support-send-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: var(--brand-gradient);
-            border: none;
-            color: #061219;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .support-send-btn:hover {
-            transform: scale(1.06);
         }
     </style>
 }
@@ -930,13 +690,33 @@
                     {
                         @if (Model.IsPremiumContent && !Model.HasActiveSubscription)
                         {
-                            <div class="d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 420px; background: radial-gradient(circle at center, #20252e 0%, #0e1115 100%); border-radius: 18px;">
-                                <div class="mb-3 p-4 rounded-circle" style="background: rgba(25, 211, 197, 0.12); border: 1px solid rgba(25, 211, 197, 0.3);">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#19d3c5" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            <div class="d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 440px; background: radial-gradient(circle at center, #1e2530 0%, #0d1015 100%); border-radius: 18px; border: 1px solid rgba(245, 158, 11, 0.25);">
+                                <div class="mb-3 p-4 rounded-circle position-relative" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); box-shadow: 0 0 30px rgba(245, 158, 11, 0.15);">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                    </svg>
                                 </div>
-                                <h3 class="fw-bold text-white mb-2">Nội dung dành cho thành viên Premium</h3>
-                                <p class="text-muted mx-auto mb-4" style="max-width: 520px;">Chọn một gói phù hợp để mở khóa bộ phim này và toàn bộ kho nội dung Premium của TFlix.</p>
-                                <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString" class="btn px-4 py-2 rounded-pill fw-bold" style="background: var(--brand-gradient); color: #081119;">Xem gói và thanh toán</a>
+                                <div class="badge px-3 py-1.5 rounded-pill mb-2 fw-bold" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #081119; letter-spacing: 0.05em;">
+                                    ĐẶC QUYỀN PREMIUM VIP
+                                </div>
+                                <h3 class="fw-bold text-white mb-2">Nội dung chỉ dành cho tài khoản Premium</h3>
+                                <p class="text-muted mx-auto mb-4" style="max-width: 540px; font-size: 0.95rem; line-height: 1.6;">
+                                    @(isLoggedIn
+                                        ? "Tài khoản của bạn hiện chưa có gói Premium hoặc gói đã hết hạn. Hãy nâng cấp ngay để mở khóa toàn bộ phim bản quyền với chất lượng 4K Ultra HD không quảng cáo!"
+                                        : "Bộ phim này thuộc danh mục đặc quyền Premium của TFlix. Vui lòng đăng nhập tài khoản có gói Premium hoặc đăng ký nâng cấp để bắt đầu xem!")
+                                </p>
+                                <div class="d-flex flex-wrap gap-2 justify-content-center">
+                                    @if (!isLoggedIn)
+                                    {
+                                        <a href="@Url.Action("Index", "Auth", new { returnUrl = Context.Request.Path + Context.Request.QueryString })" class="btn px-4 py-2.5 rounded-pill fw-bold text-dark d-inline-flex align-items-center gap-2" style="background: #ffffff; text-decoration: none;">
+                                            <i class="bi bi-box-arrow-in-right"></i> Đăng nhập tài khoản
+                                        </a>
+                                    }
+                                    <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString" class="btn px-4 py-2.5 rounded-pill fw-bold d-inline-flex align-items-center gap-2" style="background: var(--brand-gradient); color: #081119; text-decoration: none;">
+                                        <i class="bi bi-gem"></i> Nâng cấp gói Premium
+                                    </a>
+                                </div>
                             </div>
                         }
                         else
@@ -996,6 +776,12 @@
                                 <option value="-1">Tự động (Auto Bitrate)</option>
                             </select>
                         </div>
+                    </div>
+                }
+                else if (Model.IsPremiumContent && !Model.HasActiveSubscription)
+                {
+                    <div class="badge d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-pill" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        <i class="bi bi-lock-fill"></i> Nội dung bản quyền VIP - Yêu cầu tài khoản Premium để mở khóa nguồn phát
                     </div>
                 }
                 else
@@ -1197,29 +983,44 @@
                             @foreach (var episode in episodes)
                             {
                                 var act = episode.EpisodeId == currentEp ? "active" : "";
+                                var isEpPremium = episode.IsPremium || (Model.Content != null && (string.Equals(Model.Content.IsPremium, "Y", StringComparison.OrdinalIgnoreCase) || Model.Content.IsPremium == "1" || string.Equals(Model.Content.IsPremium, "True", StringComparison.OrdinalIgnoreCase)));
+                                var canWatchEp = !isEpPremium || Model.HasActiveSubscription;
+
                                 var episodeSource = Model.Sources
                                     .Where(x => x.EpisodeId == episode.EpisodeId)
                                     .OrderByDescending(IsHlsSource)
                                     .ThenByDescending(x => x.IsPrimary)
                                     .FirstOrDefault();
-                                var hasEpSource = !string.IsNullOrWhiteSpace(episodeSource?.StreamUrl);
-                                <div class="ep-item @act @(!hasEpSource ? "unavailable" : "")"
+                                var hasEpSource = canWatchEp && !string.IsNullOrWhiteSpace(episodeSource?.StreamUrl);
+                                <div class="ep-item @act @(!hasEpSource && canWatchEp ? "unavailable" : "")"
                                      data-ep="@episode.EpisodeId"
+                                     data-is-premium="@(isEpPremium ? "true" : "false")"
+                                     data-can-watch="@(canWatchEp ? "true" : "false")"
                                      data-source-url="@(hasEpSource ? episodeSource!.StreamUrl : "")"
                                      data-has-source="@(hasEpSource ? "true" : "false")"
-                                     title="@(hasEpSource ? "Phát tập phim" : "Tập phim chưa có nguồn phát")">
+                                     title="@(isEpPremium && !canWatchEp ? "Tập phim yêu cầu tài khoản Premium" : (hasEpSource ? "Phát tập phim" : "Tập phim chưa có nguồn phát"))">
                                     <div class="ep-num">@episode.EpisodeNo</div>
                                     <div class="flex-grow-1">
                                         <div class="fw-semibold text-white small d-flex align-items-center gap-2">
                                             <span>@episode.EpisodeTitle</span>
-                                            @if (!hasEpSource)
+                                            @if (isEpPremium)
+                                            {
+                                                <span class="badge" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #000; font-size: 0.65rem; font-weight: 700;">VIP</span>
+                                            }
+                                            @if (!hasEpSource && canWatchEp)
                                             {
                                                 <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 0.65rem; font-weight: 500;">Đang cập nhật</span>
                                             }
                                         </div>
                                         <div class="text-muted small">Mùa @episode.SeasonNo • @(episode.DurationMin ?? 45) phút</div>
                                     </div>
-                                    @if (hasEpSource)
+                                    @if (isEpPremium && !canWatchEp)
+                                    {
+                                        <span class="text-warning small d-flex align-items-center gap-1" title="Khóa Premium">
+                                            <i class="bi bi-lock-fill"></i>
+                                        </span>
+                                    }
+                                    else if (hasEpSource)
                                     {
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon></svg>
                                     }
@@ -1356,81 +1157,6 @@
             </div>
         </div>
     </div>
-</div>
-
-<!-- ========================================================
-     REALTIME SUPPORT CHATBOX & FLOATING ACTION TRIGGER
-     ======================================================== -->
-<!-- Floating Action Button -->
-<div id="tflixSupportTrigger" class="tflix-support-trigger" title="Nhấn để trò chuyện với tư vấn viên TFlix">
-    <div class="online-pulse"></div>
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-    </svg>
-</div>
-
-<!-- Support Chatbox Container -->
-<div id="tflixSupportBox" class="tflix-support-box" aria-live="polite">
-    <!-- Header -->
-    <div class="tflix-support-header">
-        <div class="d-flex align-items-center gap-2.5">
-            <div class="agent-avatar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-            </div>
-            <div>
-                <div class="fw-bold text-white fs-6 d-flex align-items-center gap-1.5">
-                    <span>TFlix Hỗ Trợ 24/7</span>
-                    <span class="badge rounded-pill" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 0.65rem;">Trực tuyến</span>
-                </div>
-                <div class="text-muted small" style="font-size: 0.75rem;">Tư vấn xem phim & kỹ thuật realtime</div>
-            </div>
-        </div>
-        <div class="d-flex align-items-center gap-1">
-            <button id="btnMinimizeSupport" class="btn btn-sm btn-link text-muted p-1" title="Thu nhỏ">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
-            <button id="btnCloseSupport" class="btn btn-sm btn-link text-muted p-1" title="Đóng chatbox">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-        </div>
-    </div>
-
-    <!-- Quick FAQ Chips -->
-    <div class="support-quick-chips">
-        <button class="support-chip" data-faq="Tại sao video bị giật / xoay tròn?">⚡ Video bị giật?</button>
-        <button class="support-chip" data-faq="Cách chọn độ phân giải Full HD / 4K?">🎬 Chỉnh độ phân giải?</button>
-        <button class="support-chip" data-faq="Báo lỗi tập phim không phát được">⚠️ Báo lỗi tập phim</button>
-        <button class="support-chip" data-faq="Gói VIP TFlix có những quyền lợi gì?">👑 Gói VIP TFlix</button>
-        <button class="support-chip" data-faq="Gợi ý phim hot hôm nay">🍿 Gợi ý phim hot</button>
-    </div>
-
-    <!-- Messages Body -->
-    <div id="supportMessagesList" class="tflix-support-body">
-        <!-- Messages rendered dynamically -->
-    </div>
-
-    <!-- Typing Indicator -->
-    <div id="supportTypingIndicator" class="px-3 py-1 d-none" style="background: #111318;">
-        <div class="support-typing">
-            <span class="typing-dot"></span>
-            <span class="typing-dot"></span>
-            <span class="typing-dot"></span>
-            <span class="text-muted small ms-1" style="font-size: 0.72rem;">TFlix đang soạn tin...</span>
-        </div>
-    </div>
-
-    <!-- Input Footer -->
-    <form id="supportChatForm" class="tflix-support-footer" onsubmit="return false;">
-        <input type="text" id="supportInput" class="support-input" placeholder="Nhập câu hỏi hoặc yêu cầu hỗ trợ..." maxlength="300" autocomplete="off" />
-        <button type="submit" id="supportSendBtn" class="support-send-btn" title="Gửi tin nhắn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
-            </svg>
-        </button>
-    </form>
 </div>
 
 <form id="favoriteTokenForm" class="d-none">@Html.AntiForgeryToken()</form>
@@ -2112,6 +1838,20 @@
                 const ep = +item.dataset.ep;
                 if (ep === currentEp) return;
 
+                const isEpPremium = item.dataset.isPremium === 'true';
+                const canWatch = item.dataset.canWatch === 'true';
+
+                if (isEpPremium && !canWatch) {
+                    if (!isLoggedIn) {
+                        window.location.href = `/Auth?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+                        return;
+                    }
+                    if (confirm('Tập phim này thuộc gói đặc quyền Premium. Bạn có muốn nâng cấp tài khoản Premium để thưởng thức ngay không?')) {
+                        window.location.href = `/Payment?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+                    }
+                    return;
+                }
+
                 guardAuth(async () => {
                     // Đổi active ngay lập tức trên UI
                     currentEp = ep;
@@ -2128,6 +1868,17 @@
                     try {
                         const res = await fetch(`/Film/GetEpisodePlayInfo?episodeId=${ep}`);
                         const json = await res.json();
+
+                        if (json && json.isPremium && !json.hasActiveSubscription) {
+                            if (!isLoggedIn) {
+                                window.location.href = `/Auth?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+                                return;
+                            }
+                            alert(json.message || 'Tập phim này yêu cầu tài khoản Premium để phát.');
+                            window.location.href = `/Payment?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+                            return;
+                        }
+
                         if (json && json.success && json.data) {
                             const epData = json.data;
                             
@@ -2183,178 +1934,6 @@
                 });
             });
         }
-
-        // ==========================================
-        // 4. REALTIME SUPPORT CHATBOX WITH SIGNALR
-        // ==========================================
-        const supportTrigger = document.getElementById('tflixSupportTrigger');
-        const supportBox = document.getElementById('tflixSupportBox');
-        const btnCloseSupport = document.getElementById('btnCloseSupport');
-        const btnMinimizeSupport = document.getElementById('btnMinimizeSupport');
-        const supportMessagesList = document.getElementById('supportMessagesList');
-        const supportChatForm = document.getElementById('supportChatForm');
-        const supportInput = document.getElementById('supportInput');
-        const supportTypingIndicator = document.getElementById('supportTypingIndicator');
-
-        // Khởi tạo sessionId và lịch sử chat trong sessionStorage
-        let supportSessionId = sessionStorage.getItem('tflix_support_sessionId');
-        if (!supportSessionId) {
-            supportSessionId = 'sess_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
-            sessionStorage.setItem('tflix_support_sessionId', supportSessionId);
-        }
-
-        let supportChatHistory = [];
-        try {
-            const raw = sessionStorage.getItem('tflix_support_history');
-            if (raw) supportChatHistory = JSON.parse(raw);
-        } catch { supportChatHistory = []; }
-
-        function renderSupportBubble(msg) {
-            const isAgent = msg.senderRole === 'agent';
-            const time = msg.formattedTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const bubbleClass = isAgent ? 'agent' : 'user';
-
-            return `
-                <div class="support-bubble ${bubbleClass}">
-                    ${isAgent ? '<div class="text-info fw-bold small mb-1" style="font-size: 0.76rem;">' + escapeHtml(msg.senderName || 'TFlix Support') + '</div>' : ''}
-                    <div>${escapeHtml(msg.message).replace(/\n/g, '<br/>')}</div>
-                    <div class="support-msg-time">${time}</div>
-                </div>
-            `;
-        }
-
-        function appendSupportMessage(msg, save = true) {
-            if (!supportMessagesList) return;
-            supportMessagesList.insertAdjacentHTML('beforeend', renderSupportBubble(msg));
-            supportMessagesList.scrollTop = supportMessagesList.scrollHeight;
-
-            if (save) {
-                supportChatHistory.push(msg);
-                sessionStorage.setItem('tflix_support_history', JSON.stringify(supportChatHistory));
-            }
-        }
-
-        function restoreSupportHistory() {
-            if (!supportMessagesList) return;
-            supportMessagesList.innerHTML = '';
-            if (supportChatHistory && supportChatHistory.length > 0) {
-                supportChatHistory.forEach(m => appendSupportMessage(m, false));
-            } else {
-                const welcomeMsg = {
-                    senderRole: 'agent',
-                    senderName: 'TFlix Chăm Sóc Khách Hàng',
-                    message: `Xin chào ${currentUserName || 'bạn'}! Tôi là chuyên viên tư vấn trực tuyến TFlix. Bạn cần hỗ trợ gì về chất lượng phim, âm thanh, tài khoản hay gợi ý phim xem tiếp không ạ?`,
-                    formattedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                };
-                appendSupportMessage(welcomeMsg, true);
-            }
-        }
-
-        function toggleSupportBox(show) {
-            if (!supportBox) return;
-            const willOpen = show !== undefined ? show : !supportBox.classList.contains('open');
-            if (willOpen) {
-                supportBox.classList.add('open');
-                sessionStorage.setItem('tflix_support_isOpen', 'true');
-                if (supportInput) supportInput.focus();
-                if (supportMessagesList) supportMessagesList.scrollTop = supportMessagesList.scrollHeight;
-            } else {
-                supportBox.classList.remove('open');
-                sessionStorage.setItem('tflix_support_isOpen', 'false');
-            }
-        }
-
-        supportTrigger?.addEventListener('click', () => toggleSupportBox());
-        btnCloseSupport?.addEventListener('click', () => toggleSupportBox(false));
-        btnMinimizeSupport?.addEventListener('click', () => toggleSupportBox(false));
-
-        if (sessionStorage.getItem('tflix_support_isOpen') === 'true') {
-            toggleSupportBox(true);
-        }
-
-        let supportHubConn = null;
-        function initSupportSignalR() {
-            if (typeof signalR === 'undefined') return;
-
-            supportHubConn = new signalR.HubConnectionBuilder()
-                .withUrl('/supportChatHub')
-                .withAutomaticReconnect([0, 2000, 5000, 10000])
-                .build();
-
-            supportHubConn.on('ReceiveSupportMessage', function (msg) {
-                if (msg.senderRole === 'agent' || msg.sessionId !== supportSessionId) {
-                    appendSupportMessage(msg, true);
-                }
-            });
-
-            supportHubConn.on('SupportTyping', function (isTyping) {
-                if (supportTypingIndicator) {
-                    supportTypingIndicator.classList.toggle('d-none', !isTyping);
-                    if (isTyping && supportMessagesList) {
-                        supportMessagesList.scrollTop = supportMessagesList.scrollHeight;
-                    }
-                }
-            });
-
-            supportHubConn.start().then(() => {
-                supportHubConn.invoke('JoinSupportSession', supportSessionId).catch(console.error);
-                console.log('✅ SupportChatHub kết nối thành công, sessionId =', supportSessionId);
-            }).catch(err => {
-                console.warn('Lỗi kết nối SupportChatHub:', err);
-            });
-
-            supportHubConn.onreconnected(() => {
-                supportHubConn.invoke('JoinSupportSession', supportSessionId).catch(console.error);
-            });
-        }
-
-        async function sendSupportChatMessage(text) {
-            const trimmed = (text || '').trim();
-            if (!trimmed) return;
-
-            if (supportInput) supportInput.value = '';
-
-            const userMsg = {
-                sessionId: supportSessionId,
-                userId: currentUserId,
-                senderName: currentUserName,
-                senderRole: 'user',
-                message: trimmed,
-                movieTitle: @Json.Serialize(movieTitle),
-                episodeId: currentEp > 0 ? currentEp : null,
-                formattedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-
-            appendSupportMessage(userMsg, true);
-
-            if (supportHubConn && supportHubConn.state === signalR.HubConnectionState.Connected) {
-                try {
-                    await supportHubConn.invoke('SendUserMessage', userMsg);
-                } catch (err) {
-                    console.error('Lỗi gửi tin tư vấn qua SignalR:', err);
-                }
-            } else {
-                console.warn('SignalR Support chưa kết nối, tin nhắn được lưu tạm thời trên giao diện.');
-            }
-        }
-
-        supportChatForm?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (supportInput) sendSupportChatMessage(supportInput.value);
-        });
-
-        document.querySelectorAll('.support-chip').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const question = btn.getAttribute('data-faq');
-                if (question) {
-                    sendSupportChatMessage(question);
-                }
-            });
-        });
-
-        restoreSupportHistory();
-        initSupportSignalR();
-
 
         // Action buttons: Like, Save, Share
         document.getElementById('btnLike')?.addEventListener('click', function() {

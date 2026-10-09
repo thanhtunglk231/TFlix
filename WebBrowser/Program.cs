@@ -129,7 +129,8 @@ builder.Services.AddAuthorization(opts =>
     // ví dụ: chính sách chỉ cho Admin
     opts.AddPolicy("RequireAdmin", policy => policy.RequireRole("Admin"));
 });
-// Các d?ch v? khác
+// Các dịch vụ khác
+builder.Services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(o =>

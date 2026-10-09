@@ -93,6 +93,13 @@ namespace Server.Controllers
 
         private async Task<IActionResult?> RequirePermission(string permissionCode)
         {
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(role, "SUPER_ADMIN", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
             var email = User.FindFirst(ClaimTypes.Email)?.Value;
             if (string.IsNullOrWhiteSpace(email))
             {

@@ -53,6 +53,12 @@ namespace WebBrowser.Models.Preview
         [JsonProperty("isPremiumYN")]
         public string? IsPremium { get; set; }
 
+        [JsonProperty("iS_PREMIUM")]
+        public string? IsPremiumAlt { set { if (!string.IsNullOrEmpty(value)) IsPremium = value; } }
+
+        [JsonProperty("is_premium")]
+        public string? IsPremiumSnake { set { if (!string.IsNullOrEmpty(value)) IsPremium = value; } }
+
         [JsonProperty("imdbId")]
         public string? ImdbId { get; set; }
 

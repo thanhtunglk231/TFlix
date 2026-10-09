@@ -7,5 +7,7 @@ namespace WebBrowser.Services.Interfaces
     {
         Task<CResponseMessage> GetManagementDataAsync();
         Task<CResponseMessage> CreateAsync(CreateAdminAccountDto dto);
+        Task<CResponseMessage> UpdateAsync(UpdateAdminAccountDto dto);
+        Task<CResponseMessage> DeleteAsync(long userId);
     }
 }

@@ -16,4 +16,24 @@ namespace CoreLib.Dtos
         [Required, MinLength(1)]
         public List<long> RoleIds { get; set; } = new();
     }
+
+    public class UpdateAdminAccountDto
+    {
+        [Required]
+        public long UserId { get; set; }
+
+        [Required, EmailAddress, StringLength(320)]
+        public string Email { get; set; } = string.Empty;
+
+        [Required, StringLength(150, MinimumLength = 2)]
+        public string FullName { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? Password { get; set; }
+
+        public string Status { get; set; } = "ACTIVE";
+
+        [Required, MinLength(1)]
+        public List<long> RoleIds { get; set; } = new();
+    }
 }

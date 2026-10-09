@@ -20,5 +20,11 @@ namespace WebBrowser.Services.Implements
 
         public Task<CResponseMessage> CreateAsync(CreateAdminAccountDto dto) =>
             _httpService.PostAsync<CResponseMessage>(BaseUrl, dto);
+
+        public Task<CResponseMessage> UpdateAsync(UpdateAdminAccountDto dto) =>
+            _httpService.PostAsync<CResponseMessage>($"{BaseUrl}/update", dto);
+
+        public Task<CResponseMessage> DeleteAsync(long userId) =>
+            _httpService.PostAsync<CResponseMessage>($"{BaseUrl}/delete/{userId}", new { });
     }
 }

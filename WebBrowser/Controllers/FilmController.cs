@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using CoreLib.Dtos.Payment;
+using WebBrowser.Models.Episode;
 using WebBrowser.Models.Film;
 using WebBrowser.Models.Preview;
 using WebBrowser.Services.Interfaces;
@@ -45,15 +46,13 @@ namespace WebBrowser.Controllers
 
         public async Task<IActionResult> Watch(long id, string kind, long? episodeId = null, long? ep = null)
         {
-            var targetEpId = episodeId ?? ep;
-            // Kiểm tra Đăng nhập (Authentication check)
-            var token = HttpContext.Session.GetString("JWToken");
-            if (string.IsNullOrEmpty(token) && (User == null || User.Identity?.IsAuthenticated != true))
+            if (id <= 0)
             {
-                // Chưa đăng nhập -> Chuyển hướng sang trang đăng nhập
-                string returnUrl = Url.Action("Watch", "Film", new { id, kind, episodeId = targetEpId }) ?? "/Movies";
-                return RedirectToAction("Index", "Auth", new { returnUrl });
+                return RedirectToAction("Index", "Movies");
             }
+
+            var targetEpId = episodeId ?? ep;
+            var token = HttpContext.Session.GetString("JWToken");
 
             var isSeries = string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase);
             var request = new GETCONTENTByID
@@ -182,7 +181,8 @@ namespace WebBrowser.Controllers
 
             if (movie == null)
             {
-                return NotFound("Không tìm thấy nội dung");
+                TempData["ErrorMessage"] = "Không tìm thấy nội dung phim được yêu cầu.";
+                return RedirectToAction("Index", "Movies");
             }
 
             Console.WriteLine(JsonConvert.SerializeObject(movie));
@@ -236,26 +236,13 @@ namespace WebBrowser.Controllers
                   ?? episodes.FirstOrDefault()?.EpisodeId;
 
             var selectedEpisode = episodes.FirstOrDefault(x => x.EpisodeId == currentEpisodeId);
-            var isPremiumContent = string.Equals(movie.IsPremium, "Y", StringComparison.OrdinalIgnoreCase)
-                || selectedEpisode?.IsPremium == true;
-            var subscriptionStatus = new SubscriptionStatusDto();
-            if (isPremiumContent)
-            {
-                try
-                {
-                    var statusResponse = await _paymentService.GetSubscriptionStatusAsync();
-                    var envelope = JsonConvert.DeserializeObject<SubscriptionStatusEnvelope>(
-                        JsonConvert.SerializeObject(statusResponse.Data));
-                    subscriptionStatus = envelope?.Table?.FirstOrDefault() ?? new SubscriptionStatusDto();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Không thể kiểm tra gói Premium của người dùng.");
-                }
-            }
+            var isPremiumContent = IsContentPremium(movie, selectedEpisode, matchedSeries);
+            var (hasActiveSubscription, subscriptionEndAt) = await CheckUserSubscriptionAsync();
 
-            if (isPremiumContent && !subscriptionStatus.IsActive)
+            if (isPremiumContent && !hasActiveSubscription)
+            {
                 sources = [];
+            }
 
             return View("Index", new WatchViewModel
             {
@@ -266,9 +253,89 @@ namespace WebBrowser.Controllers
                 CurrentEpisodeId = currentEpisodeId,
                 EpisodeLoadError = episodeLoadError,
                 IsPremiumContent = isPremiumContent,
-                HasActiveSubscription = subscriptionStatus.IsActive,
-                SubscriptionEndAt = subscriptionStatus.EndAt
+                HasActiveSubscription = hasActiveSubscription,
+                SubscriptionEndAt = subscriptionEndAt
             });
+        }
+
+        private async Task<(bool hasActiveSubscription, DateTimeOffset? endAt)> CheckUserSubscriptionAsync()
+        {
+            var token = HttpContext.Session.GetString("JWToken");
+            if (string.IsNullOrEmpty(token) && (User == null || User.Identity?.IsAuthenticated != true))
+            {
+                return (false, null);
+            }
+
+            var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+            if (!string.IsNullOrEmpty(currentUserJson))
+            {
+                try
+                {
+                    var user = JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson);
+                    if (user?.roles != null && user.roles.Any(r =>
+                        string.Equals(r, "ADMIN", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(r, "SUPER_ADMIN", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(r, "PREMIUM", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return (true, DateTimeOffset.UtcNow.AddYears(1));
+                    }
+                }
+                catch { }
+            }
+
+            try
+            {
+                var statusResponse = await _paymentService.GetSubscriptionStatusAsync();
+                if (statusResponse?.Data != null)
+                {
+                    var envelope = JsonConvert.DeserializeObject<SubscriptionStatusEnvelope>(
+                        JsonConvert.SerializeObject(statusResponse.Data));
+                    var status = envelope?.Table?.FirstOrDefault();
+                    if (status != null && status.IsActive)
+                    {
+                        if (!status.EndAt.HasValue || status.EndAt.Value > DateTimeOffset.UtcNow)
+                        {
+                            return (true, status.EndAt);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Không thể kiểm tra gói Premium của người dùng.");
+            }
+
+            return (false, null);
+        }
+
+        private static bool IsContentPremium(PreviewItem? movie, EpisodeItem? episode = null, WebBrowser.Models.Series.SerieDto? series = null)
+        {
+            if (movie != null)
+            {
+                if (string.Equals(movie.IsPremium, "Y", StringComparison.OrdinalIgnoreCase) ||
+                    movie.IsPremium == "1" ||
+                    string.Equals(movie.IsPremium, "True", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            if (series != null)
+            {
+                if (string.Equals(series.IsPremium, "Y", StringComparison.OrdinalIgnoreCase) ||
+                    series.IsPremium == "1" ||
+                    string.Equals(series.IsPremium, "True", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            if (episode != null && episode.IsPremium)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private sealed class SubscriptionStatusEnvelope
@@ -338,6 +405,50 @@ namespace WebBrowser.Controllers
                 var episodesResponse = await _episodeService.get_all();
                 var allEpisodes = episodesResponse?.Data?.Table ?? new List<WebBrowser.Models.Episode.EpisodeItem>();
                 var episode = allEpisodes.FirstOrDefault(x => x.EpisodeId == episodeId);
+                if (episode == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy thông tin tập phim." });
+                }
+
+                WebBrowser.Models.Series.SerieDto? matchedSeries = null;
+                if (episode.SeriesId > 0)
+                {
+                    try
+                    {
+                        var seriesResponse = await _seriesService.get_all();
+                        matchedSeries = seriesResponse?.Data?.Table?.FirstOrDefault(x => x.SeriesId == episode.SeriesId);
+                    }
+                    catch { }
+                }
+
+                var isPremiumEp = episode.IsPremium || (matchedSeries != null && string.Equals(matchedSeries.IsPremium, "Y", StringComparison.OrdinalIgnoreCase));
+                var (hasActiveSub, _) = await CheckUserSubscriptionAsync();
+
+                if (isPremiumEp && !hasActiveSub)
+                {
+                    var token = HttpContext.Session.GetString("JWToken");
+                    var isLoggedIn = !string.IsNullOrEmpty(token);
+                    return Json(new
+                    {
+                        success = false,
+                        isPremium = true,
+                        isLoggedIn = isLoggedIn,
+                        hasActiveSubscription = false,
+                        message = isLoggedIn
+                            ? "Tập phim này thuộc gói Premium. Vui lòng nâng cấp tài khoản để tiếp tục xem."
+                            : "Tập phim này chỉ dành riêng cho thành viên Premium. Vui lòng đăng nhập hoặc nâng cấp gói.",
+                        data = new
+                        {
+                            episodeId = episodeId,
+                            episodeNo = episode.EpisodeNo,
+                            episodeTitle = episode.EpisodeTitle,
+                            isPremium = true,
+                            hasSource = false,
+                            sources = new object[0],
+                            primaryUrl = ""
+                        }
+                    });
+                }
 
                 var sourcesResponse = await _videoSourceService.get_all();
                 var allSources = sourcesResponse?.Data?.Table ?? new List<WebBrowser.Models.VideoSoure.SourceItem>();
@@ -359,12 +470,14 @@ namespace WebBrowser.Controllers
                 return Json(new
                 {
                     success = true,
+                    isPremium = isPremiumEp,
+                    hasActiveSubscription = hasActiveSub,
                     data = new
                     {
                         episodeId = episodeId,
-                        episodeNo = episode?.EpisodeNo ?? 1,
-                        episodeTitle = episode?.EpisodeTitle ?? $"Tập {episodeId}",
-                        durationMin = episode?.DurationMin ?? 45,
+                        episodeNo = episode.EpisodeNo,
+                        episodeTitle = episode.EpisodeTitle,
+                        durationMin = episode.DurationMin ?? 45,
                         hasSource = episodeSources.Any(),
                         sources = episodeSources,
                         primaryUrl = episodeSources.FirstOrDefault()?.streamUrl ?? ""

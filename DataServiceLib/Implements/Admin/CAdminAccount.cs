@@ -80,6 +80,66 @@ namespace DataServiceLib.Implements.Admin
             }
         }
 
+        public Task<CResponseMessage> UpdateAsync(UpdateAdminAccountDto dto)
+        {
+            try
+            {
+                var roleIds = string.Join(',', dto.RoleIds.Distinct().OrderBy(id => id));
+                _logger.LogInformation(
+                    "Executing admin account update repository flow for user {UserId} ({EmailDomain}) with role ids {RoleIds}",
+                    dto.UserId,
+                    GetEmailDomain(dto.Email),
+                    roleIds);
+                var output = CreateOutputParameters();
+                var parameters = new IDbDataParameter[]
+                {
+                    new SqlParameter("@p_user_id", SqlDbType.BigInt) { Value = dto.UserId },
+                    new SqlParameter("@p_email", SqlDbType.NVarChar, 320) { Value = dto.Email.Trim() },
+                    new SqlParameter("@p_full_name", SqlDbType.NVarChar, 200) { Value = dto.FullName.Trim() },
+                    new SqlParameter("@p_password", SqlDbType.NVarChar, 500) { Value = string.IsNullOrWhiteSpace(dto.Password) ? (object)DBNull.Value : dto.Password },
+                    new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Value = string.IsNullOrWhiteSpace(dto.Status) ? "ACTIVE" : dto.Status.Trim() },
+                    new SqlParameter("@p_role_ids", SqlDbType.NVarChar, -1) { Value = roleIds },
+                    output[0],
+                    output[1]
+                };
+
+                var data = _baseProvider.GetDatasetFromSP("usp_AdminAccount_Update", parameters, _connectionString);
+                var response = ToResponse(data, output);
+                _logger.LogInformation("Admin account update repository flow completed with code {Code} and success {Success}", response.code, response.Success);
+                return Task.FromResult(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Admin account update repository flow failed for user {UserId}", dto.UserId);
+                return Task.FromResult(Error(ex));
+            }
+        }
+
+        public Task<CResponseMessage> DeleteAsync(long userId)
+        {
+            try
+            {
+                _logger.LogInformation("Executing admin account delete repository flow for user {UserId}", userId);
+                var output = CreateOutputParameters();
+                var parameters = new IDbDataParameter[]
+                {
+                    new SqlParameter("@p_user_id", SqlDbType.BigInt) { Value = userId },
+                    output[0],
+                    output[1]
+                };
+
+                var data = _baseProvider.GetDatasetFromSP("usp_AdminAccount_Delete", parameters, _connectionString);
+                var response = ToResponse(data, output);
+                _logger.LogInformation("Admin account delete repository flow completed with code {Code} and success {Success}", response.code, response.Success);
+                return Task.FromResult(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Admin account delete repository flow failed for user {UserId}", userId);
+                return Task.FromResult(Error(ex));
+            }
+        }
+
         private static string GetEmailDomain(string email) =>
             email.Contains('@') ? email[(email.IndexOf('@') + 1)..] : "invalid";
 
