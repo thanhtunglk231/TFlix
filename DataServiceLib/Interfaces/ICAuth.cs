@@ -9,5 +9,6 @@ namespace DataServiceLib.Interfaces
         Task<CResponseMessage> Register(RegisterDto loginDto);
         Task<CResponseMessage> IssueOtpAsync(string email, string purpose, string otpHash);
         Task<CResponseMessage> VerifyOtpAsync(string email, string purpose, string otpHash);
+        Task<CResponseMessage> GoogleLoginAsync(GoogleIdentityDto identity);
     }
 }

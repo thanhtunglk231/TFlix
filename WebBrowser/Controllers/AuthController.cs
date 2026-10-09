@@ -4,16 +4,21 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Models.AuthModels;
 using WebBrowser.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace WebBrowser.Controllers
 {
     public class AuthController : Controller
     {
         private readonly IAuthService _authService;
+        private readonly IConfiguration _configuration;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IConfiguration configuration)
         {
             _authService = authService;
+            _configuration = configuration;
         }
         public IActionResult Index()
         {
@@ -100,6 +105,56 @@ namespace WebBrowser.Controllers
             request.Purpose = "REGISTER";
             var response = await _authService.RequestOtpAsync(request);
             return new JsonResult(response) { StatusCode = response.Success || response.code == "200" ? 200 : 400 };
+        }
+
+        [HttpGet]
+        public IActionResult GoogleLogin(string? returnUrl = null)
+        {
+            if (string.IsNullOrWhiteSpace(_configuration["Authentication:Google:ClientId"]) ||
+                string.IsNullOrWhiteSpace(_configuration["Authentication:Google:ClientSecret"]))
+            {
+                return RedirectToAction(nameof(AuthenticationError), new
+                {
+                    message = "Đăng nhập Google chưa được cấu hình. Vui lòng liên hệ quản trị viên."
+                });
+            }
+
+            var safeReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action("Index", "Home")!;
+            return Challenge(new AuthenticationProperties { RedirectUri = Url.Action(nameof(GoogleCallback), new { returnUrl = safeReturnUrl }) }, GoogleDefaults.AuthenticationScheme);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GoogleCallback(string? returnUrl = null, string? remoteError = null)
+        {
+            var safeReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action("Index", "Home")!;
+            if (!string.IsNullOrWhiteSpace(remoteError))
+                return RedirectToAction(nameof(AuthenticationError), new { message = "Bạn đã hủy hoặc Google từ chối yêu cầu đăng nhập." });
+            var result = await HttpContext.AuthenticateAsync("GoogleExternal");
+            if (!result.Succeeded || result.Properties == null)
+                return RedirectToAction(nameof(AuthenticationError), new { message = "Không xác minh được phản hồi từ Google." });
+            var idToken = result.Properties.GetTokenValue("id_token");
+            await HttpContext.SignOutAsync("GoogleExternal");
+            if (string.IsNullOrWhiteSpace(idToken))
+                return RedirectToAction(nameof(AuthenticationError), new { message = "Google không trả về thông tin định danh hợp lệ." });
+            var response = await _authService.GoogleLoginAsync(new GoogleLoginDto { IdToken = idToken });
+            if (!(response.Success || response.code == "200"))
+                return RedirectToAction(nameof(AuthenticationError), new { message = response.message });
+            return LocalRedirect(safeReturnUrl);
+        }
+
+        [HttpGet]
+        public IActionResult AuthenticationError(string? message = null)
+        {
+            ViewData["Message"] = string.IsNullOrWhiteSpace(message) ? "Không thể đăng nhập bằng Google. Vui lòng thử lại." : message;
+            return View();
+        }
+
+        [HttpGet("/auth/access-denied")]
+        public IActionResult AccessDenied()
+        {
+            Response.StatusCode = StatusCodes.Status403Forbidden;
+            ViewData["Message"] = "Tài khoản của bạn không có quyền truy cập chức năng này.";
+            return View("AuthenticationError");
         }
 
         [HttpPost]

@@ -316,6 +316,23 @@ namespace DataServiceLib.Implements
             return await ExecuteOtpProcedureAsync("sp_auth_otp_verify", email, purpose, otpHash);
         }
 
+        public Task<CResponseMessage> GoogleLoginAsync(GoogleIdentityDto identity)
+        {
+            var code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+            var message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+            var parameters = new IDbDataParameter[]
+            {
+                new SqlParameter("@p_provider_uid", SqlDbType.NVarChar, 255) { Value = identity.Subject },
+                new SqlParameter("@p_email", SqlDbType.NVarChar, 255) { Value = identity.Email },
+                new SqlParameter("@p_full_name", SqlDbType.NVarChar, 150) { Value = identity.FullName },
+                new SqlParameter("@p_avatar_url", SqlDbType.NVarChar, 500) { Value = (object?)identity.AvatarUrl ?? DBNull.Value },
+                code, message
+            };
+            var data = _baseProvider.GetDatasetFromSP("sp_auth_google_login", parameters, _connectionString);
+            var responseCode = code.Value?.ToString() ?? "500";
+            return Task.FromResult(new CResponseMessage { Success=responseCode=="200",code=responseCode,message=message.Value?.ToString() ?? "Đăng nhập Google thất bại.",Data=data });
+        }
+
         private async Task<CResponseMessage> ExecuteOtpProcedureAsync(string procedure, string email, string purpose, string otpHash)
         {
             try

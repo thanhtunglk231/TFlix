@@ -56,6 +56,10 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPermissionService,
                            WebBrowser.Services.Implements.PermissionService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IAdminAccountService,
                            WebBrowser.Services.Implements.AdminAccountService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.ISubscriptionPlanService,
+                           WebBrowser.Services.Implements.SubscriptionPlanService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPaymentService,
+                           WebBrowser.Services.Implements.PaymentService>();
 
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPreviewService,
                            PreviewService>();
@@ -68,17 +72,52 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IFavoriteService,
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IChatService,
                            WebBrowser.Services.Implements.ChatService>();
 builder.Services.AddSignalR();
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>
     {
         opts.LoginPath = "/auth/index";          // Trang login (view)
         opts.LogoutPath = "/auth/logout";
-        opts.AccessDeniedPath = "/auth/index";
+        opts.AccessDeniedPath = "/auth/access-denied";
         opts.ExpireTimeSpan = TimeSpan.FromHours(1);
         opts.SlidingExpiration = true;
         // Optional: tên cookie
         // opts.Cookie.Name = "tflix.auth";
+    })
+    .AddCookie("GoogleExternal", opts =>
+    {
+        opts.Cookie.Name = "tflix.google.external";
+        opts.Cookie.HttpOnly = true;
+        opts.Cookie.SameSite = SameSiteMode.Lax;
+        opts.ExpireTimeSpan = TimeSpan.FromMinutes(10);
     });
+
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    authenticationBuilder.AddGoogle("Google", opts =>
+    {
+        opts.SignInScheme = "GoogleExternal";
+        opts.ClientId = googleClientId;
+        opts.ClientSecret = googleClientSecret;
+        opts.CallbackPath = builder.Configuration["Authentication:Google:CallbackPath"] ?? "/signin-google";
+        opts.SaveTokens = true;
+        opts.Scope.Clear();
+        opts.Scope.Add("openid"); opts.Scope.Add("email"); opts.Scope.Add("profile");
+        opts.Events.OnRedirectToAuthorizationEndpoint = context =>
+        {
+            context.Response.Redirect(context.RedirectUri + "&prompt=select_account");
+            return Task.CompletedTask;
+        };
+        opts.Events.OnRemoteFailure = context =>
+        {
+            context.HandleResponse();
+            context.Response.Redirect("/Auth/AuthenticationError?message=" +
+                Uri.EscapeDataString("Bạn đã hủy hoặc Google từ chối yêu cầu đăng nhập."));
+            return Task.CompletedTask;
+        };
+    });
+}
 
 // (Optional) Chính sách phân quyền theo role
 builder.Services.AddAuthorization(opts =>
@@ -94,6 +133,8 @@ builder.Services.AddSession(o =>
     o.IdleTimeout = TimeSpan.FromMinutes(60);
     o.Cookie.HttpOnly = true;
     o.Cookie.IsEssential = true;
+    o.Cookie.SameSite = SameSiteMode.Lax;
+    o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
 var app = builder.Build();

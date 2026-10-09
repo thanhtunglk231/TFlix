@@ -274,6 +274,10 @@
 
                     if (!response.IsSuccessStatusCode)
                     {
+                        var apiError = JsonConvert.DeserializeObject<CResponseMessage>(json);
+                        if (apiError != null && (!string.IsNullOrWhiteSpace(apiError.code) || !string.IsNullOrWhiteSpace(apiError.message)))
+                            return apiError;
+
                         return new CResponseMessage
                         {
                             Success = false,
@@ -383,6 +387,10 @@
 
                     if (!response.IsSuccessStatusCode)
                     {
+                        var apiError = JsonConvert.DeserializeObject<CResponseMessage>(json);
+                        if (apiError != null && (!string.IsNullOrWhiteSpace(apiError.code) || !string.IsNullOrWhiteSpace(apiError.message)))
+                            return apiError;
+
                         return new CResponseMessage
                         {
                             Success = false,
@@ -390,6 +398,10 @@
                             message = "Xóa thất bại hoặc không có quyền."
                         };
                     }
+
+                    var directResult = JsonConvert.DeserializeObject<CResponseMessage>(json);
+                    if (directResult != null && (!string.IsNullOrWhiteSpace(directResult.code) || !string.IsNullOrWhiteSpace(directResult.message)))
+                        return directResult;
 
                     var wrapper = JsonConvert.DeserializeObject<ApiResponseWrapper<CResponseMessage>>(json);
                     var result = wrapper?.result;

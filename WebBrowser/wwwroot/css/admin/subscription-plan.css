@@ -1,0 +1,6 @@
+.plan-card { background: #1c1f26; border: 1px solid rgba(255,255,255,.08); }
+.plan-card .table { --bs-table-bg: transparent; --bs-table-color: #fff; --bs-table-hover-color: #fff; }
+.plan-card thead th { color: #9aa0aa; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.plan-price { color: #42d6c7; font-weight: 700; white-space: nowrap; }
+.benefit-badge { display: inline-block; margin: .1rem; padding: .2rem .45rem; border-radius: 1rem; background: rgba(66,214,199,.12); color: #7be8dd; font-size: .75rem; }
+@media (max-width: 767.98px) { .plan-card .table { min-width: 850px; } }

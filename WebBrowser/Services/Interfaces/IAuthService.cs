@@ -9,6 +9,7 @@ namespace WebBrowser.Services.Interfaces
         Task<CResponseMessage> RegisterAsync(RegisterDto registerDto);
         Task<CResponseMessage> RequestOtpAsync(OtpRequestDto request);
         Task<CResponseMessage> LoginWithOtpAsync(OtpLoginDto request, bool adminLogin = false);
+        Task<CResponseMessage> GoogleLoginAsync(GoogleLoginDto request);
         void Logout();
     }
 }

@@ -1,0 +1,2 @@
+@{ ViewData["Title"] = "Lỗi đăng nhập Google"; }
+<main class="container py-5"><div class="card bg-dark text-white border-secondary mx-auto" style="max-width:560px"><div class="card-body p-4 text-center"><i class="bi bi-exclamation-triangle text-warning fs-1"></i><h1 class="h4 mt-3">Không thể đăng nhập bằng Google</h1><p class="text-secondary">@ViewData["Message"]</p><a class="btn btn-primary" asp-controller="Auth" asp-action="Index">Quay lại đăng nhập</a></div></div></main>

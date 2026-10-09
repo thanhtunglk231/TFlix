@@ -1,0 +1,36 @@
+@{ Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml"; ViewData["Title"] = "Quản lý gói Premium · Admin"; }
+<link rel="stylesheet" href="~/css/admin/subscription-plan.css" asp-append-version="true" />
+<div id="subscriptionPlanPage" data-list-url="@Url.Action("GetAll", "SubscriptionPlan", new { area = "Admin" })" data-create-url="@Url.Action("Create", "SubscriptionPlan", new { area = "Admin" })" data-update-url="@Url.Action("Update", "SubscriptionPlan", new { area = "Admin" })" data-delete-url="@Url.Action("Delete", "SubscriptionPlan", new { area = "Admin" })">
+    @Html.AntiForgeryToken()
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div><h3 class="mb-1"><i class="bi bi-gem text-info me-2"></i>Quản lý gói Premium</h3><p class="text-secondary mb-0">Giá trong cơ sở dữ liệu là nguồn dữ liệu khi tạo giao dịch.</p></div>
+        <button class="btn btn-primary" id="btnCreatePlan"><i class="bi bi-plus-lg me-1"></i>Thêm gói</button>
+    </div>
+    <div class="card plan-card"><div class="card-body">
+        <div id="planLoading" class="text-center py-5"><div class="spinner-border text-info" role="status"></div><div class="mt-2 text-secondary">Đang tải dữ liệu...</div></div>
+        <div id="planError" class="alert alert-danger d-none" role="alert"></div>
+        <div id="planEmpty" class="text-center py-5 d-none"><i class="bi bi-inbox fs-1 text-secondary"></i><p class="mt-2 mb-0">Chưa có gói Premium. Hãy tạo gói đầu tiên.</p></div>
+        <div class="table-responsive d-none" id="planTableWrap"><table class="table table-hover align-middle mb-0"><thead><tr><th>Mã gói</th><th>Tên gói</th><th>Giá</th><th>Thời hạn</th><th>Thiết bị</th><th>Quyền lợi</th><th class="text-end">Thao tác</th></tr></thead><tbody id="planRows"></tbody></table></div>
+    </div></div>
+</div>
+<div class="modal fade" id="planModal" tabindex="-1" aria-labelledby="planModalTitle" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="planModalTitle">Thêm gói Premium</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+    <form id="planForm"><div class="modal-body"><input type="hidden" id="planId" /><div class="row g-3">
+        <div class="col-md-5"><label class="form-label" for="planCode">Mã gói *</label><input class="form-control text-uppercase" id="planCode" maxlength="50" pattern="[A-Z0-9_-]+" required placeholder="PREMIUM_MONTHLY" /></div>
+        <div class="col-md-7"><label class="form-label" for="planName">Tên gói *</label><input class="form-control" id="planName" maxlength="100" required /></div>
+        <div class="col-md-6"><label class="form-label" for="planPrice">Giá (VND) *</label><input class="form-control" id="planPrice" type="number" min="0" max="9999999999" step="1000" required /></div>
+        <div class="col-md-3"><label class="form-label" for="durationDays">Số ngày *</label><input class="form-control" id="durationDays" type="number" min="1" max="3650" required /></div>
+        <div class="col-md-3"><label class="form-label" for="maxDevices">Thiết bị *</label><input class="form-control" id="maxDevices" type="number" min="1" max="20" value="2" required /></div>
+        <div class="col-md-6"><label class="form-label" for="qualityCap">Chất lượng tối đa</label><select class="form-select" id="qualityCap"><option value="">Không giới hạn</option><option>720p</option><option>1080p</option><option>4K</option></select></div>
+        <div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="adsFree" checked /><label class="form-check-label" for="adsFree">Không quảng cáo</label></div></div>
+        <div class="col-md-3 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="downloadable" /><label class="form-check-label" for="downloadable">Cho phép tải</label></div></div>
+    </div><div id="formError" class="alert alert-danger mt-3 mb-0 d-none" role="alert"></div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button><button type="submit" class="btn btn-primary" id="btnSavePlan">Lưu gói</button></div></form>
+</div></div></div>
+<div class="toast-container position-fixed top-0 end-0 p-3"><div id="planToast" class="toast text-bg-success" role="status"><div class="d-flex"><div class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Đóng"></button></div></div></div>
+<div class="modal fade" id="deletePlanModal" tabindex="-1" aria-labelledby="deletePlanModalTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="deletePlanModalTitle">Xác nhận xóa gói</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+    <div class="modal-body">Bạn có chắc muốn xóa gói <strong id="deletePlanName"></strong>? Thao tác này không thể hoàn tác.</div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button><button type="button" class="btn btn-danger" id="btnConfirmDelete"><i class="bi bi-trash me-1"></i>Xóa gói</button></div>
+</div></div></div>
+@section Scripts { <script src="~/js/admin/subscription-plan.js" asp-append-version="true"></script> }

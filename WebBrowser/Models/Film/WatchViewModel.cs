@@ -12,5 +12,8 @@ namespace WebBrowser.Models.Film
         public List<SourceItem> Sources { get; set; } = new();
         public long? CurrentEpisodeId { get; set; }
         public string? EpisodeLoadError { get; set; }
+        public bool IsPremiumContent { get; set; }
+        public bool HasActiveSubscription { get; set; }
+        public DateTimeOffset? SubscriptionEndAt { get; set; }
     }
 }

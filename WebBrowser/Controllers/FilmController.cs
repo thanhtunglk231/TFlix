@@ -3,6 +3,7 @@ using CoreLib.Dtos.Preview;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using CoreLib.Dtos.Payment;
 using WebBrowser.Models.Film;
 using WebBrowser.Models.Preview;
 using WebBrowser.Services.Interfaces;
@@ -17,6 +18,7 @@ namespace WebBrowser.Controllers
         private readonly ISeriesService _seriesService;
         private readonly ICommentService _commentService;
         private readonly ILogger<FilmController> _logger;
+        private readonly IPaymentService _paymentService;
 
         public FilmController(
             IPreviewService previewService,
@@ -24,7 +26,8 @@ namespace WebBrowser.Controllers
             IVideoSoureService videoSourceService,
             ISeriesService seriesService,
             ICommentService commentService,
-            ILogger<FilmController> logger)
+            ILogger<FilmController> logger,
+            IPaymentService paymentService)
         {
             _previewService = previewService;
             _episodeService = episodeService;
@@ -32,6 +35,7 @@ namespace WebBrowser.Controllers
             _seriesService = seriesService;
             _commentService = commentService;
             _logger = logger;
+            _paymentService = paymentService;
         }
 
         public IActionResult Index()
@@ -231,6 +235,28 @@ namespace WebBrowser.Controllers
                 : episodes.FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId))?.EpisodeId
                   ?? episodes.FirstOrDefault()?.EpisodeId;
 
+            var selectedEpisode = episodes.FirstOrDefault(x => x.EpisodeId == currentEpisodeId);
+            var isPremiumContent = string.Equals(movie.IsPremium, "Y", StringComparison.OrdinalIgnoreCase)
+                || selectedEpisode?.IsPremium == true;
+            var subscriptionStatus = new SubscriptionStatusDto();
+            if (isPremiumContent)
+            {
+                try
+                {
+                    var statusResponse = await _paymentService.GetSubscriptionStatusAsync();
+                    var envelope = JsonConvert.DeserializeObject<SubscriptionStatusEnvelope>(
+                        JsonConvert.SerializeObject(statusResponse.Data));
+                    subscriptionStatus = envelope?.Table?.FirstOrDefault() ?? new SubscriptionStatusDto();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Không thể kiểm tra gói Premium của người dùng.");
+                }
+            }
+
+            if (isPremiumContent && !subscriptionStatus.IsActive)
+                sources = [];
+
             return View("Index", new WatchViewModel
             {
                 ContentId = id,
@@ -238,8 +264,16 @@ namespace WebBrowser.Controllers
                 Episodes = episodes,
                 Sources = sources,
                 CurrentEpisodeId = currentEpisodeId,
-                EpisodeLoadError = episodeLoadError
+                EpisodeLoadError = episodeLoadError,
+                IsPremiumContent = isPremiumContent,
+                HasActiveSubscription = subscriptionStatus.IsActive,
+                SubscriptionEndAt = subscriptionStatus.EndAt
             });
+        }
+
+        private sealed class SubscriptionStatusEnvelope
+        {
+            public List<SubscriptionStatusDto> Table { get; set; } = [];
         }
 
         [HttpGet]

@@ -1,0 +1,2724 @@
+<!doctype html>
+<html lang="vi" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+<meta name="description" content="TFlix – Nền tảng xem phim trực tuyến hàng đầu, chất lượng Full HD & 4K siêu nét." />
+<meta name="keywords" content="xem phim, tflix, phim chieu rap, phim hanh dong, phim bo, phim le, phim moi" />
+<meta name="theme-color" content="#111318" />
+
+<!-- Google Fonts: Plus Jakarta Sans & Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Bootstrap & Icons (CSS) -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+
+<!-- CSS của dự án -->
+<link rel="stylesheet" href="/css/site.css?v=CsIn5nrNHTdSGGFY10b7DX7b7q7K0nGVJz-usPlCM80" />
+
+
+    <title>TFlix - Xem Phim Tr&#x1EF1;c Tuy&#x1EBF;n &#x110;&#x1EC9;nh Cao</title>
+    
+    <link rel="stylesheet" href="/css/home-premium.css?v=c3Goi_Mj3uglw5BJhOzJkFvJ_Ys9J1uGvpSlBawTSZU" />
+
+</head>
+<body>
+    
+
+<header>
+    <nav class="navbar navbar-expand-lg tflix-navbar" id="mainHeader">
+        <div class="container">
+            <!-- Brand Logo with Crisp SVG & Fallback Support -->
+            <a class="brand-wrapper" aria-label="TFlix Trang chủ" href="/">
+                <div class="brand-icon-box" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 3.5L19 12L5 20.5V3.5Z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <span class="brand-text">T<span>Flix</span></span>
+            </a>
+
+            <!-- Mobile Hamburger Toggle -->
+            <button class="navbar-toggler border-0 p-2 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#tflixNavContent"
+                    aria-controls="tflixNavContent" aria-expanded="false" aria-label="Mở bảng điều hướng">
+                <i class="bi bi-list fs-2"></i>
+            </button>
+
+            <!-- Navbar Links & Controls -->
+            <div class="collapse navbar-collapse" id="tflixNavContent">
+                <ul class="navbar-nav tflix-nav me-auto mb-2 mb-lg-0 ms-lg-3">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">Trang chủ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/Movies">Kho phim</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/Series">Phim bộ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/Single">Phim lẻ</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Tin tức
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark bg-dark border-secondary shadow-lg">
+                            <li><a class="dropdown-item py-2" href="/News"><i class="bi bi-newspaper me-2 text-info"></i>Tất cả bài viết</a></li>
+                            <li><a class="dropdown-item py-2" href="/News/Promotions"><i class="bi bi-tag-fill me-2 text-warning"></i>Khuyến mãi HOT</a></li>
+                            <li><hr class="dropdown-divider border-secondary" /></li>
+                            <li><a class="dropdown-item py-2" href="/Home/About"><i class="bi bi-info-circle me-2 text-primary"></i>Về TFlix</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <!-- Real-Time Autocomplete Search Form -->
+                <form id="movieSearchForm" class="header-search-wrap me-lg-3 my-2 my-lg-0" method="get" role="search" autocomplete="off" action="/">
+                    <i class="bi bi-search search-icon-left" aria-hidden="true"></i>
+                    <input id="movieSearchInput" class="header-search-input" type="search" name="q" placeholder="Tìm phim, diễn viên, thể loại…" value="" aria-label="Tìm kiếm phim" aria-autocomplete="list" aria-controls="movieSearchSuggestions" />
+                    <button type="button" id="searchClearBtn" class="search-clear-btn" aria-label="Xóa từ khóa"><i class="bi bi-x-circle-fill"></i></button>
+                    <div id="movieSearchSuggestions" class="search-suggestions-dropdown d-none" role="listbox"></div>
+                </form>
+
+                <!-- User Account Actions -->
+                <div class="d-flex align-items-center mt-3 mt-lg-0">
+                        <a class="btn-tflix-primary" href="/Auth">
+                            <i class="bi bi-person-fill"></i>
+                            <span>Đăng nhập</span>
+                        </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Sticky Header scroll styling
+        const header = document.getElementById('mainHeader');
+        if (header) {
+            const handleScroll = () => {
+                if (window.scrollY > 40) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
+                }
+            };
+            window.addEventListener('scroll', handleScroll, { passive: true });
+            handleScroll();
+        }
+
+        // Search Autocomplete Logic
+        const form = document.getElementById('movieSearchForm');
+        const input = document.getElementById('movieSearchInput');
+        const clearBtn = document.getElementById('searchClearBtn');
+        const suggestions = document.getElementById('movieSearchSuggestions');
+        const endpoint = '/Home/MovieAutocomplete';
+        let timer = null;
+        let abortController = null;
+
+        if (form && input && suggestions) {
+            const updateClearBtn = () => {
+                if (clearBtn) {
+                    clearBtn.style.display = input.value.trim().length > 0 ? 'block' : 'none';
+                }
+            };
+
+            input.addEventListener('input', updateClearBtn);
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    input.value = '';
+                    updateClearBtn();
+                    hideSuggestions();
+                    input.focus();
+                });
+            }
+
+            const hideSuggestions = () => {
+                suggestions.replaceChildren();
+                suggestions.classList.add('d-none');
+            };
+
+            const goToMovie = (movie) => {
+                const movieId = movie.movieId ?? movie.MovieId ?? movie.moviE_ID;
+                const kind = movie.kind || 'MOVIE';
+                window.location.href = `/Preview/Details?id=${encodeURIComponent(movieId)}&kind=${encodeURIComponent(kind)}`;
+            };
+
+            const renderSuggestions = (movies) => {
+                suggestions.replaceChildren();
+                if (!movies || movies.length === 0) {
+                    const emptyItem = document.createElement('div');
+                    emptyItem.className = 'p-3 text-center text-muted small';
+                    emptyItem.textContent = 'Không tìm thấy phim phù hợp.';
+                    suggestions.appendChild(emptyItem);
+                    suggestions.classList.remove('d-none');
+                    return;
+                }
+
+                movies.forEach(movie => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'search-suggestion-item';
+                    item.setAttribute('role', 'option');
+
+                    const thumb = document.createElement('img');
+                    thumb.className = 'search-suggestion-thumb';
+                    thumb.src = movie.posterUrl || 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=100&auto=format&fit=crop';
+                    thumb.alt = movie.title || '';
+                    thumb.loading = 'lazy';
+                    thumb.onerror = () => { thumb.src = 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=100&auto=format&fit=crop'; };
+
+                    const info = document.createElement('div');
+                    info.className = 'search-suggestion-info';
+
+                    const title = document.createElement('div');
+                    title.className = 'search-suggestion-title';
+                    title.textContent = movie.title || movie.originalTitle || 'Phim TFlix';
+
+                    const meta = document.createElement('div');
+                    meta.className = 'search-suggestion-meta';
+                    const parts = [];
+                    if (movie.originalTitle && movie.originalTitle !== movie.title) parts.push(movie.originalTitle);
+                    if (movie.genres) parts.push(movie.genres);
+                    meta.textContent = parts.join(' • ') || 'Chất lượng cao';
+
+                    info.appendChild(title);
+                    info.appendChild(meta);
+                    item.appendChild(thumb);
+                    item.appendChild(info);
+
+                    item.addEventListener('click', () => goToMovie(movie));
+                    suggestions.appendChild(item);
+                });
+
+                suggestions.classList.remove('d-none');
+            };
+
+            const doSearch = async () => {
+                const query = input.value.trim();
+                if (query.length < 1) {
+                    hideSuggestions();
+                    return;
+                }
+
+                if (abortController) abortController.abort();
+                abortController = new AbortController();
+
+                try {
+                    const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}&limit=6`, { signal: abortController.signal });
+                    if (!response.ok) return;
+                    const res = await response.json();
+                    const list = res?.data || res?.Data || [];
+                    renderSuggestions(list);
+                } catch (err) {
+                    if (err.name !== 'AbortError') hideSuggestions();
+                }
+            };
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(doSearch, 220);
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') hideSuggestions();
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!form.contains(e.target)) hideSuggestions();
+            });
+        }
+    });
+</script>
+
+
+    <main b-8pbnqg09rb class="min-vh-100">
+        
+
+
+<div class="container py-3">
+    <!-- 1. HERO BANNER CINEMATIC (21:9 ratio, multi-stop gradient, auto-slide) -->
+    
+
+    <div class="hero-banner-container" id="heroBannerCarousel" aria-label="Phim đề xuất nổi bật">
+        <div class="hero-carousel">
+                <div class="hero-slide active"
+                     id="heroSlide-0"
+                     data-index="0"
+                     style="background-image: url('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&amp;auto=format&amp;fit=crop');">
+                    <div class="hero-content">
+                        <div class="hero-badge-tag">
+                            <i class="bi bi-fire text-warning"></i>
+                            <span>Phim đề xuất #1</span>
+                        </div>
+
+                        <h1 class="hero-title">Em V&#xE0; Tr&#x1ECB;</h1>
+
+                        <div class="hero-meta-row">
+                            <span class="meta-pill-rating">
+                                <i class="bi bi-star-fill"></i> 8.8
+                            </span>
+                            <span class="meta-pill-quality">FULL HD</span>
+                            <span><i class="bi bi-calendar3 me-1"></i>2022</span>
+                            <span><i class="bi bi-clock me-1"></i>136 ph&#xFA;t</span>
+                            <span><i class="bi bi-tags me-1"></i>H&#xE0;nh &#x111;&#x1ED9;ng &#x2022; K&#x1ECB;ch t&#xED;nh</span>
+                                <span><i class="bi bi-geo-alt me-1"></i>VN</span>
+                        </div>
+
+                        <p class="hero-desc">
+                            Khám phá câu chuyện kịch tính, mãn nhãn với những pha hành động đỉnh cao và kỹ xảo điện ảnh đỉnh cao chỉ có trên TFlix. Thưởng thức trọn vẹn chất lượng âm thanh vòm và hình ảnh sắc nét.
+                        </p>
+
+                        <div class="hero-action-buttons">
+                            <a class="btn-tflix-primary btn-lg px-4" href="/Film/Watch/23?kind=MOVIE">
+                                <i class="bi bi-play-fill fs-5"></i>
+                                <span>Xem ngay</span>
+                            </a>
+
+                            <a class="btn-tflix-glass btn-lg px-4" href="/Preview/Details/23?kind=MOVIE">
+                                <i class="bi bi-info-circle fs-6"></i>
+                                <span>Chi tiết phim</span>
+                            </a>
+
+                            <button type="button"
+                                    class="btn-card-fav ms-1"
+                                    style="width: 44px; height: 44px; font-size: 1.1rem;"
+                                    data-movie-id="23"
+                                    data-movie-title="Em V&#xE0; Tr&#x1ECB;"
+                                    aria-label="Thêm vào danh sách yêu thích"
+                                    title="Lưu vào danh sách xem sau"
+                                    onclick="toggleHeroFavorite(this, 23, 'Em Và Trị')">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-slide d-none"
+                     id="heroSlide-1"
+                     data-index="1"
+                     style="background-image: url('https://images.unsplash.com/photo-1563089145-599997674d42?w=500&amp;auto=format&amp;fit=crop');">
+                    <div class="hero-content">
+                        <div class="hero-badge-tag">
+                            <i class="bi bi-fire text-warning"></i>
+                            <span>Phim đề xuất #2</span>
+                        </div>
+
+                        <h1 class="hero-title">Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i</h1>
+
+                        <div class="hero-meta-row">
+                            <span class="meta-pill-rating">
+                                <i class="bi bi-star-fill"></i> 8.8
+                            </span>
+                            <span class="meta-pill-quality">4K VIP</span>
+                            <span><i class="bi bi-calendar3 me-1"></i>2024</span>
+                            <span><i class="bi bi-clock me-1"></i>115 ph&#xFA;t</span>
+                            <span><i class="bi bi-tags me-1"></i>H&#xE0;nh &#x111;&#x1ED9;ng &#x2022; K&#x1ECB;ch t&#xED;nh</span>
+                                <span><i class="bi bi-geo-alt me-1"></i>US</span>
+                        </div>
+
+                        <p class="hero-desc">
+                            Khám phá câu chuyện kịch tính, mãn nhãn với những pha hành động đỉnh cao và kỹ xảo điện ảnh đỉnh cao chỉ có trên TFlix. Thưởng thức trọn vẹn chất lượng âm thanh vòm và hình ảnh sắc nét.
+                        </p>
+
+                        <div class="hero-action-buttons">
+                            <a class="btn-tflix-primary btn-lg px-4" href="/Film/Watch/22?kind=MOVIE">
+                                <i class="bi bi-play-fill fs-5"></i>
+                                <span>Xem ngay</span>
+                            </a>
+
+                            <a class="btn-tflix-glass btn-lg px-4" href="/Preview/Details/22?kind=MOVIE">
+                                <i class="bi bi-info-circle fs-6"></i>
+                                <span>Chi tiết phim</span>
+                            </a>
+
+                            <button type="button"
+                                    class="btn-card-fav ms-1"
+                                    style="width: 44px; height: 44px; font-size: 1.1rem;"
+                                    data-movie-id="22"
+                                    data-movie-title="Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i"
+                                    aria-label="Thêm vào danh sách yêu thích"
+                                    title="Lưu vào danh sách xem sau"
+                                    onclick="toggleHeroFavorite(this, 22, 'Godzilla x Kong: Đế Chế Mới')">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-slide d-none"
+                     id="heroSlide-2"
+                     data-index="2"
+                     style="background-image: url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&amp;auto=format&amp;fit=crop');">
+                    <div class="hero-content">
+                        <div class="hero-badge-tag">
+                            <i class="bi bi-fire text-warning"></i>
+                            <span>Phim đề xuất #3</span>
+                        </div>
+
+                        <h1 class="hero-title">Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c</h1>
+
+                        <div class="hero-meta-row">
+                            <span class="meta-pill-rating">
+                                <i class="bi bi-star-fill"></i> 8.8
+                            </span>
+                            <span class="meta-pill-quality">FULL HD</span>
+                            <span><i class="bi bi-calendar3 me-1"></i>2023</span>
+                            <span><i class="bi bi-clock me-1"></i>122 ph&#xFA;t</span>
+                            <span><i class="bi bi-tags me-1"></i>H&#xE0;nh &#x111;&#x1ED9;ng &#x2022; K&#x1ECB;ch t&#xED;nh</span>
+                                <span><i class="bi bi-geo-alt me-1"></i>JP</span>
+                        </div>
+
+                        <p class="hero-desc">
+                            Khám phá câu chuyện kịch tính, mãn nhãn với những pha hành động đỉnh cao và kỹ xảo điện ảnh đỉnh cao chỉ có trên TFlix. Thưởng thức trọn vẹn chất lượng âm thanh vòm và hình ảnh sắc nét.
+                        </p>
+
+                        <div class="hero-action-buttons">
+                            <a class="btn-tflix-primary btn-lg px-4" href="/Film/Watch/21?kind=MOVIE">
+                                <i class="bi bi-play-fill fs-5"></i>
+                                <span>Xem ngay</span>
+                            </a>
+
+                            <a class="btn-tflix-glass btn-lg px-4" href="/Preview/Details/21?kind=MOVIE">
+                                <i class="bi bi-info-circle fs-6"></i>
+                                <span>Chi tiết phim</span>
+                            </a>
+
+                            <button type="button"
+                                    class="btn-card-fav ms-1"
+                                    style="width: 44px; height: 44px; font-size: 1.1rem;"
+                                    data-movie-id="21"
+                                    data-movie-title="Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c"
+                                    aria-label="Thêm vào danh sách yêu thích"
+                                    title="Lưu vào danh sách xem sau"
+                                    onclick="toggleHeroFavorite(this, 21, 'Suzume Cửa Hàng Khóa Ký Ức')">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-slide d-none"
+                     id="heroSlide-3"
+                     data-index="3"
+                     style="background-image: url('https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=500&amp;auto=format&amp;fit=crop');">
+                    <div class="hero-content">
+                        <div class="hero-badge-tag">
+                            <i class="bi bi-fire text-warning"></i>
+                            <span>Phim đề xuất #4</span>
+                        </div>
+
+                        <h1 class="hero-title">T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n</h1>
+
+                        <div class="hero-meta-row">
+                            <span class="meta-pill-rating">
+                                <i class="bi bi-star-fill"></i> 8.8
+                            </span>
+                            <span class="meta-pill-quality">FULL HD</span>
+                            <span><i class="bi bi-calendar3 me-1"></i>2021</span>
+                            <span><i class="bi bi-clock me-1"></i>110 ph&#xFA;t</span>
+                            <span><i class="bi bi-tags me-1"></i>H&#xE0;nh &#x111;&#x1ED9;ng</span>
+                                <span><i class="bi bi-geo-alt me-1"></i>CN</span>
+                        </div>
+
+                        <p class="hero-desc">
+                            Khám phá câu chuyện kịch tính, mãn nhãn với những pha hành động đỉnh cao và kỹ xảo điện ảnh đỉnh cao chỉ có trên TFlix. Thưởng thức trọn vẹn chất lượng âm thanh vòm và hình ảnh sắc nét.
+                        </p>
+
+                        <div class="hero-action-buttons">
+                            <a class="btn-tflix-primary btn-lg px-4" href="/Film/Watch/20?kind=MOVIE">
+                                <i class="bi bi-play-fill fs-5"></i>
+                                <span>Xem ngay</span>
+                            </a>
+
+                            <a class="btn-tflix-glass btn-lg px-4" href="/Preview/Details/20?kind=MOVIE">
+                                <i class="bi bi-info-circle fs-6"></i>
+                                <span>Chi tiết phim</span>
+                            </a>
+
+                            <button type="button"
+                                    class="btn-card-fav ms-1"
+                                    style="width: 44px; height: 44px; font-size: 1.1rem;"
+                                    data-movie-id="20"
+                                    data-movie-title="T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n"
+                                    aria-label="Thêm vào danh sách yêu thích"
+                                    title="Lưu vào danh sách xem sau"
+                                    onclick="toggleHeroFavorite(this, 20, 'Tây Du Ký: Mối Tình Ngoại Truyện')">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-slide d-none"
+                     id="heroSlide-4"
+                     data-index="4"
+                     style="background-image: url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=500&amp;auto=format&amp;fit=crop');">
+                    <div class="hero-content">
+                        <div class="hero-badge-tag">
+                            <i class="bi bi-fire text-warning"></i>
+                            <span>Phim đề xuất #5</span>
+                        </div>
+
+                        <h1 class="hero-title">K&#xFD; Sinh Tr&#xF9;ng</h1>
+
+                        <div class="hero-meta-row">
+                            <span class="meta-pill-rating">
+                                <i class="bi bi-star-fill"></i> 8.8
+                            </span>
+                            <span class="meta-pill-quality">FULL HD</span>
+                            <span><i class="bi bi-calendar3 me-1"></i>2019</span>
+                            <span><i class="bi bi-clock me-1"></i>132 ph&#xFA;t</span>
+                            <span><i class="bi bi-tags me-1"></i>H&#xE0;nh &#x111;&#x1ED9;ng &#x2022; K&#x1ECB;ch t&#xED;nh</span>
+                                <span><i class="bi bi-geo-alt me-1"></i>KR</span>
+                        </div>
+
+                        <p class="hero-desc">
+                            Khám phá câu chuyện kịch tính, mãn nhãn với những pha hành động đỉnh cao và kỹ xảo điện ảnh đỉnh cao chỉ có trên TFlix. Thưởng thức trọn vẹn chất lượng âm thanh vòm và hình ảnh sắc nét.
+                        </p>
+
+                        <div class="hero-action-buttons">
+                            <a class="btn-tflix-primary btn-lg px-4" href="/Film/Watch/19?kind=MOVIE">
+                                <i class="bi bi-play-fill fs-5"></i>
+                                <span>Xem ngay</span>
+                            </a>
+
+                            <a class="btn-tflix-glass btn-lg px-4" href="/Preview/Details/19?kind=MOVIE">
+                                <i class="bi bi-info-circle fs-6"></i>
+                                <span>Chi tiết phim</span>
+                            </a>
+
+                            <button type="button"
+                                    class="btn-card-fav ms-1"
+                                    style="width: 44px; height: 44px; font-size: 1.1rem;"
+                                    data-movie-id="19"
+                                    data-movie-title="K&#xFD; Sinh Tr&#xF9;ng"
+                                    aria-label="Thêm vào danh sách yêu thích"
+                                    title="Lưu vào danh sách xem sau"
+                                    onclick="toggleHeroFavorite(this, 19, 'Ký Sinh Trùng')">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Arrows -->
+                <button type="button" class="hero-nav-btn hero-nav-prev" onclick="prevHeroSlide()" aria-label="Slide trước">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <button type="button" class="hero-nav-btn hero-nav-next" onclick="nextHeroSlide()" aria-label="Slide tiếp">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+                <!-- Indicator Dots -->
+                <div class="hero-indicators" role="tablist">
+                        <button type="button"
+                                class="hero-dot active"
+                                onclick="goToHeroSlide(0)"
+                                aria-label="Chuyển đến slide 1"
+                                aria-selected="true">
+                        </button>
+                        <button type="button"
+                                class="hero-dot "
+                                onclick="goToHeroSlide(1)"
+                                aria-label="Chuyển đến slide 2"
+                                aria-selected="false">
+                        </button>
+                        <button type="button"
+                                class="hero-dot "
+                                onclick="goToHeroSlide(2)"
+                                aria-label="Chuyển đến slide 3"
+                                aria-selected="false">
+                        </button>
+                        <button type="button"
+                                class="hero-dot "
+                                onclick="goToHeroSlide(3)"
+                                aria-label="Chuyển đến slide 4"
+                                aria-selected="false">
+                        </button>
+                        <button type="button"
+                                class="hero-dot "
+                                onclick="goToHeroSlide(4)"
+                                aria-label="Chuyển đến slide 5"
+                                aria-selected="false">
+                        </button>
+                </div>
+        </div>
+    </div>
+    <script>
+        let currentHeroIndex = 0;
+        const totalHeroSlides = 5;
+        let heroTimer = null;
+
+        function showHeroSlide(index) {
+            for (let i = 0; i < totalHeroSlides; i++) {
+                const slide = document.getElementById(`heroSlide-${i}`);
+                if (slide) {
+                    if (i === index) {
+                        slide.classList.remove('d-none');
+                        slide.classList.add('active');
+                    } else {
+                        slide.classList.add('d-none');
+                        slide.classList.remove('active');
+                    }
+                }
+            }
+            const dots = document.querySelectorAll('.hero-dot');
+            dots.forEach((dot, idx) => {
+                dot.classList.toggle('active', idx === index);
+                dot.setAttribute('aria-selected', idx === index ? 'true' : 'false');
+            });
+            currentHeroIndex = index;
+        }
+
+        function nextHeroSlide() {
+            const nextIdx = (currentHeroIndex + 1) % totalHeroSlides;
+            showHeroSlide(nextIdx);
+        }
+
+        function prevHeroSlide() {
+            const prevIdx = (currentHeroIndex - 1 + totalHeroSlides) % totalHeroSlides;
+            showHeroSlide(prevIdx);
+        }
+
+        function goToHeroSlide(index) {
+            showHeroSlide(index);
+            restartHeroTimer();
+        }
+
+        function startHeroTimer() {
+            if (totalHeroSlides > 1) {
+                heroTimer = setInterval(nextHeroSlide, 5000);
+            }
+        }
+
+        function restartHeroTimer() {
+            if (heroTimer) clearInterval(heroTimer);
+            startHeroTimer();
+        }
+
+        const bannerContainer = document.getElementById('heroBannerCarousel');
+        if (bannerContainer) {
+            bannerContainer.addEventListener('mouseenter', () => {
+                if (heroTimer) clearInterval(heroTimer);
+            });
+            bannerContainer.addEventListener('mouseleave', () => {
+                startHeroTimer();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            startHeroTimer();
+        });
+
+        function toggleHeroFavorite(btn, id, title) {
+            if (window.toggleFavoriteMovie) {
+                window.toggleFavoriteMovie(id, title, btn);
+            }
+        }
+    </script>
+
+
+    <!-- 2. KHÁM PHÁ THEO THỂ LOẠI (Chip Buttons) -->
+    <section class="tflix-section" id="exploreSection">
+    <div class="section-header">
+        <div class="section-title-wrap">
+            <div class="section-icon-badge">
+                <i class="bi bi-compass-fill"></i>
+            </div>
+            <h2 class="section-title">Khám phá theo thể loại</h2>
+        </div>
+        <div class="section-divider-line d-none d-md-block"></div>
+        <a class="btn-view-all" href="/Movies">
+            <span>Tất cả thể loại</span>
+            <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="genre-chips-scroll" role="toolbar" aria-label="Danh sách thể loại phim">
+        <button type="button" class="genre-chip active" data-genre="all" onclick="filterCatalogByGenre('all', this)">
+            <i class="bi bi-grid-fill"></i>
+            <span>Tất cả</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="cinema" onclick="filterCatalogByGenre('cinema', this)">
+            <i class="bi bi-camera-reels-fill"></i>
+            <span>Phim chiếu rạp</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="action" onclick="filterCatalogByGenre('action', this)">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>Phim hành động</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="scifi" onclick="filterCatalogByGenre('scifi', this)">
+            <i class="bi bi-rocket-takeoff-fill"></i>
+            <span>Khoa học viễn tưởng</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="anime" onclick="filterCatalogByGenre('anime', this)">
+            <i class="bi bi-stars"></i>
+            <span>Anime Nhật Bản</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="historical" onclick="filterCatalogByGenre('historical', this)">
+            <i class="bi bi-feather"></i>
+            <span>Phim cổ trang</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="horror" onclick="filterCatalogByGenre('horror', this)">
+            <i class="bi bi-ghost"></i>
+            <span>Kinh dị rùng rợn</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="romance" onclick="filterCatalogByGenre('romance', this)">
+            <i class="bi bi-heart-fill"></i>
+            <span>Tình cảm lãng mạn</span>
+        </button>
+        <button type="button" class="genre-chip" data-genre="comedy" onclick="filterCatalogByGenre('comedy', this)">
+            <i class="bi bi-emoji-laughing-fill"></i>
+            <span>Hài hước đặc sắc</span>
+        </button>
+    </div>
+</section>
+
+<script>
+    function filterCatalogByGenre(genreKey, el) {
+        document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
+        if (el) el.classList.add('active');
+
+        if (window.handleGenreChipFilter) {
+            window.handleGenreChipFilter(genreKey);
+        } else {
+            // If on desktop or navigating
+            window.location.href = `/Movies?genre=${encodeURIComponent(genreKey)}`;
+        }
+    }
+</script>
+
+
+    
+<section class="tflix-section premium-upgrade" id="premiumUpgrade" aria-labelledby="premiumUpgradeTitle">
+    <div class="premium-upgrade__intro">
+        <span class="premium-upgrade__eyebrow"><i class="bi bi-stars"></i> TFLIX PREMIUM</span>
+        <h2 id="premiumUpgradeTitle">Nâng cấp trải nghiệm xem phim</h2>
+        <p>Xem nội dung Premium, chất lượng cao và sử dụng trên nhiều thiết bị với gói phù hợp cho bạn.</p>
+    </div>
+
+        <div class="premium-plan-grid">
+                <article class="premium-plan-card">
+                    <div>
+                        <span class="premium-plan-card__code">PREMIUM_TEST</span>
+                        <h3>H&#xE0;ng th&#xE1;ng</h3>
+                        <div class="premium-plan-card__price">1,000 <small>₫</small></div>
+                        <p>30 ngày · 2 thiết bị</p>
+                    </div>
+                    <ul>
+                        <li><i class="bi bi-check2"></i> Chất lượng t&#x1EF1; &#x111;&#x1ED9;ng</li>
+                        <li><i class="bi bi-check2"></i> Kh&#xF4;ng qu&#x1EA3;ng c&#xE1;o</li>
+                        <li><i class="bi bi-check2"></i> Mở khóa kho phim Premium</li>
+                    </ul>
+                    <a class="premium-plan-card__action" href="/Payment?planId=2&amp;returnUrl=%2FHome%2FIndex%23premiumUpgrade">
+                        Ch&#x1ECD;n g&#xF3;i n&#xE0;y
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </article>
+        </div>
+</section>
+
+
+
+    <!-- 3. SECTION: PHIM HOT -->
+    <section class="tflix-section" id="hotMoviesSection">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35); color: #f87171;">
+                    <i class="bi bi-fire"></i>
+                </div>
+                <h2 class="section-title">Phim hot thịnh hành</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" href="/Movies">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="movie-grid" id="hotMoviesGrid">
+                <div class="movie-card-item"
+                     data-id="23"
+                     data-title="Em V&#xE0; Tr&#x1ECB;"
+                     data-original-title="Em and Trinh"
+                     data-poster="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2022"
+                     data-genres="H&#xE0;nh &#x111;&#x1ED9;ng &#x2022; K&#x1ECB;ch t&#xED;nh"
+                     data-rating="8.6"
+                     data-country="VN"
+                     data-quality="FULL HD"
+                     data-duration="136 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(23, 'Em Và Trị', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster phim Em V&#xE0; Tr&#x1ECB;"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem phim ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title" title="Em V&#xE0; Tr&#x1ECB;">Em V&#xE0; Tr&#x1ECB;</div>
+                            <div class="movie-card-original-title">Em and Trinh</div>
+
+                        <div class="movie-card-meta">
+                            <div class="d-flex align-items-center gap-1">
+                                <span>2022</span>
+                                <span>•</span>
+                                <span>VN</span>
+                                <span>•</span>
+                                <span class="text-info">Thuy&#x1EBF;t minh</span>
+                            </div>
+                            <span class="card-rating-tag">
+                                <i class="bi bi-star-fill"></i> 8.6
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="22"
+                     data-title="Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i"
+                     data-original-title="Godzilla x Kong: The New Empire"
+                     data-poster="https://images.unsplash.com/photo-1563089145-599997674d42?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2024"
+                     data-genres="H&#xE0;nh &#x111;&#x1ED9;ng &#x2022; K&#x1ECB;ch t&#xED;nh"
+                     data-rating="8.5"
+                     data-country="US"
+                     data-quality="4K VIP"
+                     data-duration="115 ph&#xFA;t"
+                     data-premium="Y"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                                <span class="badge-vip">VIP</span>
+                            <span class="badge-quality">4K VIP</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(22, 'Godzilla x Kong: Đế Chế Mới', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1563089145-599997674d42?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster phim Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem phim ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title" title="Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i">Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i</div>
+                            <div class="movie-card-original-title">Godzilla x Kong: The New Empire</div>
+
+                        <div class="movie-card-meta">
+                            <div class="d-flex align-items-center gap-1">
+                                <span>2024</span>
+                                <span>•</span>
+                                <span>US</span>
+                                <span>•</span>
+                                <span class="text-info">Vietsub</span>
+                            </div>
+                            <span class="card-rating-tag">
+                                <i class="bi bi-star-fill"></i> 8.5
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="21"
+                     data-title="Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c"
+                     data-original-title="Suzume no Tojimari"
+                     data-poster="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2023"
+                     data-genres="H&#xE0;nh &#x111;&#x1ED9;ng &#x2022; K&#x1ECB;ch t&#xED;nh"
+                     data-rating="8.4"
+                     data-country="JP"
+                     data-quality="FULL HD"
+                     data-duration="122 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(21, 'Suzume Cửa Hàng Khóa Ký Ức', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster phim Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem phim ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title" title="Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c">Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c</div>
+                            <div class="movie-card-original-title">Suzume no Tojimari</div>
+
+                        <div class="movie-card-meta">
+                            <div class="d-flex align-items-center gap-1">
+                                <span>2023</span>
+                                <span>•</span>
+                                <span>JP</span>
+                                <span>•</span>
+                                <span class="text-info">Thuy&#x1EBF;t minh</span>
+                            </div>
+                            <span class="card-rating-tag">
+                                <i class="bi bi-star-fill"></i> 8.4
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="20"
+                     data-title="T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n"
+                     data-original-title="Journey to the West"
+                     data-poster="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2021"
+                     data-genres="H&#xE0;nh &#x111;&#x1ED9;ng"
+                     data-rating="8.3"
+                     data-country="CN"
+                     data-quality="FULL HD"
+                     data-duration="110 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(20, 'Tây Du Ký: Mối Tình Ngoại Truyện', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster phim T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem phim ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title" title="T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n">T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n</div>
+                            <div class="movie-card-original-title">Journey to the West</div>
+
+                        <div class="movie-card-meta">
+                            <div class="d-flex align-items-center gap-1">
+                                <span>2021</span>
+                                <span>•</span>
+                                <span>CN</span>
+                                <span>•</span>
+                                <span class="text-info">Vietsub</span>
+                            </div>
+                            <span class="card-rating-tag">
+                                <i class="bi bi-star-fill"></i> 8.3
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="19"
+                     data-title="K&#xFD; Sinh Tr&#xF9;ng"
+                     data-original-title="Parasite"
+                     data-poster="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2019"
+                     data-genres="H&#xE0;nh &#x111;&#x1ED9;ng &#x2022; K&#x1ECB;ch t&#xED;nh"
+                     data-rating="8.2"
+                     data-country="KR"
+                     data-quality="FULL HD"
+                     data-duration="132 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(19, 'Ký Sinh Trùng', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster phim K&#xFD; Sinh Tr&#xF9;ng"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem phim ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title" title="K&#xFD; Sinh Tr&#xF9;ng">K&#xFD; Sinh Tr&#xF9;ng</div>
+                            <div class="movie-card-original-title">Parasite</div>
+
+                        <div class="movie-card-meta">
+                            <div class="d-flex align-items-center gap-1">
+                                <span>2019</span>
+                                <span>•</span>
+                                <span>KR</span>
+                                <span>•</span>
+                                <span class="text-info">Thuy&#x1EBF;t minh</span>
+                            </div>
+                            <span class="card-rating-tag">
+                                <i class="bi bi-star-fill"></i> 8.2
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+        </div>
+    </section>
+
+    <!-- 4. SECTION: PHIM LẺ MỚI NHẤT (Loaded via AJAX from /Home/MoviesLatest with skeleton shimmer) -->
+    <section class="tflix-section" id="movies-latest-section">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(22, 131, 255, 0.15); border-color: rgba(22, 131, 255, 0.35); color: #60a5fa;">
+                    <i class="bi bi-film"></i>
+                </div>
+                <h2 class="section-title">Phim lẻ mới nhất</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" href="/Single">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <!-- Skeleton loaders while loading AJAX -->
+        <div class="movie-grid" id="moviesLatestWrap">
+                <div class="skeleton-card">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                </div>
+        </div>
+    </section>
+
+    <!-- 5. SECTION: TOP 5 PHIM HÔM NAY (Numbered 1..5 Netflix Style) -->
+    <section class="tflix-section" id="top5Section">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
+                    <i class="bi bi-trophy-fill"></i>
+                </div>
+                <h2 class="section-title">Top 5 phim hôm nay</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <span class="text-muted small d-none d-md-inline">Cập nhật mỗi ngày</span>
+        </div>
+
+        <div class="top-ranking-row" role="region" aria-label="Top 5 phim hôm nay">
+                <div class="top-ranking-item">
+                    <span class="rank-number">1</span>
+                    <div class="movie-card-item"
+                         data-id="19"
+                         data-title="K&#xFD; Sinh Tr&#xF9;ng"
+                         data-original-title="Parasite"
+                         data-poster="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=500&amp;auto=format&amp;fit=crop"
+                         data-year="2019"
+                         data-genres="K&#x1ECB;ch t&#xED;nh &#x2022; Xu&#x1EA5;t s&#x1EAF;c"
+                         data-rating="8.9"
+                         data-country="KR"
+                         data-quality="FULL HD"
+                         data-duration="132 ph&#xFA;t"
+                         data-premium="N"
+                         onclick="handleMovieCardClick(this)">
+                        
+                        <div class="movie-poster-wrap">
+                            <div class="card-badge-top-left">
+                                <span class="badge-vip" style="background: linear-gradient(135deg, #10b981, #059669);">TOP 1</span>
+                            </div>
+
+                            <div class="card-badge-top-right">
+                                <button type="button"
+                                        class="btn-card-fav"
+                                        aria-label="Thêm vào yêu thích"
+                                        onclick="event.stopPropagation(); window.toggleFavoriteMovie(19, 'Ký Sinh Trùng', this)">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
+
+                            <img class="movie-poster-img"
+                                 src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=500&amp;auto=format&amp;fit=crop"
+                                 alt="Poster K&#xFD; Sinh Tr&#xF9;ng"
+                                 loading="lazy"
+                                 onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                            <div class="card-hover-overlay">
+                                <div class="btn-play-circle" title="Xem ngay">
+                                    <i class="bi bi-play-fill"></i>
+                                </div>
+                                <div class="card-quick-actions">
+                                    <button type="button"
+                                            class="btn-quick-info"
+                                            onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                        <i class="bi bi-info-circle"></i> Xem nhanh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="movie-card-body">
+                            <div class="movie-card-title">K&#xFD; Sinh Tr&#xF9;ng</div>
+                            <div class="movie-card-meta">
+                                <span>2019 • KR</span>
+                                <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.9</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="top-ranking-item">
+                    <span class="rank-number">2</span>
+                    <div class="movie-card-item"
+                         data-id="18"
+                         data-title="Qu&#x1EAD;t M&#x1ED9; Tr&#xF9;ng Ph&#xF9;ng"
+                         data-original-title="Exhuma"
+                         data-poster="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&amp;auto=format&amp;fit=crop"
+                         data-year="2024"
+                         data-genres="K&#x1ECB;ch t&#xED;nh &#x2022; Xu&#x1EA5;t s&#x1EAF;c"
+                         data-rating="8.7"
+                         data-country="KR"
+                         data-quality="4K VIP"
+                         data-duration="134 ph&#xFA;t"
+                         data-premium="Y"
+                         onclick="handleMovieCardClick(this)">
+                        
+                        <div class="movie-poster-wrap">
+                            <div class="card-badge-top-left">
+                                <span class="badge-vip" style="background: linear-gradient(135deg, #10b981, #059669);">TOP 2</span>
+                            </div>
+
+                            <div class="card-badge-top-right">
+                                <button type="button"
+                                        class="btn-card-fav"
+                                        aria-label="Thêm vào yêu thích"
+                                        onclick="event.stopPropagation(); window.toggleFavoriteMovie(18, 'Quật Mộ Trùng Phùng', this)">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
+
+                            <img class="movie-poster-img"
+                                 src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&amp;auto=format&amp;fit=crop"
+                                 alt="Poster Qu&#x1EAD;t M&#x1ED9; Tr&#xF9;ng Ph&#xF9;ng"
+                                 loading="lazy"
+                                 onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                            <div class="card-hover-overlay">
+                                <div class="btn-play-circle" title="Xem ngay">
+                                    <i class="bi bi-play-fill"></i>
+                                </div>
+                                <div class="card-quick-actions">
+                                    <button type="button"
+                                            class="btn-quick-info"
+                                            onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                        <i class="bi bi-info-circle"></i> Xem nhanh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="movie-card-body">
+                            <div class="movie-card-title">Qu&#x1EAD;t M&#x1ED9; Tr&#xF9;ng Ph&#xF9;ng</div>
+                            <div class="movie-card-meta">
+                                <span>2024 • KR</span>
+                                <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.7</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="top-ranking-item">
+                    <span class="rank-number">3</span>
+                    <div class="movie-card-item"
+                         data-id="17"
+                         data-title="Oppenheimer"
+                         data-original-title="Oppenheimer"
+                         data-poster="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=500&amp;auto=format&amp;fit=crop"
+                         data-year="2023"
+                         data-genres="H&#xE0;nh &#x111;&#x1ED9;ng"
+                         data-rating="8.5"
+                         data-country="US"
+                         data-quality="4K VIP"
+                         data-duration="180 ph&#xFA;t"
+                         data-premium="Y"
+                         onclick="handleMovieCardClick(this)">
+                        
+                        <div class="movie-poster-wrap">
+                            <div class="card-badge-top-left">
+                                <span class="badge-vip" style="background: linear-gradient(135deg, #10b981, #059669);">TOP 3</span>
+                            </div>
+
+                            <div class="card-badge-top-right">
+                                <button type="button"
+                                        class="btn-card-fav"
+                                        aria-label="Thêm vào yêu thích"
+                                        onclick="event.stopPropagation(); window.toggleFavoriteMovie(17, 'Oppenheimer', this)">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
+
+                            <img class="movie-poster-img"
+                                 src="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=500&amp;auto=format&amp;fit=crop"
+                                 alt="Poster Oppenheimer"
+                                 loading="lazy"
+                                 onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                            <div class="card-hover-overlay">
+                                <div class="btn-play-circle" title="Xem ngay">
+                                    <i class="bi bi-play-fill"></i>
+                                </div>
+                                <div class="card-quick-actions">
+                                    <button type="button"
+                                            class="btn-quick-info"
+                                            onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                        <i class="bi bi-info-circle"></i> Xem nhanh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="movie-card-body">
+                            <div class="movie-card-title">Oppenheimer</div>
+                            <div class="movie-card-meta">
+                                <span>2023 • US</span>
+                                <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.5</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="top-ranking-item">
+                    <span class="rank-number">4</span>
+                    <div class="movie-card-item"
+                         data-id="16"
+                         data-title="Avatar: D&#xF2;ng Ch&#x1EA3;y C&#x1EE7;a N&#x1B0;&#x1EDB;c"
+                         data-original-title="Avatar: The Way of Water"
+                         data-poster="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&amp;auto=format&amp;fit=crop"
+                         data-year="2022"
+                         data-genres="K&#x1ECB;ch t&#xED;nh &#x2022; Xu&#x1EA5;t s&#x1EAF;c"
+                         data-rating="8.3"
+                         data-country="US"
+                         data-quality="4K VIP"
+                         data-duration="192 ph&#xFA;t"
+                         data-premium="Y"
+                         onclick="handleMovieCardClick(this)">
+                        
+                        <div class="movie-poster-wrap">
+                            <div class="card-badge-top-left">
+                                <span class="badge-vip" style="background: linear-gradient(135deg, #10b981, #059669);">TOP 4</span>
+                            </div>
+
+                            <div class="card-badge-top-right">
+                                <button type="button"
+                                        class="btn-card-fav"
+                                        aria-label="Thêm vào yêu thích"
+                                        onclick="event.stopPropagation(); window.toggleFavoriteMovie(16, 'Avatar: Dòng Chảy Của Nước', this)">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
+
+                            <img class="movie-poster-img"
+                                 src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&amp;auto=format&amp;fit=crop"
+                                 alt="Poster Avatar: D&#xF2;ng Ch&#x1EA3;y C&#x1EE7;a N&#x1B0;&#x1EDB;c"
+                                 loading="lazy"
+                                 onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                            <div class="card-hover-overlay">
+                                <div class="btn-play-circle" title="Xem ngay">
+                                    <i class="bi bi-play-fill"></i>
+                                </div>
+                                <div class="card-quick-actions">
+                                    <button type="button"
+                                            class="btn-quick-info"
+                                            onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                        <i class="bi bi-info-circle"></i> Xem nhanh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="movie-card-body">
+                            <div class="movie-card-title">Avatar: D&#xF2;ng Ch&#x1EA3;y C&#x1EE7;a N&#x1B0;&#x1EDB;c</div>
+                            <div class="movie-card-meta">
+                                <span>2022 • US</span>
+                                <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.3</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="top-ranking-item">
+                    <span class="rank-number">5</span>
+                    <div class="movie-card-item"
+                         data-id="15"
+                         data-title="Mai"
+                         data-original-title="Mai Movie"
+                         data-poster="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=500&amp;auto=format&amp;fit=crop"
+                         data-year="2024"
+                         data-genres="K&#x1ECB;ch t&#xED;nh &#x2022; Xu&#x1EA5;t s&#x1EAF;c"
+                         data-rating="8.1"
+                         data-country="VN"
+                         data-quality="FULL HD"
+                         data-duration="131 ph&#xFA;t"
+                         data-premium="N"
+                         onclick="handleMovieCardClick(this)">
+                        
+                        <div class="movie-poster-wrap">
+                            <div class="card-badge-top-left">
+                                <span class="badge-vip" style="background: linear-gradient(135deg, #10b981, #059669);">TOP 5</span>
+                            </div>
+
+                            <div class="card-badge-top-right">
+                                <button type="button"
+                                        class="btn-card-fav"
+                                        aria-label="Thêm vào yêu thích"
+                                        onclick="event.stopPropagation(); window.toggleFavoriteMovie(15, 'Mai', this)">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
+
+                            <img class="movie-poster-img"
+                                 src="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=500&amp;auto=format&amp;fit=crop"
+                                 alt="Poster Mai"
+                                 loading="lazy"
+                                 onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                            <div class="card-hover-overlay">
+                                <div class="btn-play-circle" title="Xem ngay">
+                                    <i class="bi bi-play-fill"></i>
+                                </div>
+                                <div class="card-quick-actions">
+                                    <button type="button"
+                                            class="btn-quick-info"
+                                            onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                        <i class="bi bi-info-circle"></i> Xem nhanh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="movie-card-body">
+                            <div class="movie-card-title">Mai</div>
+                            <div class="movie-card-meta">
+                                <span>2024 • VN</span>
+                                <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.1</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </section>
+
+    <!-- 6. SECTION: PHIM ĐƯỢC XEM NHIỀU -->
+    <section class="tflix-section" id="mostViewedSection">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); color: #34d399;">
+                    <i class="bi bi-eye-fill"></i>
+                </div>
+                <h2 class="section-title">Phim được xem nhiều</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" href="/Movies">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="movie-grid">
+                <div class="movie-card-item"
+                     data-id="13"
+                     data-title="N&#x1A1;i n&#xE0;y c&#xF3; anh"
+                     data-original-title="asdsa"
+                     data-poster="https://pub-2fb407b4e06a4fe8ac697d3313dcf809.r2.dev/movie-assets/13/poster/42404060c1054a21b3d3d4c8605673f1.jpeg"
+                     data-year="2026"
+                     data-genres="Ca nh&#x1EA1;c"
+                     data-rating="8.1"
+                     data-country="US"
+                     data-quality="FULL HD"
+                     data-duration="130 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(13, 'Nơi này có anh', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://pub-2fb407b4e06a4fe8ac697d3313dcf809.r2.dev/movie-assets/13/poster/42404060c1054a21b3d3d4c8605673f1.jpeg"
+                             alt="Poster N&#x1A1;i n&#xE0;y c&#xF3; anh"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">N&#x1A1;i n&#xE0;y c&#xF3; anh</div>
+                        <div class="movie-card-meta">
+                            <span>2026 • US</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.1</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="23"
+                     data-title="Em V&#xE0; Tr&#x1ECB;"
+                     data-original-title="Em and Trinh"
+                     data-poster="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2022"
+                     data-genres="Ph&#x1ED5; bi&#x1EBF;n &#x2022; Chi&#x1EBF;u r&#x1EA1;p"
+                     data-rating="9.1"
+                     data-country="VN"
+                     data-quality="FULL HD"
+                     data-duration="136 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(23, 'Em Và Trị', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster Em V&#xE0; Tr&#x1ECB;"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">Em V&#xE0; Tr&#x1ECB;</div>
+                        <div class="movie-card-meta">
+                            <span>2022 • VN</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 9.1</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="14"
+                     data-title="L&#x1EAD;t M&#x1EB7;t 7: M&#x1ED9;t &#x110;i&#x1EC1;u &#x1AF;&#x1EDB;c"
+                     data-original-title="Wish 7"
+                     data-poster="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2024"
+                     data-genres="H&#xE0;nh &#x111;&#x1ED9;ng"
+                     data-rating="8.2"
+                     data-country="VN"
+                     data-quality="4K VIP"
+                     data-duration="138 ph&#xFA;t"
+                     data-premium="Y"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                                <span class="badge-vip">VIP</span>
+                            <span class="badge-quality">4K VIP</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(14, 'Lật Mặt 7: Một Điều Ước', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster L&#x1EAD;t M&#x1EB7;t 7: M&#x1ED9;t &#x110;i&#x1EC1;u &#x1AF;&#x1EDB;c"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">L&#x1EAD;t M&#x1EB7;t 7: M&#x1ED9;t &#x110;i&#x1EC1;u &#x1AF;&#x1EDB;c</div>
+                        <div class="movie-card-meta">
+                            <span>2024 • VN</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.2</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="15"
+                     data-title="Mai"
+                     data-original-title="Mai Movie"
+                     data-poster="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2024"
+                     data-genres="Ph&#x1ED5; bi&#x1EBF;n &#x2022; Chi&#x1EBF;u r&#x1EA1;p"
+                     data-rating="8.3"
+                     data-country="VN"
+                     data-quality="FULL HD"
+                     data-duration="131 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(15, 'Mai', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster Mai"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">Mai</div>
+                        <div class="movie-card-meta">
+                            <span>2024 • VN</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.3</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="16"
+                     data-title="Avatar: D&#xF2;ng Ch&#x1EA3;y C&#x1EE7;a N&#x1B0;&#x1EDB;c"
+                     data-original-title="Avatar: The Way of Water"
+                     data-poster="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2022"
+                     data-genres="Ph&#x1ED5; bi&#x1EBF;n &#x2022; Chi&#x1EBF;u r&#x1EA1;p"
+                     data-rating="8.4"
+                     data-country="US"
+                     data-quality="4K VIP"
+                     data-duration="192 ph&#xFA;t"
+                     data-premium="Y"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                                <span class="badge-vip">VIP</span>
+                            <span class="badge-quality">4K VIP</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(16, 'Avatar: Dòng Chảy Của Nước', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster Avatar: D&#xF2;ng Ch&#x1EA3;y C&#x1EE7;a N&#x1B0;&#x1EDB;c"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">Avatar: D&#xF2;ng Ch&#x1EA3;y C&#x1EE7;a N&#x1B0;&#x1EDB;c</div>
+                        <div class="movie-card-meta">
+                            <span>2022 • US</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.4</span>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </section>
+
+    <!-- 7. SECTION: PHIM MỚI CẬP NHẬT -->
+    <section class="tflix-section" id="recentUpdatedSection">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.35); color: #c084fc;">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <h2 class="section-title">Phim mới cập nhật</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" href="/Movies">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="movie-grid">
+                <div class="movie-card-item"
+                     data-id="13"
+                     data-title="N&#x1A1;i n&#xE0;y c&#xF3; anh"
+                     data-original-title="asdsa"
+                     data-poster="https://pub-2fb407b4e06a4fe8ac697d3313dcf809.r2.dev/movie-assets/13/poster/42404060c1054a21b3d3d4c8605673f1.jpeg"
+                     data-year="2026"
+                     data-genres="Ca nh&#x1EA1;c"
+                     data-rating="8.5"
+                     data-country="US"
+                     data-quality="FULL HD"
+                     data-duration="110 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(13, 'Nơi này có anh', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://pub-2fb407b4e06a4fe8ac697d3313dcf809.r2.dev/movie-assets/13/poster/42404060c1054a21b3d3d4c8605673f1.jpeg"
+                             alt="Poster N&#x1A1;i n&#xE0;y c&#xF3; anh"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">N&#x1A1;i n&#xE0;y c&#xF3; anh</div>
+                        <div class="movie-card-meta">
+                            <span>2026 • US</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.5</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="23"
+                     data-title="Em V&#xE0; Tr&#x1ECB;"
+                     data-original-title="Em and Trinh"
+                     data-poster="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2022"
+                     data-genres="M&#x1EDB;i c&#x1EAD;p nh&#x1EAD;t"
+                     data-rating="8.5"
+                     data-country="VN"
+                     data-quality="FULL HD"
+                     data-duration="136 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(23, 'Em Và Trị', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster Em V&#xE0; Tr&#x1ECB;"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">Em V&#xE0; Tr&#x1ECB;</div>
+                        <div class="movie-card-meta">
+                            <span>2022 • VN</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.5</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="22"
+                     data-title="Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i"
+                     data-original-title="Godzilla x Kong: The New Empire"
+                     data-poster="https://images.unsplash.com/photo-1563089145-599997674d42?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2024"
+                     data-genres="M&#x1EDB;i c&#x1EAD;p nh&#x1EAD;t"
+                     data-rating="8.4"
+                     data-country="US"
+                     data-quality="4K VIP"
+                     data-duration="115 ph&#xFA;t"
+                     data-premium="Y"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                                <span class="badge-vip">VIP</span>
+                            <span class="badge-quality">4K VIP</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(22, 'Godzilla x Kong: Đế Chế Mới', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1563089145-599997674d42?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i</div>
+                        <div class="movie-card-meta">
+                            <span>2024 • US</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.4</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="21"
+                     data-title="Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c"
+                     data-original-title="Suzume no Tojimari"
+                     data-poster="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2023"
+                     data-genres="M&#x1EDB;i c&#x1EAD;p nh&#x1EAD;t"
+                     data-rating="8.3"
+                     data-country="JP"
+                     data-quality="FULL HD"
+                     data-duration="122 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(21, 'Suzume Cửa Hàng Khóa Ký Ức', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">Suzume C&#x1EED;a H&#xE0;ng Kh&#xF3;a K&#xFD; &#x1EE8;c</div>
+                        <div class="movie-card-meta">
+                            <span>2023 • JP</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.3</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-card-item"
+                     data-id="20"
+                     data-title="T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n"
+                     data-original-title="Journey to the West"
+                     data-poster="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=500&amp;auto=format&amp;fit=crop"
+                     data-year="2021"
+                     data-genres="H&#xE0;nh &#x111;&#x1ED9;ng"
+                     data-rating="8.2"
+                     data-country="CN"
+                     data-quality="FULL HD"
+                     data-duration="110 ph&#xFA;t"
+                     data-premium="N"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            <span class="badge-quality">FULL HD</span>
+                        </div>
+
+                        <div class="card-badge-top-right">
+                            <button type="button"
+                                    class="btn-card-fav"
+                                    aria-label="Thêm vào yêu thích"
+                                    onclick="event.stopPropagation(); window.toggleFavoriteMovie(20, 'Tây Du Ký: Mối Tình Ngoại Truyện', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+
+                        <img class="movie-poster-img"
+                             src="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=500&amp;auto=format&amp;fit=crop"
+                             alt="Poster T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay">
+                                <i class="bi bi-play-fill"></i>
+                            </div>
+                            <div class="card-quick-actions">
+                                <button type="button"
+                                        class="btn-quick-info"
+                                        onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">T&#xE2;y Du K&#xFD;: M&#x1ED1;i T&#xEC;nh Ngo&#x1EA1;i Truy&#x1EC7;n</div>
+                        <div class="movie-card-meta">
+                            <span>2021 • CN</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> 8.2</span>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </section>
+
+    <!-- 8. SECTION: PHIM SẮP CHIẾU SHOWCASE -->
+    
+
+<section class="tflix-section" id="upcomingSection">
+    <div class="section-header">
+        <div class="section-title-wrap">
+            <div class="section-icon-badge">
+                <i class="bi bi-calendar-event-fill"></i>
+            </div>
+            <h2 class="section-title">Phim sắp chiếu</h2>
+        </div>
+        <div class="section-divider-line d-none d-md-block"></div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle px-2 py-1 text-white border-0 bg-dark" onclick="prevUpcoming()" aria-label="Phim sắp chiếu trước">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle px-2 py-1 text-white border-0 bg-dark" onclick="nextUpcoming()" aria-label="Phim sắp chiếu tiếp theo">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+        <div class="upcoming-showcase-card">
+                <div class="upcoming-inner upcoming-item active" id="upcomingSlide-0" data-index="0">
+                    <div class="upcoming-poster-col">
+                        <img src="https://pub-2fb407b4e06a4fe8ac697d3313dcf809.r2.dev/movie-assets/13/poster/42404060c1054a21b3d3d4c8605673f1.jpeg"
+                             class="upcoming-poster-img"
+                             alt="Poster phim N&#x1A1;i n&#xE0;y c&#xF3; anh"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+                    </div>
+
+                    <div class="upcoming-info-col">
+                        <div class="upcoming-date-badge">
+                            <i class="bi bi-calendar-check-fill text-info"></i>
+                            <span>Công chiếu: 03/03/2026</span>
+                        </div>
+
+                        <h3 class="upcoming-title">N&#x1A1;i n&#xE0;y c&#xF3; anh</h3>
+
+                            <div class="text-muted mb-2 fst-italic">asdsa</div>
+
+                        <div class="d-flex align-items-center gap-3 text-muted small mb-3">
+                            <span><i class="bi bi-tags-fill me-1 text-primary"></i>Ca nh&#x1EA1;c</span>
+                            <span><i class="bi bi-badge-4k me-1 text-warning"></i>Chiếu rạp & TFlix 4K</span>
+                        </div>
+
+                        <p class="upcoming-synopsis">
+                            Tác phẩm điện ảnh đỉnh cao được mong chờ nhất mùa này với dàn diễn viên ngôi sao hàng đầu, hiệu ứng hình ảnh hoành tráng và âm thanh vòm Dolby Atmos sống động. Nhấn "Nhắc tôi" để nhận thông báo ngay khi phim chính thức khởi chiếu!
+                        </p>
+
+                        <div class="upcoming-actions">
+                            <button type="button"
+                                    class="btn-tflix-primary"
+                                    id="remindBtn-13"
+                                    onclick="toggleUpcomingReminder(this, 13, 'Nơi này có anh')">
+                                <i class="bi bi-bell-fill"></i>
+                                <span>Nhắc tôi khi chiếu</span>
+                            </button>
+
+                            <a class="btn-tflix-glass" href="/Preview/Details/13?kind=MOVIE">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Xem thông tin</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="upcoming-inner upcoming-item d-none" id="upcomingSlide-1" data-index="1">
+                    <div class="upcoming-poster-col">
+                        <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&amp;auto=format&amp;fit=crop"
+                             class="upcoming-poster-img"
+                             alt="Poster phim L&#x1EAD;t M&#x1EB7;t 7: M&#x1ED9;t &#x110;i&#x1EC1;u &#x1AF;&#x1EDB;c"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+                    </div>
+
+                    <div class="upcoming-info-col">
+                        <div class="upcoming-date-badge">
+                            <i class="bi bi-calendar-check-fill text-info"></i>
+                            <span>Công chiếu: 26/04/2024</span>
+                        </div>
+
+                        <h3 class="upcoming-title">L&#x1EAD;t M&#x1EB7;t 7: M&#x1ED9;t &#x110;i&#x1EC1;u &#x1AF;&#x1EDB;c</h3>
+
+                            <div class="text-muted mb-2 fst-italic">Wish 7</div>
+
+                        <div class="d-flex align-items-center gap-3 text-muted small mb-3">
+                            <span><i class="bi bi-tags-fill me-1 text-primary"></i>H&#xE0;nh &#x111;&#x1ED9;ng</span>
+                                <span><i class="bi bi-clock-history me-1"></i>138 phút</span>
+                            <span><i class="bi bi-badge-4k me-1 text-warning"></i>Chiếu rạp & TFlix 4K</span>
+                        </div>
+
+                        <p class="upcoming-synopsis">
+                            Tác phẩm điện ảnh đỉnh cao được mong chờ nhất mùa này với dàn diễn viên ngôi sao hàng đầu, hiệu ứng hình ảnh hoành tráng và âm thanh vòm Dolby Atmos sống động. Nhấn "Nhắc tôi" để nhận thông báo ngay khi phim chính thức khởi chiếu!
+                        </p>
+
+                        <div class="upcoming-actions">
+                            <button type="button"
+                                    class="btn-tflix-primary"
+                                    id="remindBtn-14"
+                                    onclick="toggleUpcomingReminder(this, 14, 'Lật Mặt 7: Một Điều Ước')">
+                                <i class="bi bi-bell-fill"></i>
+                                <span>Nhắc tôi khi chiếu</span>
+                            </button>
+
+                            <a class="btn-tflix-glass" href="/Preview/Details/14?kind=MOVIE">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Xem thông tin</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="upcoming-inner upcoming-item d-none" id="upcomingSlide-2" data-index="2">
+                    <div class="upcoming-poster-col">
+                        <img src="https://images.unsplash.com/photo-1563089145-599997674d42?w=500&amp;auto=format&amp;fit=crop"
+                             class="upcoming-poster-img"
+                             alt="Poster phim Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&amp;w=800&amp;auto=format&amp;fit=crop'" />
+                    </div>
+
+                    <div class="upcoming-info-col">
+                        <div class="upcoming-date-badge">
+                            <i class="bi bi-calendar-check-fill text-info"></i>
+                            <span>Công chiếu: 29/03/2024</span>
+                        </div>
+
+                        <h3 class="upcoming-title">Godzilla x Kong: &#x110;&#x1EBF; Ch&#x1EBF; M&#x1EDB;i</h3>
+
+                            <div class="text-muted mb-2 fst-italic">Godzilla x Kong: The New Empire</div>
+
+                        <div class="d-flex align-items-center gap-3 text-muted small mb-3">
+                            <span><i class="bi bi-tags-fill me-1 text-primary"></i>Khoa h&#x1ECD;c vi&#x1EC5;n t&#x1B0;&#x1EDF;ng &#x2022; Phi&#xEA;u l&#x1B0;u</span>
+                                <span><i class="bi bi-clock-history me-1"></i>115 phút</span>
+                            <span><i class="bi bi-badge-4k me-1 text-warning"></i>Chiếu rạp & TFlix 4K</span>
+                        </div>
+
+                        <p class="upcoming-synopsis">
+                            Tác phẩm điện ảnh đỉnh cao được mong chờ nhất mùa này với dàn diễn viên ngôi sao hàng đầu, hiệu ứng hình ảnh hoành tráng và âm thanh vòm Dolby Atmos sống động. Nhấn "Nhắc tôi" để nhận thông báo ngay khi phim chính thức khởi chiếu!
+                        </p>
+
+                        <div class="upcoming-actions">
+                            <button type="button"
+                                    class="btn-tflix-primary"
+                                    id="remindBtn-22"
+                                    onclick="toggleUpcomingReminder(this, 22, 'Godzilla x Kong: Đế Chế Mới')">
+                                <i class="bi bi-bell-fill"></i>
+                                <span>Nhắc tôi khi chiếu</span>
+                            </button>
+
+                            <a class="btn-tflix-glass" href="/Preview/Details/22?kind=MOVIE">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Xem thông tin</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+        </div>
+        <script>
+            let upcomingIndex = 0;
+            const totalUpcoming = 3;
+
+            function showUpcoming(index) {
+                for (let i = 0; i < totalUpcoming; i++) {
+                    const slide = document.getElementById(`upcomingSlide-${i}`);
+                    if (slide) {
+                        if (i === index) {
+                            slide.classList.remove('d-none');
+                            slide.classList.add('active');
+                        } else {
+                            slide.classList.add('d-none');
+                            slide.classList.remove('active');
+                        }
+                    }
+                }
+                upcomingIndex = index;
+            }
+
+            function nextUpcoming() {
+                const next = (upcomingIndex + 1) % totalUpcoming;
+                showUpcoming(next);
+            }
+
+            function prevUpcoming() {
+                const prev = (upcomingIndex - 1 + totalUpcoming) % totalUpcoming;
+                showUpcoming(prev);
+            }
+
+            function toggleUpcomingReminder(btn, id, title) {
+                const key = `tflix_reminder_${id}`;
+                const isReminded = localStorage.getItem(key) === 'true';
+
+                if (isReminded) {
+                    localStorage.removeItem(key);
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-tflix-primary');
+                    btn.innerHTML = `<i class="bi bi-bell-fill"></i> <span>Nhắc tôi khi chiếu</span>`;
+                    if (window.showTFlixToast) {
+                        window.showTFlixToast(`Đã hủy lời nhắc cho phim: "${title}"`);
+                    }
+                } else {
+                    localStorage.setItem(key, 'true');
+                    btn.classList.remove('btn-tflix-primary');
+                    btn.classList.add('btn-success');
+                    btn.innerHTML = `<i class="bi bi-check2-circle"></i> <span>Đã bật nhắc nhở</span>`;
+                    if (window.showTFlixToast) {
+                        window.showTFlixToast(`Đã bật nhắc nhở! TFlix sẽ thông báo khi "${title}" công chiếu.`);
+                    }
+                }
+            }
+
+            // Restore reminder states on page load
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('[id^="remindBtn-"]').forEach(btn => {
+                    const id = btn.id.replace('remindBtn-', '');
+                    if (localStorage.getItem(`tflix_reminder_${id}`) === 'true') {
+                        btn.classList.remove('btn-tflix-primary');
+                        btn.classList.add('btn-success');
+                        btn.innerHTML = `<i class="bi bi-check2-circle"></i> <span>Đã bật nhắc nhở</span>`;
+                    }
+                });
+            });
+        </script>
+</section>
+
+</div>
+
+<!-- QUICK VIEW MODAL COMPONENT -->
+<div class="modal fade tflix-modal" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <span class="badge badge-vip me-2" id="modalVipBadge">VIP</span>
+                <span class="badge badge-quality" id="modalQualityBadge">4K ULTRA HD</span>
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-4 align-items-center">
+                    <div class="col-12 col-md-4">
+                        <div class="rounded-3 overflow-hidden shadow-lg border border-secondary" style="aspect-ratio: 2/3;">
+                            <img id="modalPoster" src="" alt="Poster" class="w-100 h-100 object-fit-cover" />
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <h3 id="quickViewTitle" class="fw-bold mb-1">Tên phim</h3>
+                        <div id="modalOriginalTitle" class="text-muted small mb-2 fst-italic">Original Title</div>
+
+                        <div class="d-flex align-items-center flex-wrap gap-2 mb-3 small">
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> <span id="modalRating">8.5</span></span>
+                            <span>•</span>
+                            <span id="modalYear">2024</span>
+                            <span>•</span>
+                            <span id="modalDuration">120 phút</span>
+                            <span>•</span>
+                            <span id="modalCountry">Mỹ</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <span class="text-muted small d-block mb-1">Thể loại:</span>
+                            <div id="modalGenres" class="d-flex flex-wrap gap-1"></div>
+                        </div>
+
+                        <p id="modalDescription" class="text-muted small" style="line-height: 1.6;">
+                            Thưởng thức phim bom tấn với chất lượng hình ảnh sắc nét, âm thanh vòm sống động và không quảng cáo trên nền tảng TFlix.
+                        </p>
+
+                        <div class="d-flex align-items-center gap-2 mt-4 flex-wrap">
+                            <a id="modalWatchBtn" href="#" class="btn-tflix-primary">
+                                <i class="bi bi-play-fill fs-5"></i>
+                                <span>Xem phim ngay</span>
+                            </a>
+                            <a id="modalDetailBtn" href="#" class="btn-tflix-glass">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Trang chi tiết</span>
+                            </a>
+                            <button type="button" id="modalFavBtn" class="btn-card-fav ms-1" style="width: 42px; height: 42px;" aria-label="Yêu thích">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- LOGIN REQUIRED MODAL -->
+<div class="modal fade tflix-modal" id="loginRequiredModal" tabindex="-1" aria-labelledby="loginModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="loginModalTitle">
+                    <i class="bi bi-shield-lock-fill text-warning fs-4"></i>
+                    <span>Yêu cầu đăng nhập</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-muted mb-0">
+                    Bạn cần đăng nhập tài khoản TFlix để thưởng thức bộ phim này với chất lượng cao nhất và lưu vào danh sách xem sau.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn-tflix-glass" data-bs-dismiss="modal">Để sau</button>
+                <a class="btn-tflix-primary" href="/Auth">
+                    <i class="bi bi-person-fill"></i> Đăng nhập ngay
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST NOTIFICATION CONTAINER -->
+<div class="tflix-toast-container" id="toastContainer" aria-live="polite"></div>
+<form id="favoriteTokenForm" class="d-none"><input name="__RequestVerificationToken" type="hidden" value="CfDJ8A3jobkjrO1JjjsRmTnuvBPwqi6jS2QjLkAyyAHakcrCs0_w3dgrGypAH6MKyV013ZezP9M-JrTsXsjIx_McVtxFQbhZVv3MDGPF1MX_ac-mAUWF03Nlxz3C55A_EDWrkcumUkoiswLTpA1cj_MP7ko" /></form>
+
+
+    </main>
+
+    <footer class="tflix-footer">
+    <div class="container footer-top">
+        <div class="row g-4 g-lg-5">
+            <!-- Cột 1: Brand, Giới thiệu ngắn & Mạng xã hội -->
+            <div class="col-12 col-md-6 col-lg-4">
+                <a class="brand-wrapper mb-3" aria-label="TFlix Trang chủ" href="/">
+                    <div class="brand-icon-box" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 3.5L19 12L5 20.5V3.5Z" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <span class="brand-text">T<span>Flix</span></span>
+                </a>
+                <p class="text-muted small pe-lg-4 mb-3" style="line-height: 1.65;">
+                    TFlix là nền tảng streaming phim trực tuyến chất lượng cao, cung cấp hàng ngàn bộ phim bom tấn, phim bộ đặc sắc và chương trình giải trí đỉnh cao với trải nghiệm âm thanh và hình ảnh chuẩn rạp.
+                </p>
+                <div class="social-links-wrap" aria-label="Liên kết mạng xã hội">
+                    <a class="social-btn" href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook TFlix"><i class="bi bi-facebook"></i></a>
+                    <a class="social-btn" href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube TFlix"><i class="bi bi-youtube"></i></a>
+                    <a class="social-btn" href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram TFlix"><i class="bi bi-instagram"></i></a>
+                    <a class="social-btn" href="https://tiktok.com" target="_blank" rel="noopener noreferrer" aria-label="TikTok TFlix"><i class="bi bi-tiktok"></i></a>
+                </div>
+            </div>
+
+            <!-- Cột 2: Giới thiệu -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <h6 class="footer-heading">Giới thiệu</h6>
+                <ul class="footer-links">
+                    <li><a href="/Home/About">Về TFlix</a></li>
+                    <li><a href="/Movies">Danh mục phim</a></li>
+                    <li><a href="/News">Tin tức & Sự kiện</a></li>
+                    <li><a href="/Home/Privacy">Chính sách bảo mật</a></li>
+                    <li><a href="/terms-of-service">Điều khoản sử dụng</a></li>
+                </ul>
+            </div>
+
+            <!-- Cột 3: Hỗ trợ -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <h6 class="footer-heading">Hỗ trợ</h6>
+                <ul class="footer-links">
+                    <li><a href="#supportHelp" onclick="alert('Trung tâm hỗ trợ khách hàng 24/7 qua email: support@tflix.vn'); return false;">Trung tâm trợ giúp</a></li>
+                    <li><a href="#supportContact" onclick="alert('Hotline liên hệ đối tác: 1900 8888 (8h - 22h)'); return false;">Liên hệ hỗ trợ</a></li>
+                    <li><a href="#supportFeedback" onclick="alert('Cảm ơn bạn đã đóng góp ý kiến nâng cấp TFlix!'); return false;">Góp ý & Báo lỗi</a></li>
+                    <li><a href="#supportDevices" onclick="alert('TFlix hỗ trợ xem trên SmartTV, Smartphone, Tablet và Web Browser.'); return false;">Thiết bị hỗ trợ</a></li>
+                </ul>
+            </div>
+
+            <!-- Cột 4: Đăng ký nhận thông báo -->
+            <div class="col-12 col-md-12 col-lg-4">
+                <h6 class="footer-heading">Đăng ký nhận thông báo</h6>
+                <p class="text-muted small mb-3">
+                    Đăng ký để không bỏ lỡ các tập phim mới nhất, phim bom tấn chiếu rạp và ưu đãi VIP hàng tuần.
+                </p>
+                <form id="footerNewsletterForm" onsubmit="handleNewsletterSubmit(event)" autocomplete="off">
+                    <div class="footer-subscribe-input-group">
+                        <input type="email" id="newsletterEmailInput" class="footer-subscribe-input" placeholder="Nhập email của bạn..." required aria-label="Địa chỉ email đăng ký" />
+                        <button class="footer-subscribe-btn" type="submit" aria-label="Gửi đăng ký">
+                            <i class="bi bi-send-fill me-1"></i> Gửi
+                        </button>
+                    </div>
+                </form>
+                <small class="text-muted d-block mt-2" style="font-size: 0.78rem;">
+                    <i class="bi bi-shield-check me-1 text-info"></i> Chúng tôi cam kết bảo mật thông tin cá nhân của bạn.
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bản quyền ở giữa -->
+    <div class="footer-bottom">
+        <div class="container text-center">
+            <p class="mb-0">
+                © 2026 <span class="fw-semibold text-white">TFlix OTT Platform</span>. All rights reserved. Thiết kế hiện đại trải nghiệm điện ảnh chuẩn rạp.
+            </p>
+        </div>
+    </div>
+</footer>
+
+<script>
+    function handleNewsletterSubmit(e) {
+        e.preventDefault();
+        const input = document.getElementById('newsletterEmailInput');
+        if (!input || !input.value.trim()) return;
+        const email = input.value.trim();
+        input.value = '';
+        if (window.showTFlixToast) {
+            window.showTFlixToast(`Cảm ơn bạn! Email ${email} đã được đăng ký nhận ưu đãi thành công.`);
+        } else {
+            alert(`Cảm ơn bạn! Email ${email} đã được đăng ký nhận ưu đãi thành công.`);
+        }
+    }
+</script>
+
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+    <script>
+        const isLoggedIn = false;
+        const urlMoviesLatest = '/Home/MoviesLatest';
+        const fallbackPoster = 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&amp;w=800&amp;auto=format&amp;fit=crop';
+
+        // Toast notifications
+        window.showTFlixToast = function(message, iconClass = 'bi-check-circle-fill') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'tflix-toast';
+            toast.innerHTML = `<i class="bi ${iconClass}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 20);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 350);
+            }, 3200);
+        };
+
+        // Modal triggers
+        function showLoginModal() {
+            const modalEl = document.getElementById('loginRequiredModal');
+            if (modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        }
+
+        // Movie Card Click -> Navigate to Watch / Details
+        function handleMovieCardClick(el) {
+            const id = el.dataset.id;
+            if (!id) return;
+            if (!isLoggedIn) {
+                showLoginModal();
+                return;
+            }
+            window.location.href = `/Preview/Details?id=${encodeURIComponent(id)}&kind=MOVIE`;
+        }
+
+        // Quick View Modal
+        function openQuickViewFromCard(card) {
+            if (!card) return;
+            const id = card.dataset.id;
+            const title = card.dataset.title || 'Phim TFlix';
+            const originalTitle = card.dataset.originalTitle || '';
+            const poster = card.dataset.poster || fallbackPoster;
+            const year = card.dataset.year || '2024';
+            const genres = card.dataset.genres || 'Kịch tính';
+            const rating = card.dataset.rating || '8.5';
+            const country = card.dataset.country || 'Mỹ';
+            const duration = card.dataset.duration || '120 phút';
+            const quality = card.dataset.quality || 'FULL HD';
+            const isPremium = card.dataset.premium === 'Y';
+
+            document.getElementById('quickViewTitle').textContent = title;
+            document.getElementById('modalOriginalTitle').textContent = originalTitle;
+            document.getElementById('modalPoster').src = poster;
+            document.getElementById('modalRating').textContent = rating;
+            document.getElementById('modalYear').textContent = year;
+            document.getElementById('modalCountry').textContent = country;
+            document.getElementById('modalDuration').textContent = duration;
+            document.getElementById('modalQualityBadge').textContent = quality;
+            document.getElementById('modalVipBadge').style.display = isPremium ? 'inline-block' : 'none';
+
+            // Genres badges
+            const genresWrap = document.getElementById('modalGenres');
+            genresWrap.innerHTML = '';
+            genres.split('•').forEach(g => {
+                const s = g.trim();
+                if (s) {
+                    const span = document.createElement('span');
+                    span.className = 'badge bg-dark border border-secondary text-light';
+                    span.textContent = s;
+                    genresWrap.appendChild(span);
+                }
+            });
+
+            // Action buttons
+            document.getElementById('modalWatchBtn').href = `/Film/Watch?id=${encodeURIComponent(id)}&kind=MOVIE`;
+            document.getElementById('modalDetailBtn').href = `/Preview/Details?id=${encodeURIComponent(id)}&kind=MOVIE`;
+            
+            const favBtn = document.getElementById('modalFavBtn');
+            const isFav = localStorage.getItem(`tflix_fav_${id}`) === 'true';
+            favBtn.classList.toggle('active', isFav);
+            favBtn.onclick = () => window.toggleFavoriteMovie(id, title, favBtn);
+
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickViewModal'));
+            modal.show();
+        }
+
+        window.toggleFavoriteMovie = async function(id, title, btn) {
+            if (btn?.disabled) return;
+            const oldHtml = btn?.innerHTML;
+            if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+            try {
+                const token = document.querySelector('#favoriteTokenForm input[name="__RequestVerificationToken"]')?.value || '';
+                const body = new URLSearchParams({ movieId: id, __RequestVerificationToken: token });
+                const response = await fetch('/Favorite/ToggleMovie', {
+                    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body
+                });
+                const result = await response.json();
+                if (response.status === 401) {
+                    window.location.href = result.loginUrl || '/Auth';
+                    return;
+                }
+                if (!response.ok || !result.success) throw new Error(result.message || 'Không thể cập nhật yêu thích.');
+                const active = result.data?.isFavorite ?? result.data?.IsFavorite ?? false;
+                document.querySelectorAll(`.movie-card-item[data-id="${id}"] .btn-card-fav`).forEach(b => b.classList.toggle('active', active));
+                if (btn) btn.classList.toggle('active', active);
+                window.showTFlixToast(active ? `Đã thêm "${title}" vào phim yêu thích!` : `Đã xóa "${title}" khỏi phim yêu thích.`, active ? 'bi-heart-fill text-danger' : 'bi-heartbreak');
+            } catch (error) {
+                window.showTFlixToast(error.message || 'Có lỗi xảy ra.', 'bi-exclamation-circle');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+            }
+        };
+
+        async function syncFavoriteButtons() {
+            try {
+                const response = await fetch('/Favorite/MovieIds');
+                if (!response.ok) return;
+                const result = await response.json();
+                const ids = new Set((result.data || []).map(String));
+                document.querySelectorAll('.movie-card-item').forEach(card => {
+                    card.querySelector('.btn-card-fav')?.classList.toggle('active', ids.has(card.dataset.id));
+                });
+            } catch { }
+        }
+
+        // Render Phim lẻ mới nhất with error retry
+        function renderMoviesLatest(list) {
+            const wrap = $('#moviesLatestWrap');
+            if (!list || list.length === 0) {
+                wrap.html('<div class="col-12 p-4 text-center text-muted bg-dark rounded-3 border border-secondary">Chưa có danh sách phim lẻ mới nhất.</div>');
+                return;
+            }
+
+            wrap.html(list.map(x => {
+                const id = x.movieId ?? x.movie_id ?? x.MovieId ?? x.moviE_ID;
+                const title = x.title ?? x.Title ?? 'Chưa có tên';
+                const originalTitle = x.originalTitle ?? x.original_title ?? x.OriginalTitle ?? '';
+                const poster = x.posterUrl ?? x.poster_url ?? x.PosterUrl ?? fallbackPoster;
+                const genres = x.genres ?? x.Genres ?? 'Phim lẻ chất lượng';
+                const year = (x.releaseDate || x.ReleaseDate) ? new Date(x.releaseDate ?? x.ReleaseDate).getFullYear() : '2024';
+                const country = x.countryCode ?? x.country_code ?? x.CountryCode ?? 'VN';
+                const isPremium = (x.isPremium === 'Y' || x.is_premium === 'Y' || x.IsPremium === true);
+                const quality = isPremium ? '4K VIP' : 'FULL HD';
+                const rating = '8.6';
+
+                return `
+                <div class="movie-card-item"
+                     data-id="${id}"
+                     data-title="${title}"
+                     data-original-title="${originalTitle}"
+                     data-poster="${poster}"
+                     data-year="${year}"
+                     data-genres="${genres}"
+                     data-rating="${rating}"
+                     data-country="${country}"
+                     data-quality="${quality}"
+                     data-duration="120 phút"
+                     data-premium="${isPremium ? 'Y' : 'N'}"
+                     onclick="handleMovieCardClick(this)">
+                    
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            ${isPremium ? '<span class="badge-vip">VIP</span>' : ''}
+                            <span class="badge-quality">${quality}</span>
+                        </div>
+                        <div class="card-badge-top-right">
+                            <button type="button" class="btn-card-fav" aria-label="Yêu thích" onclick="event.stopPropagation(); window.toggleFavoriteMovie(${id}, '${title.replace(/'/g, "\\'")}', this)">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </div>
+                        <img class="movie-poster-img" src="${poster}" alt="Poster ${title}" loading="lazy" onerror="this.src='${fallbackPoster}'" />
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem ngay"><i class="bi bi-play-fill"></i></div>
+                            <div class="card-quick-actions">
+                                <button type="button" class="btn-quick-info" onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
+                                    <i class="bi bi-info-circle"></i> Xem nhanh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">${title}</div>
+                        <div class="movie-card-original-title">${genres}</div>
+                        <div class="movie-card-meta">
+                            <span>${year} • ${country}</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> ${rating}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join(''));
+
+            syncFavoriteButtons();
+        }
+
+        function loadMoviesLatest() {
+            $.get(urlMoviesLatest, function (res) {
+                const list = res?.data?.table ?? res?.Data?.table ?? res?.table ?? res?.items ?? res?.Items ?? [];
+                renderMoviesLatest(Array.isArray(list) ? list : []);
+            }).fail(() => {
+                $('#moviesLatestWrap').html(`
+                    <div class="col-12 p-4 text-center bg-dark rounded-3 border border-secondary text-muted">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-3 mb-2 d-block"></i>
+                        <p class="mb-2">Không thể tải danh sách phim lẻ mới nhất do sự cố kết nối.</p>
+                        <button type="button" class="btn-tflix-glass btn-sm" onclick="loadMoviesLatest()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Thử lại
+                        </button>
+                    </div>
+                `);
+            });
+        }
+
+        // Client-side quick filter via Genre Chips
+        window.handleGenreChipFilter = function(genreKey) {
+            if (genreKey === 'all') {
+                document.querySelectorAll('.movie-card-item').forEach(c => c.style.display = '');
+                return;
+            }
+
+            const genreMap = {
+                'action': 'hành động',
+                'cinema': 'chiếu rạp',
+                'scifi': 'khoa học',
+                'anime': 'anime',
+                'historical': 'cổ trang',
+                'horror': 'kinh dị',
+                'romance': 'tình cảm',
+                'comedy': 'hài'
+            };
+
+            const term = genreMap[genreKey] || genreKey;
+            let count = 0;
+
+            document.querySelectorAll('#hotMoviesGrid .movie-card-item').forEach(card => {
+                const genres = (card.dataset.genres || '').toLowerCase();
+                const title = (card.dataset.title || '').toLowerCase();
+                if (genres.includes(term) || title.includes(term)) {
+                    card.style.display = '';
+                    count++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            if (window.showTFlixToast) {
+                window.showTFlixToast(`Đang lọc theo thể loại: ${term.toUpperCase()}`);
+            }
+        };
+
+        $(document).ready(function () {
+            loadMoviesLatest();
+            syncFavoriteButtons();
+        });
+    </script>
+
+</body>
+</html>

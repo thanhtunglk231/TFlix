@@ -10,6 +10,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Server.Services;
+using Google.Apis.Auth;
 
 namespace Server.Controllers
 {
@@ -22,11 +23,13 @@ namespace Server.Controllers
         private readonly IConfiguration _jwtSection;
         private readonly ICAuth _auth;
         private readonly IAuthOtpService _otpService;
+        private readonly IConfiguration _configuration;
 
         public AuthController(ICBaseProvider baseProvider, IConfiguration configuration, ICAuth cAuth, IAuthOtpService otpService)
         {
             _BaseProvider = baseProvider;
             _jwtSection = configuration.GetSection("JwtSettings");
+            _configuration = configuration;
             _auth = cAuth;
             _otpService = otpService;
         }
@@ -114,6 +117,36 @@ namespace Server.Controllers
                 return BadRequest(new { code = response.code, success = false, message = response.message });
 
             return Ok(new { code = "200", success = true, message = response.message });
+        }
+
+        [HttpPost("google")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.IdToken))
+                return BadRequest(new { code="400",success=false,message="Google ID token không hợp lệ." });
+            try
+            {
+                var audience = _configuration["Authentication:Google:ClientId"];
+                if (string.IsNullOrWhiteSpace(audience))
+                    return StatusCode(503, new { code="503",success=false,message="Google Login chưa được cấu hình." });
+                var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken,
+                    new GoogleJsonWebSignature.ValidationSettings { Audience = new[] { audience } });
+                if (payload.EmailVerified != true || string.IsNullOrWhiteSpace(payload.Subject) || string.IsNullOrWhiteSpace(payload.Email))
+                    return Unauthorized(new { code="401",success=false,message="Tài khoản Google chưa xác minh email." });
+                var response = await _auth.GoogleLoginAsync(new GoogleIdentityDto
+                {
+                    Subject=payload.Subject, Email=payload.Email, EmailVerified=true,
+                    FullName=payload.Name ?? payload.Email, AvatarUrl=payload.Picture
+                });
+                if (!response.Success) return StatusCode(response.code == "409" ? 409 : response.code == "403" ? 403 : 400, response);
+                var user = MapUserFromDataSet(response.Data as DataSet);
+                if (user == null) return StatusCode(500, new { code="500",success=false,message="Không đọc được tài khoản Google." });
+                return Ok(new { code="200",success=true,message=response.message,data=new { token=GenerateJwtToken(user.Email,user.Roles),user } });
+            }
+            catch (InvalidJwtException)
+            {
+                return Unauthorized(new { code="401",success=false,message="Phiên xác thực Google không hợp lệ hoặc đã hết hạn." });
+            }
         }
 
         [HttpPost("otp/register/request")]

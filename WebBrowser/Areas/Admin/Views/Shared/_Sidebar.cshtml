@@ -107,6 +107,14 @@
 
     <div class="sidebar-section-label">Hệ thống</div>
     <nav class="nav flex-column">
+        <a class="sidebar-nav-link @(active("SubscriptionPlan", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="SubscriptionPlan" asp-action="Index">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                <path d="M7 9h10M7 13h6"></path>
+            </svg>
+            <span>Gói Premium</span>
+        </a>
         <a class="sidebar-nav-link @(active("AccountManagement", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="AccountManagement" asp-action="Index">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

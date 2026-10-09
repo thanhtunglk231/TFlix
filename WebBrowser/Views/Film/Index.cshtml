@@ -763,6 +763,13 @@
 <div id="lightsOffOverlay"></div>
 
 <div class="container page-container my-4">
+    @if (TempData["PaymentSuccess"] is string paymentSuccess)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="status">
+            @paymentSuccess
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+        </div>
+    }
     <!-- Breadcrumb Navigation -->
     <div class="watch-breadcrumb">
         <a asp-controller="Home" asp-action="Index" class="d-inline-flex align-items-center gap-1">
@@ -921,6 +928,19 @@
                     }
                     else
                     {
+                        @if (Model.IsPremiumContent && !Model.HasActiveSubscription)
+                        {
+                            <div class="d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 420px; background: radial-gradient(circle at center, #20252e 0%, #0e1115 100%); border-radius: 18px;">
+                                <div class="mb-3 p-4 rounded-circle" style="background: rgba(25, 211, 197, 0.12); border: 1px solid rgba(25, 211, 197, 0.3);">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#19d3c5" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                </div>
+                                <h3 class="fw-bold text-white mb-2">Nội dung dành cho thành viên Premium</h3>
+                                <p class="text-muted mx-auto mb-4" style="max-width: 520px;">Chọn một gói phù hợp để mở khóa bộ phim này và toàn bộ kho nội dung Premium của TFlix.</p>
+                                <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString" class="btn px-4 py-2 rounded-pill fw-bold" style="background: var(--brand-gradient); color: #081119;">Xem gói và thanh toán</a>
+                            </div>
+                        }
+                        else
+                        {
                         <!-- Hiển thị thông báo khi phim chưa có source -->
                         <div class="d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 420px; background: radial-gradient(circle at center, #1b2029 0%, #0e1115 100%); border-radius: 18px;">
                             <div class="mb-3 p-4 rounded-circle" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3);">
@@ -944,6 +964,7 @@
                                 Khám phá các phim khác
                             </a>
                         </div>
+                        }
                     }
                 </div>
             </div>

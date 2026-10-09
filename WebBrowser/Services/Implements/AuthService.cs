@@ -64,6 +64,22 @@ namespace WebBrowser.Services.Implements
         public async Task<CResponseMessage> LoginWithOtpAsync(OtpLoginDto request, bool adminLogin = false)
             => (await _httpService.PostAsync<CResponseMessage>(adminLogin ? "/api/Auth/otp/admin-login" : "/api/Auth/otp/login", request))!;
 
+        public async Task<CResponseMessage> GoogleLoginAsync(GoogleLoginDto request)
+        {
+            var response = await _httpService.PostAsync<CResponseMessage>("/api/Auth/google", request);
+            if (response is { Data: not null } && (response.Success || response.code == "200"))
+            {
+                var data = JsonConvert.DeserializeObject<LoginResponseData>(JsonConvert.SerializeObject(response.Data));
+                if (!string.IsNullOrWhiteSpace(data?.token) && data.user != null)
+                {
+                    _http.HttpContext?.Session.SetString("JWToken", data.token);
+                    _http.HttpContext?.Session.SetString("CurrentUser", JsonConvert.SerializeObject(data.user));
+                    _http.HttpContext?.Session.SetString("Username", data.user.fullName ?? data.user.email);
+                }
+            }
+            return response!;
+        }
+
         public void Logout()
         {
             _http.HttpContext?.Session.Remove("JWToken");
