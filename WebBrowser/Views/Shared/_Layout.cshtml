@@ -1,6 +1,11 @@
 @{
     Layout = null;
     var title = (ViewData["Title"] as string) ?? (ViewBag.Title as string) ?? "TFlix";
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var currentPath = Context.Request.Path.Value ?? "";
+    var isAuthPage = string.Equals(currentController, "Auth", StringComparison.OrdinalIgnoreCase)
+                     || currentPath.StartsWith("/Auth", StringComparison.OrdinalIgnoreCase)
+                     || currentPath.StartsWith("/auth", StringComparison.OrdinalIgnoreCase);
 }
 <!doctype html>
 <html lang="vi" data-bs-theme="dark">
@@ -21,6 +26,45 @@
     @RenderSection("ScriptsTop", required: false)
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     @RenderSection("Scripts", required: false)
-    @await Html.PartialAsync("_ChatbotAi")
+
+    @if (!isAuthPage)
+    {
+        <!-- TFlix AI Chatbot Host (Loaded via AJAX) -->
+        <div id="tflix-ai-chatbot-host"></div>
+        <script>
+            (function () {
+                const host = document.getElementById('tflix-ai-chatbot-host');
+                if (!host) return;
+
+                function executeScripts(container) {
+                    const scripts = container.querySelectorAll('script');
+                    scripts.forEach(oldScript => {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
+                }
+
+                const cachedHtml = sessionStorage.getItem('tflix_ai_chatbot_html');
+                if (cachedHtml) {
+                    host.innerHTML = cachedHtml;
+                    executeScripts(host);
+                } else {
+                    fetch('/Chat/ChatboxPartial')
+                        .then(res => {
+                            if (!res.ok) throw new Error('HTTP ' + res.status);
+                            return res.text();
+                        })
+                        .then(html => {
+                            sessionStorage.setItem('tflix_ai_chatbot_html', html);
+                            host.innerHTML = html;
+                            executeScripts(host);
+                        })
+                        .catch(err => console.warn('Lỗi tải TFlix AI Chatbot qua AJAX:', err));
+                }
+            })();
+        </script>
+    }
 </body>
 </html>

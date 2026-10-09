@@ -424,6 +424,13 @@
             localStorage.setItem('tflix_ai_conversation_id', conversationId);
         }
 
+        const getCacheKey = (cid) => 'tflix_ai_msgs_' + cid;
+        const KEY_DRAFT = 'tflix_ai_draft_input';
+        const KEY_IS_OPEN = 'tflix_ai_isOpen';
+
+        // Mảng tin nhắn trong bộ nhớ
+        let chatMessages = [];
+
         function escapeHtml(text) {
             if (!text) return '';
             return text
@@ -437,12 +444,9 @@
         function formatMarkdown(text) {
             if (!text) return '';
             let html = escapeHtml(text);
-            // In đậm **text**
             html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // In nghiêng *text* hoặc _text_
             html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
             html = html.replace(/_(.*?)_/g, '<em>$1</em>');
-            // Xuống dòng
             html = html.replace(/\n/g, '<br/>');
             return html;
         }
@@ -477,7 +481,7 @@
             return cardsHtml;
         }
 
-        function appendMessage(role, content, movies = [], time = null) {
+        function appendMessageToDOM(role, content, movies = [], time = null) {
             if (!messagesList) return;
             const isUser = role === 'user';
             const displayTime = time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -494,49 +498,105 @@
             `;
             row.innerHTML = html;
             messagesList.appendChild(row);
+        }
+
+        function renderAllMessages(messages) {
+            if (!messagesList) return;
+            messagesList.innerHTML = '';
+            if (!messages || messages.length === 0) {
+                showWelcome();
+                return;
+            }
+            messages.forEach(m => {
+                const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+                appendMessageToDOM(m.role, m.content, m.movies, time);
+            });
             messagesList.scrollTop = messagesList.scrollHeight;
+        }
+
+        function saveMessagesToCache() {
+            try {
+                localStorage.setItem(getCacheKey(conversationId), JSON.stringify(chatMessages));
+            } catch (e) {
+                console.warn('Lỗi lưu cache tin nhắn chatbot:', e);
+            }
         }
 
         function showWelcome() {
             if (!messagesList) return;
             messagesList.innerHTML = '';
-            appendMessage(
-                'model',
-                'Xin chào! Tôi là **TFlix AI**, trợ lý tư vấn phim thông minh của nền tảng xem phim TFlix.\n\nTôi có thể giúp bạn tìm phim theo **thể loại**, **quốc gia**, **tâm trạng** hoặc **gợi ý phim hot**. Bạn muốn xem gì hôm nay?'
-            );
+            const welcomeText = 'Xin chào! Tôi là **TFlix AI**, trợ lý tư vấn phim thông minh của nền tảng xem phim TFlix.\n\nTôi có thể giúp bạn tìm phim theo **thể loại**, **quốc gia**, **tâm trạng** hoặc **gợi ý phim hot**. Bạn muốn xem gì hôm nay?';
+            appendMessageToDOM('model', welcomeText);
         }
 
-        async function loadHistory() {
+        // Tải tức thì từ LocalStorage để không bị reload/nhấp nháy nội dung khi chuyển trang
+        function restoreLocalState() {
+            try {
+                const cachedRaw = localStorage.getItem(getCacheKey(conversationId));
+                if (cachedRaw) {
+                    const parsed = JSON.parse(cachedRaw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        chatMessages = parsed;
+                        renderAllMessages(chatMessages);
+                    } else {
+                        showWelcome();
+                    }
+                } else {
+                    showWelcome();
+                }
+            } catch {
+                showWelcome();
+            }
+
+            // Khôi phục nội dung nháp đang gõ dở
+            if (input) {
+                const draft = localStorage.getItem(KEY_DRAFT);
+                if (draft) input.value = draft;
+            }
+
+            // Khôi phục trạng thái mở của chatbox
+            if (localStorage.getItem(KEY_IS_OPEN) === 'true') {
+                toggleBox(true, false);
+            }
+        }
+
+        // Đồng bộ ngầm với Backend qua AJAX (Background Sync)
+        async function syncHistoryBackground() {
             if (!conversationId) return;
             try {
                 const res = await fetch(`/Chat/GetHistory?conversationId=${encodeURIComponent(conversationId)}`);
                 const json = await res.json();
-                if (json && json.success && json.data && json.data.messages && json.data.messages.length > 0) {
-                    messagesList.innerHTML = '';
-                    json.data.messages.forEach(m => {
-                        const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
-                        appendMessage(m.role, m.content, m.movies, time);
-                    });
-                } else {
-                    showWelcome();
+                if (json && json.success && json.data && json.data.messages) {
+                    const serverMsgs = json.data.messages;
+                    // Nếu dữ liệu server nhiều hơn hoặc khác với local, cập nhật lại
+                    if (serverMsgs.length > chatMessages.length || (chatMessages.length === 0 && serverMsgs.length > 0)) {
+                        chatMessages = serverMsgs;
+                        saveMessagesToCache();
+                        renderAllMessages(chatMessages);
+                    }
                 }
             } catch (err) {
-                console.warn('Lỗi tải lịch sử TFlix AI:', err);
-                showWelcome();
+                console.warn('Đồng bộ ngầm TFlix AI:', err);
             }
         }
 
-        function toggleBox(show) {
+        function toggleBox(show, smooth = true) {
             if (!box) return;
             const willOpen = show !== undefined ? show : !box.classList.contains('open');
             if (willOpen) {
                 box.classList.add('open');
-                localStorage.setItem('tflix_ai_isOpen', 'true');
+                localStorage.setItem(KEY_IS_OPEN, 'true');
                 if (input) input.focus();
-                if (messagesList) messagesList.scrollTop = messagesList.scrollHeight;
+                if (messagesList) {
+                    if (smooth) {
+                        messagesList.scrollTo({ top: messagesList.scrollHeight, behavior: 'smooth' });
+                    } else {
+                        messagesList.scrollTop = messagesList.scrollHeight;
+                    }
+                }
             } else {
                 box.classList.remove('open');
-                localStorage.setItem('tflix_ai_isOpen', 'false');
+                localStorage.setItem(KEY_IS_OPEN, 'false');
             }
         }
 
@@ -546,11 +606,15 @@
 
         btnClear?.addEventListener('click', async () => {
             if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử tư vấn này?')) {
+                const oldCid = conversationId;
                 try {
-                    await fetch(`/Chat/ClearHistory?conversationId=${encodeURIComponent(conversationId)}`, { method: 'POST' });
+                    await fetch(`/Chat/ClearHistory?conversationId=${encodeURIComponent(oldCid)}`, { method: 'POST' });
                 } catch { }
+                localStorage.removeItem(getCacheKey(oldCid));
+                localStorage.removeItem(KEY_DRAFT);
                 conversationId = 'conv_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
                 localStorage.setItem('tflix_ai_conversation_id', conversationId);
+                chatMessages = [];
                 showWelcome();
             }
         });
@@ -561,15 +625,23 @@
             if (!cleanText) return;
 
             if (input) input.value = '';
+            localStorage.removeItem(KEY_DRAFT);
             if (sendBtn) sendBtn.disabled = true;
 
-            // Hiển thị tin nhắn người dùng
-            appendMessage('user', cleanText);
+            const nowIso = new Date().toISOString();
+            // Lưu tin nhắn user vào trạng thái & cache
+            const userMsg = { role: 'user', content: cleanText, movies: [], timestamp: nowIso };
+            chatMessages.push(userMsg);
+            saveMessagesToCache();
+
+            // Hiển thị tin nhắn người dùng lên DOM
+            appendMessageToDOM('user', cleanText);
+            if (messagesList) messagesList.scrollTop = messagesList.scrollHeight;
 
             // Bật typing indicator
             if (typingIndicator) {
                 typingIndicator.classList.remove('d-none');
-                messagesList.scrollTop = messagesList.scrollHeight;
+                if (messagesList) messagesList.scrollTop = messagesList.scrollHeight;
             }
 
             try {
@@ -585,23 +657,38 @@
                 const json = await res.json();
                 if (json && json.success && json.data) {
                     const data = json.data;
-                    appendMessage('model', data.reply, data.movies);
+                    const botMsg = {
+                        role: 'model',
+                        content: data.reply,
+                        movies: data.movies || [],
+                        timestamp: new Date().toISOString()
+                    };
+                    chatMessages.push(botMsg);
+                    saveMessagesToCache();
+                    appendMessageToDOM('model', data.reply, data.movies);
                 } else {
-                    appendMessage('model', json.message || 'Xin lỗi bạn, TFlix AI tạm thời không thể xử lý yêu cầu lúc này. Bạn vui lòng thử lại sau giây lát nhé!');
+                    const errorMsg = json.message || 'Xin lỗi bạn, TFlix AI tạm thời không thể xử lý yêu cầu lúc này. Bạn vui lòng thử lại sau giây lát nhé!';
+                    appendMessageToDOM('model', errorMsg);
                 }
             } catch (err) {
                 console.error('Lỗi gửi tin nhắn TFlix AI:', err);
-                appendMessage('model', 'Đã xảy ra sự cố kết nối tới máy chủ TFlix AI. Bạn vui lòng kiểm tra mạng và thử lại nhé!');
+                appendMessageToDOM('model', 'Đã xảy ra sự cố kết nối tới máy chủ TFlix AI. Bạn vui lòng kiểm tra mạng và thử lại nhé!');
             } finally {
                 if (typingIndicator) typingIndicator.classList.add('d-none');
                 if (sendBtn) sendBtn.disabled = false;
                 if (input) input.focus();
+                if (messagesList) messagesList.scrollTop = messagesList.scrollHeight;
             }
         }
 
         form?.addEventListener('submit', (e) => {
             e.preventDefault();
             if (input) sendMessage(input.value);
+        });
+
+        // Lưu bản nháp khi người dùng nhập dở
+        input?.addEventListener('input', () => {
+            localStorage.setItem(KEY_DRAFT, input.value);
         });
 
         // Quick FAQ chips
@@ -612,11 +699,9 @@
             });
         });
 
-        // Khôi phục trạng thái mở nếu trước đó đang mở
-        if (localStorage.getItem('tflix_ai_isOpen') === 'true') {
-            toggleBox(true);
-        }
-
-        loadHistory();
+        // Khôi phục trạng thái tức thì ngay khi nạp component
+        restoreLocalState();
+        // Đồng bộ ngầm với backend
+        syncHistoryBackground();
     })();
 </script>

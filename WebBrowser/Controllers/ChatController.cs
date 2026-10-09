@@ -18,6 +18,12 @@ namespace WebBrowser.Controllers
             _chatService = chatService;
         }
 
+        [HttpGet]
+        public IActionResult ChatboxPartial()
+        {
+            return PartialView("_ChatbotAi");
+        }
+
         [HttpPost]
         public async Task<IActionResult> SendMessage([FromBody] ChatRequestDto request)
         {
