@@ -1,0 +1,54 @@
+@model WebBrowser.Models.Home.HomeViewModel
+
+<section class="tflix-section premium-upgrade" id="premiumUpgrade" aria-labelledby="premiumUpgradeTitle">
+    <div class="premium-upgrade__intro">
+        <span class="premium-upgrade__eyebrow"><i class="bi bi-stars"></i> TFLIX PREMIUM</span>
+        <h2 id="premiumUpgradeTitle">Nâng cấp trải nghiệm xem phim</h2>
+        <p>Xem nội dung Premium, chất lượng cao và sử dụng trên nhiều thiết bị với gói phù hợp cho bạn.</p>
+        @if (Model.SubscriptionStatus.IsActive)
+        {
+            <div class="premium-current" role="status">
+                <i class="bi bi-patch-check-fill"></i>
+                <span>Bạn đang dùng <strong>@Model.SubscriptionStatus.PlanName</strong>@(Model.SubscriptionStatus.EndAt.HasValue ? $" đến {Model.SubscriptionStatus.EndAt.Value.ToLocalTime():dd/MM/yyyy}" : ".")</span>
+            </div>
+        }
+    </div>
+
+    @if (Model.SubscriptionPlans.Count > 0)
+    {
+        <div class="premium-plan-grid">
+            @foreach (var plan in Model.SubscriptionPlans.Take(3))
+            {
+                <article class="premium-plan-card">
+                    <div>
+                        <span class="premium-plan-card__code">@plan.PlanCode</span>
+                        <h3>@plan.Name</h3>
+                        <div class="premium-plan-card__price">@plan.Price.ToString("N0") <small>₫</small></div>
+                        <p>@plan.DurationDays ngày · @plan.MaxDevices thiết bị</p>
+                    </div>
+                    <ul>
+                        <li><i class="bi bi-check2"></i> Chất lượng @(plan.QualityCap ?? "tự động")</li>
+                        <li><i class="bi bi-check2"></i> @(plan.AdsFree == "Y" ? "Không quảng cáo" : "Quảng cáo giới hạn")</li>
+                        <li><i class="bi bi-check2"></i> Mở khóa kho phim Premium</li>
+                    </ul>
+                    <a class="premium-plan-card__action"
+                       asp-controller="Payment"
+                       asp-action="Index"
+                       asp-route-planId="@plan.PlanId"
+                       asp-route-returnUrl="/Home/Index#premiumUpgrade">
+                        @(Model.SubscriptionStatus.IsActive ? "Đổi gói" : "Chọn gói này")
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </article>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="premium-upgrade__empty" role="status">
+            <i class="bi bi-cloud-slash"></i>
+            <div><strong>Chưa tải được các gói Premium</strong><span>Vui lòng thử lại sau.</span></div>
+        </div>
+    }
+</section>
+

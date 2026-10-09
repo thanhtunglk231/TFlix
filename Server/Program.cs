@@ -69,6 +69,10 @@ builder.Services.AddScoped<ICHome, CHome>();
 builder.Services.AddScoped<ICNews, CNews>();
 builder.Services.AddScoped<ICComment, CComment>();
 builder.Services.AddScoped<ICFavorite, CFavorite>();
+builder.Services.AddScoped<ICSubscriptionPlan, CSubscriptionPlan>();
+builder.Services.AddScoped<ICPayment, CPayment>();
+builder.Services.AddHttpClient<IPayOsService, PayOsService>();
+
 builder.Services.AddHttpClient("GeminiClient");
 builder.Services.Configure<CoreLib.Config.GeminiOptions>(builder.Configuration.GetSection(CoreLib.Config.GeminiOptions.SectionName));
 builder.Services.Configure<CoreLib.Config.ChatbotOptions>(builder.Configuration.GetSection(CoreLib.Config.ChatbotOptions.SectionName));

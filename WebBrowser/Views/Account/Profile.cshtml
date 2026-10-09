@@ -2,19 +2,71 @@
 @{
     ViewData["Title"] = "Hồ sơ tài khoản";
     var user = ViewBag.CurrentUser as WebBrowser.Models.AuthModels.UserInfo;
+    var subscriptionStatus = ViewBag.SubscriptionStatus as CoreLib.Dtos.Payment.SubscriptionStatusDto ?? new CoreLib.Dtos.Payment.SubscriptionStatusDto();
+    var isPremium = subscriptionStatus.IsActive;
+    var planName = string.IsNullOrWhiteSpace(subscriptionStatus.PlanName) ? "Gói thường" : subscriptionStatus.PlanName;
     const string fallback = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop";
 }
 
 <div class="container py-5 text-light">
     <section class="rounded-4 p-4 mb-5" style="background:linear-gradient(135deg,#182436,#111318);border:1px solid rgba(255,255,255,.1)">
-        <div class="d-flex align-items-center gap-3">
-            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:72px;height:72px;background:linear-gradient(135deg,#1683ff,#19d3c5)">
-                <i class="bi bi-person-fill fs-1 text-dark"></i>
+        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:72px;height:72px;background:linear-gradient(135deg,#1683ff,#19d3c5)">
+                    <i class="bi bi-person-fill fs-1 text-dark"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">@(string.IsNullOrWhiteSpace(user?.fullName) ? "Thành viên TFlix" : user.fullName)</h1>
+                    <div class="text-secondary">@user?.email</div>
+                </div>
             </div>
-            <div>
-                <h1 class="h3 mb-1">@(string.IsNullOrWhiteSpace(user?.fullName) ? "Thành viên TFlix" : user.fullName)</h1>
-                <div class="text-secondary">@user?.email</div>
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge @(isPremium ? "bg-warning text-dark" : "bg-secondary") rounded-pill px-3 py-2">
+                    <i class="bi @(isPremium ? "bi-star-fill" : "bi-person") me-1"></i>
+                    @(isPremium ? "Premium" : "Thường")
+                </span>
+                @if (isPremium)
+                {
+                    <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">
+                        <i class="bi bi-shield-check me-1"></i>@planName
+                    </span>
+                }
             </div>
+        </div>
+    </section>
+
+    <section class="mb-5">
+        <div class="rounded-4 p-4" style="background:#17191f;border:1px solid rgba(255,255,255,.08)">
+            @if (isPremium)
+            {
+                <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div>
+                        <div class="text-uppercase text-secondary small mb-2">Trạng thái tài khoản</div>
+                        <h2 class="h4 mb-1">Bạn đang sử dụng gói @planName</h2>
+                        @if (subscriptionStatus.EndAt.HasValue)
+                        {
+                            <div class="text-secondary">Hết hạn: @subscriptionStatus.EndAt.Value.ToLocalTime().ToString("dd/MM/yyyy")</div>
+                        }
+                    </div>
+                    <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Url.Action("Profile", "Account")" class="btn btn-outline-light rounded-pill px-4">
+                        <i class="bi bi-arrow-repeat me-1"></i>Đổi gói
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div>
+                        <div class="text-uppercase text-secondary small mb-2">Tài khoản thường</div>
+                        <h2 class="h4 mb-1">Nâng cấp để xem nội dung Premium</h2>
+                        <div class="text-secondary">Mở khóa phim VIP, chất lượng cao và trải nghiệm không quảng cáo.</div>
+                    </div>
+                    <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Url.Action("Profile", "Account")" class="btn btn-primary rounded-pill px-4">
+                        <i class="bi bi-crown me-1"></i>Nâng cấp ngay
+                    </a>
+                </div>
+            }
         </div>
     </section>
 

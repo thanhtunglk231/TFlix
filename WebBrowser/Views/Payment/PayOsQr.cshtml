@@ -1,0 +1,58 @@
+@model WebBrowser.Models.Payment.PaymentViewModel
+@{
+    Layout = "/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Quét mã QR PayOS · TFlix";
+    var payment = Model.PayOsPayment!;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/payment.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/payos-qr.css" asp-append-version="true" />
+}
+
+<main class="payment-page py-5">
+    <div class="container payos-qr-page">
+        <a asp-controller="Home" asp-action="Index" class="payment-back">← Hủy và trở lại trang chủ</a>
+        <div class="payos-qr-card">
+            <div class="payos-qr-card__header">
+                <span class="payment-kicker">THANH TOÁN PAYOS</span>
+                <h1>Quét mã để nâng cấp tài khoản</h1>
+                <p>Mở ứng dụng ngân hàng, chọn quét QR và kiểm tra đúng số tiền trước khi xác nhận.</p>
+            </div>
+            <div id="payosQrCode" class="payos-qr-image" aria-label="Mã QR thanh toán PayOS"></div>
+            <div class="payos-qr-detail">
+                <span>Gói <strong>@payment.PlanName</strong></span>
+                <span>Số tiền <strong>@payment.Amount.ToString("N0") ₫</strong></span>
+                <span>Mã đơn <strong>@payment.OrderCode</strong></span>
+            </div>
+            <div class="payos-waiting" id="paymentWaiting" role="status">
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                Đang chờ PayOS xác nhận thanh toán...
+            </div>
+            <a href="@payment.CheckoutUrl" target="_blank" rel="noopener" class="btn-payment payos-open-link">Mở trang thanh toán PayOS</a>
+            <p class="payos-note">Trang sẽ tự động trở về trang chủ sau khi thanh toán thành công.</p>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        new QRCode(document.getElementById('payosQrCode'), { text: @Json.Serialize(payment.QrCode), width: 260, height: 260, correctLevel: QRCode.CorrectLevel.M });
+        const statusUrl = @Json.Serialize(Url.Action("Status", "Payment", new { orderCode = payment.OrderCode }));
+        const homeUrl = @Json.Serialize(Url.Action("Index", "Home"));
+        const poll = setInterval(async () => {
+            try {
+                const response = await fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const result = await response.json();
+                if (result.paid) {
+                    clearInterval(poll);
+                    document.getElementById('paymentWaiting').textContent = 'Thanh toán thành công. Đang nâng cấp tài khoản...';
+                    window.location.replace(homeUrl + '?payment=success');
+                }
+            } catch { }
+        }, 5000);
+        setTimeout(() => clearInterval(poll), 15 * 60 * 1000);
+    </script>
+}
+

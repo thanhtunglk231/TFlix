@@ -1,5 +1,9 @@
 @model WebBrowser.Models.Home.HomeViewModel
 
+@section Styles {
+    <link rel="stylesheet" href="~/css/home-premium.css" asp-append-version="true" />
+}
+
 @{
     ViewData["Title"] = "TFlix - Xem Phim Trực Tuyến Đỉnh Cao";
     var token = Context.Session.GetString("JWToken");
@@ -23,11 +27,21 @@
 }
 
 <div class="container py-3">
+    @if (TempData["PaymentSuccess"] is string paymentSuccess)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="status">@paymentSuccess<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button></div>
+    }
+    @if (TempData["PaymentError"] is string paymentError)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">@paymentError<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button></div>
+    }
     <!-- 1. HERO BANNER CINEMATIC (21:9 ratio, multi-stop gradient, auto-slide) -->
     @await Html.PartialAsync("_HeroBanner", allMovies)
 
     <!-- 2. KHÁM PHÁ THEO THỂ LOẠI (Chip Buttons) -->
     @await Html.PartialAsync("_GenreChips")
+
+    @await Html.PartialAsync("_PremiumUpgrade", Model)
 
     <!-- 3. SECTION: PHIM HOT -->
     <section class="tflix-section" id="hotMoviesSection">

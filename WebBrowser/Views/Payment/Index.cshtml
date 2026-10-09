@@ -1,0 +1,84 @@
+@model WebBrowser.Models.Payment.PaymentViewModel
+@{
+    Layout = "/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Thanh toán Premium · TFlix";
+    var paymentError = TempData["PaymentError"]?.ToString() ?? Model.ErrorMessage;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/payment.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/payos-qr.css" asp-append-version="true" />
+}
+
+<main class="payment-page py-5">
+    <div class="container payment-container">
+        <a class="payment-back" href="@Model.ReturnUrl">← Quay lại trang xem phim</a>
+        <header class="payment-heading">
+            <span class="payment-kicker">TFLIX PREMIUM</span>
+            <h1>Chọn gói xem phim phù hợp</h1>
+            <p>Mở khóa nội dung Premium ngay sau khi thanh toán thành công.</p>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(paymentError))
+        {
+            <div class="alert alert-danger" role="alert">@paymentError</div>
+        }
+
+        @if (Model.Plans.Count == 0)
+        {
+            <div class="payment-empty" role="status">
+                <h2>Chưa có gói Premium</h2>
+                <p>Vui lòng quay lại sau hoặc thử tải lại trang.</p>
+            </div>
+        }
+        else
+        {
+            <form asp-action="Checkout" method="post" class="payment-form" id="paymentForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+
+                <section aria-labelledby="planTitle">
+                    <h2 id="planTitle" class="payment-step-title">1. Chọn gói</h2>
+                    <div class="plan-grid">
+                        @foreach (var plan in Model.Plans)
+                        {
+                            var selected = Model.SelectedPlanId == plan.PlanId || (!Model.SelectedPlanId.HasValue && plan == Model.Plans.First());
+                            <label class="plan-card">
+                                <input type="radio" name="PlanId" value="@plan.PlanId" checked="@selected" required />
+                                <span class="plan-card-body">
+                                    <span class="plan-name">@plan.Name</span>
+                                    <span class="plan-price">@plan.Price.ToString("N0") ₫</span>
+                                    <span class="plan-duration">@plan.DurationDays ngày · @plan.MaxDevices thiết bị</span>
+                                    <span class="plan-feature">Chất lượng tối đa: @(plan.QualityCap ?? "Auto")</span>
+                                    <span class="plan-feature">@(plan.AdsFree == "Y" ? "Không quảng cáo" : "Có quảng cáo")</span>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                </section>
+
+                <section aria-labelledby="providerTitle">
+                    <h2 id="providerTitle" class="payment-step-title">2. Phương thức thanh toán</h2>
+                    <div class="payos-provider" aria-label="Thanh toán bằng PayOS">
+                        <span class="payos-provider__icon">QR</span>
+                        <span><strong>PayOS</strong><small>Quét mã QR bằng ứng dụng ngân hàng</small></span>
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                </section>
+
+                <div class="payment-summary">
+                    <div>
+                        <strong>Kích hoạt ngay</strong>
+                        <p>Giao dịch được lưu an toàn và gói sẽ áp dụng cho tài khoản đang đăng nhập.</p>
+                    </div>
+                    <button type="submit" class="btn-payment">Tạo mã QR PayOS</button>
+                </div>
+            </form>
+        }
+    </div>
+</main>
+
+@section Scripts {
+    <script src="~/js/payment.js" asp-append-version="true"></script>
+}
+
