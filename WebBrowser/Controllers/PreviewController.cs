@@ -1,3 +1,4 @@
+using CoreLib.Dtos.Comment;
 using CoreLib.Dtos.Preview;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -15,17 +16,20 @@ namespace WebBrowser.Controllers
         private readonly IMovieService _movieService;
         private readonly IGenresService _genresService;
         private readonly IEpisode _episodeService;
+        private readonly ICommentService _commentService;
 
         public PreviewController(
             IPreviewService previewService,
             IMovieService movieService,
             IGenresService genresService,
-            IEpisode episodeService)
+            IEpisode episodeService,
+            ICommentService commentService)
         {
             _previewService = previewService;
             _movieService = movieService;
             _genresService = genresService;
             _episodeService = episodeService;
+            _commentService = commentService;
         }
 
         private bool IsUserAuthenticated()
@@ -139,6 +143,60 @@ namespace WebBrowser.Controllers
         {
             var result = await _previewService.get_preview(movie);
             return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetComments([FromQuery] long? movieId, [FromQuery] long? episodeId)
+        {
+            var list = await _commentService.GetCommentsByContentAsync(movieId, episodeId);
+            return Json(new { success = true, data = list });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> PostComment([FromBody] CreateCommentDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Content))
+            {
+                return BadRequest(new { success = false, message = "Nội dung bình luận không được để trống" });
+            }
+
+            if (!dto.MovieId.HasValue && !dto.EpisodeId.HasValue)
+            {
+                return BadRequest(new { success = false, message = "Bình luận phải thuộc một phim hoặc tập phim." });
+            }
+
+            var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+            if (!string.IsNullOrEmpty(currentUserJson))
+            {
+                try
+                {
+                    var user = JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson);
+                    if (user != null)
+                    {
+                        dto.UserId = user.userId;
+                        dto.UserName = string.IsNullOrWhiteSpace(user.fullName) ? dto.UserName : user.fullName;
+                        dto.UserAvatar = string.IsNullOrWhiteSpace(user.avatarUrl) ? dto.UserAvatar : user.avatarUrl;
+                    }
+                }
+                catch { }
+            }
+
+            if (dto.UserId <= 0)
+            {
+                return Unauthorized(new { success = false, message = "Bạn cần đăng nhập để gửi bình luận." });
+            }
+
+            var result = await _commentService.AddCommentAsync(dto);
+            if (result == null || result.CommentId <= 0)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    message = "Không thể lưu bình luận vào database."
+                });
+            }
+
+            return Json(new { success = true, data = result });
         }
     }
 }

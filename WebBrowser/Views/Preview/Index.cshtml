@@ -8,6 +8,16 @@
     // Trạng thái đăng nhập (ví dụ đọc từ Session)
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
+    var currentUserJson = Context.Session.GetString("CurrentUser");
+    WebBrowser.Models.AuthModels.UserInfo? currentUser = null;
+    if (!string.IsNullOrEmpty(currentUserJson))
+    {
+        try { currentUser = Newtonsoft.Json.JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson); }
+        catch {}
+    }
+    var currentUserName = currentUser?.fullName ?? "Người dùng TFlix";
+    var currentUserAvatar = !string.IsNullOrEmpty(currentUser?.avatarUrl) ? currentUser.avatarUrl : $"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80";
+    var currentUserId = currentUser?.userId ?? 0;
 
     var item = Model?.Movie;
 
@@ -180,6 +190,73 @@
         .label {
             color: var(--muted)
         }
+
+        /* SignalR Live Pulse */
+        .signalr-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: signalr-pulse 1.8s infinite;
+        }
+
+        @@keyframes signalr-pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .emoji-pill {
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 3px 7px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .emoji-pill:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.15);
+        }
+
+        .cmt-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+        .cmt-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(39, 211, 195, 0.25);
+        }
+        .cmt-item.new-arrival {
+            animation: cmt-glow 2s ease-out;
+        }
+        @@keyframes cmt-glow {
+            0% {
+                background: rgba(39, 211, 195, 0.2);
+                border-color: #27d3c3;
+                transform: translateY(-4px);
+            }
+            100% {
+                background: rgba(255, 255, 255, 0.03);
+                border-color: rgba(255, 255, 255, 0.06);
+                transform: translateY(0);
+            }
+        }
     </style>
 }
 
@@ -330,7 +407,7 @@
                         </div>
                     </div>
 
-                    <!-- Schedule + comments -->
+                    <!-- Lịch chiếu -->
                     <div class="mt-3">
                         <div class="panel-h">
                             LỊCH CHIẾU:
@@ -338,24 +415,76 @@
                                 @(string.IsNullOrEmpty(schedule) ? "Đang cập nhật" : schedule)
                             </span>
                         </div>
-                        <div class="panel-b">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="fw-semibold">Bình luận</div>
-                                <div>
-                                    <span class="me-2 label">Sắp xếp theo</span>
-                                    <select class="form-select form-select-sm d-inline-block" style="width:auto">
-                                        <option>Mới nhất</option>
-                                        <option>Cũ nhất</option>
-                                        <option>Thích nhiều</option>
-                                    </select>
-                                </div>
+                    </div>
+
+                    <!-- Bình luận Realtime với SignalR -->
+                    <div class="mt-4 panel">
+                        <div class="panel-h d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#27d3c3" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                <span>BÌNH LUẬN TRỰC TIẾP</span>
+                                <span class="badge rounded-pill bg-dark border border-secondary text-info px-2 py-1" id="cmtCount">0</span>
                             </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge d-inline-flex align-items-center gap-2 px-2.5 py-1.5 rounded-pill" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.75rem;">
+                                    <span class="signalr-dot"></span> Realtime SignalR
+                                </span>
+                            </div>
+                        </div>
 
-                            <div class="mt-3">
-                                <textarea class="form-control mb-3" rows="3" placeholder="Bình luận..."></textarea>
+                        <div class="panel-b">
+                            @if (!isLoggedIn)
+                            {
+                                <div class="alert border-0 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 rounded-3" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25) !important;">
+                                    <div class="d-flex align-items-center gap-2.5 text-warning">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                        <span>Bạn cần đăng nhập để gửi bình luận và tương tác cùng cộng đồng TFlix.</span>
+                                    </div>
+                                    <a asp-controller="Auth" asp-action="Index" class="btn btn-sm btn-grad fw-bold rounded-pill px-3" style="color: #061219;">
+                                        Đăng nhập ngay
+                                    </a>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex gap-3 mb-4">
+                                    <img src="@currentUserAvatar" class="rounded-circle" width="44" height="44" style="object-fit:cover; border: 2px solid var(--brand);" />
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="text-white small fw-bold">@currentUserName</span>
+                                                <span class="badge" style="background: rgba(39, 211, 195, 0.2); color: #27d3c3; font-size: 0.68rem;">THÀNH VIÊN</span>
+                                            </div>
+                                            <span class="text-muted small" id="cmtCharCount">0 / 500</span>
+                                        </div>
+                                        <textarea id="cmt" class="form-control mb-2 text-white shadow-none" rows="3" maxlength="500" placeholder="Viết cảm nghĩ của bạn về phim (Ctrl + Enter để gửi nhanh)..." style="background: #14181c; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; font-size: 0.92rem;"></textarea>
 
-                                <div class="mt-3 small label">
-                                    Hệ thống bình luận người dùng TFlix.
+                                        <!-- Quick Reactions Emoji Bar -->
+                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                            <div class="d-flex align-items-center gap-1.5">
+                                                <span class="text-muted small me-1">Cảm xúc:</span>
+                                                <span class="emoji-pill" onclick="insertEmoji('❤️')">❤️</span>
+                                                <span class="emoji-pill" onclick="insertEmoji('🔥')">🔥</span>
+                                                <span class="emoji-pill" onclick="insertEmoji('🍿')">🍿</span>
+                                                <span class="emoji-pill" onclick="insertEmoji('👏')">👏</span>
+                                                <span class="emoji-pill" onclick="insertEmoji('⭐')">⭐</span>
+                                                <span class="emoji-pill" onclick="insertEmoji('😭')">😭</span>
+                                                <span class="emoji-pill" onclick="insertEmoji('😂')">😂</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-grad px-4 py-2 rounded-pill fw-bold d-inline-flex align-items-center gap-2" id="btnCmt" style="color: #081119;">
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                                                <span>Gửi bình luận</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Danh sách bình luận -->
+                            <div id="cmtList" class="vstack gap-3">
+                                <div class="text-center py-4 text-muted" id="cmtLoading">
+                                    <div class="spinner-border spinner-border-sm text-info mb-2" role="status"></div>
+                                    <div>Đang kết nối luồng bình luận...</div>
                                 </div>
                             </div>
                         </div>
@@ -465,9 +594,14 @@
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Microsoft SignalR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script>
-        // Kiểm tra trạng thái đăng nhập
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
+        const movieId = @watchId;
+        const currentUserId = @currentUserId;
+        const currentUserName = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(currentUserName));
+        const currentUserAvatar = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(currentUserAvatar));
 
         function showLoginModal() {
             const el = document.getElementById('loginRequiredModal');
@@ -490,5 +624,222 @@
                 showLoginModal();
             }
         });
+
+        // ==========================================
+        // REALTIME COMMENTS WITH SIGNALR
+        // ==========================================
+        let signalrConn = null;
+        const activeGroupKey = "movie_" + movieId;
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function renderCommentItem(cmt, isNew = false) {
+            const avatar = cmt.userAvatar || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80`;
+            const timeAgo = cmt.formattedTime || 'Vừa xong';
+            const author = escapeHtml(cmt.userName || 'Người dùng TFlix');
+            const text = escapeHtml(cmt.content || '');
+            const isMe = cmt.userId && cmt.userId === currentUserId;
+
+            return `
+                <div class="cmt-item ${isNew ? 'new-arrival' : ''}" id="cmt-${cmt.commentId || Date.now()}">
+                    <div class="d-flex gap-3">
+                        <img src="${avatar}" class="rounded-circle" width="40" height="40" style="object-fit:cover; border: 2px solid rgba(39, 211, 195, 0.4);" />
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold text-white small">${author}</span>
+                                    ${isMe ? '<span class="badge" style="background: rgba(39, 211, 195, 0.2); color: #27d3c3; font-size: 0.65rem;">Bạn</span>' : ''}
+                                    <span class="text-muted small">• ${timeAgo}</span>
+                                </div>
+                            </div>
+                            <div class="text-light" style="white-space: pre-wrap; font-size: 0.92rem; line-height: 1.55;">${text}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCommentCountBadge(increment = 0, setCount = null) {
+            const el = document.getElementById('cmtCount');
+            if (!el) return;
+            let current = parseInt(el.textContent) || 0;
+            if (setCount !== null) {
+                current = setCount;
+            } else {
+                current += increment;
+            }
+            el.textContent = Math.max(0, current);
+        }
+
+        function addCommentToUI(comment, isNew = true) {
+            const listEl = document.getElementById('cmtList');
+            if (!listEl) return;
+
+            const emptyEl = document.getElementById('cmtEmpty');
+            if (emptyEl) emptyEl.remove();
+
+            const cmtHtml = renderCommentItem(comment, isNew);
+            listEl.insertAdjacentHTML('afterbegin', cmtHtml);
+            updateCommentCountBadge(1);
+        }
+
+        function loadComments() {
+            const listEl = document.getElementById('cmtList');
+            if (!listEl) return;
+
+            fetch(`/Preview/GetComments?movieId=${movieId}`)
+                .then(res => res.json())
+                .then(res => {
+                    listEl.innerHTML = '';
+                    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+                        res.data.forEach(item => {
+                            listEl.insertAdjacentHTML('beforeend', renderCommentItem(item, false));
+                        });
+                        updateCommentCountBadge(0, res.data.length);
+                    } else {
+                        updateCommentCountBadge(0, 0);
+                        listEl.innerHTML = `
+                            <div class="text-center py-4 text-muted" id="cmtEmpty">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="d-block mx-auto mb-2 opacity-50"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                <span>Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ cảm nghĩ về bộ phim!</span>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error('Lỗi tải bình luận:', err);
+                    listEl.innerHTML = `
+                        <div class="text-center py-4 text-muted" id="cmtEmpty">
+                            <span>Chưa có bình luận nào. Hãy là người đầu tiên bình luận về bộ phim này!</span>
+                        </div>
+                    `;
+                });
+        }
+
+        function initSignalRConnection() {
+            if (typeof signalR === 'undefined') return;
+
+            signalrConn = new signalR.HubConnectionBuilder()
+                .withUrl('/commentHub')
+                .withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
+                .build();
+
+            signalrConn.on('ReceiveComment', function (comment) {
+                addCommentToUI(comment, true);
+            });
+
+            signalrConn.start().then(() => {
+                signalrConn.invoke('JoinContentGroup', activeGroupKey).then(() => {
+                    console.log('✅ Đã tham gia phòng SignalR Preview:', activeGroupKey);
+                }).catch(console.error);
+            }).catch(err => {
+                console.warn('SignalR Hub kết nối:', err);
+            });
+
+            signalrConn.onreconnected(() => {
+                signalrConn.invoke('JoinContentGroup', activeGroupKey).catch(console.error);
+            });
+        }
+
+        initSignalRConnection();
+        loadComments();
+
+        // Emoji insertion helper
+        window.insertEmoji = function(emoji) {
+            const textarea = document.getElementById('cmt');
+            if (!textarea) return;
+            const start = textarea.selectionStart || textarea.value.length;
+            const end = textarea.selectionEnd || textarea.value.length;
+            textarea.value = textarea.value.substring(0, start) + emoji + textarea.value.substring(end);
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+            const charCountEl = document.getElementById('cmtCharCount');
+            if (charCountEl) charCountEl.textContent = `${textarea.value.length} / 500`;
+        };
+
+        // Gửi bình luận
+        const btnCmt = document.getElementById('btnCmt');
+        const cmtTextarea = document.getElementById('cmt');
+        const cmtCharCount = document.getElementById('cmtCharCount');
+
+        if (cmtTextarea && cmtCharCount) {
+            cmtTextarea.addEventListener('input', () => {
+                cmtCharCount.textContent = `${cmtTextarea.value.length} / 500`;
+            });
+            cmtTextarea.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'Enter') {
+                    btnCmt?.click();
+                }
+            });
+        }
+
+        if (btnCmt && cmtTextarea) {
+            btnCmt.addEventListener('click', async () => {
+                if (!isLoggedIn) {
+                    showLoginModal();
+                    return;
+                }
+
+                const content = cmtTextarea.value.trim();
+                if (!content) {
+                    cmtTextarea.focus();
+                    return;
+                }
+
+                btnCmt.disabled = true;
+                const originalHtml = btnCmt.innerHTML;
+                btnCmt.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi...';
+
+                const payload = {
+                    movieId: movieId,
+                    episodeId: null,
+                    userId: currentUserId,
+                    userName: currentUserName,
+                    userAvatar: currentUserAvatar,
+                    content: content
+                };
+
+                try {
+                    let savedComment = null;
+                    if (signalrConn && signalrConn.state === signalR.HubConnectionState.Connected) {
+                        savedComment = await signalrConn.invoke('SendComment', activeGroupKey, payload);
+                    } else {
+                        const res = await fetch('/Preview/PostComment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data?.success || !data?.data) {
+                            throw new Error(data?.message || 'Không thể lưu bình luận.');
+                        }
+                        savedComment = data.data;
+                    }
+
+                    if (!savedComment || !savedComment.commentId) {
+                        throw new Error('Server không trả về ID bình luận đã lưu.');
+                    }
+
+                    addCommentToUI(savedComment, true);
+
+                    cmtTextarea.value = '';
+                    if (cmtCharCount) cmtCharCount.textContent = '0 / 500';
+                } catch (err) {
+                    console.error('Lỗi gửi bình luận:', err);
+                    alert(err.message || 'Gửi bình luận thất bại. Vui lòng thử lại!');
+                } finally {
+                    btnCmt.disabled = false;
+                    btnCmt.innerHTML = originalHtml;
+                }
+            });
+        }
     </script>
 }
