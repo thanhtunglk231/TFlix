@@ -271,7 +271,7 @@
                             <i class="bi bi-image me-1"></i> Tài nguyên (MovieAsset)
                         </button>
                         <div class="form-text">
-                            Sau khi lưu movie thành công, bạn có thể thêm tài nguyên và thể loại ngay bên dưới.
+                            Có thể chọn tài nguyên và thể loại trước. Hệ thống sẽ tạo phim rồi tự động lưu toàn bộ dữ liệu liên quan.
                         </div>
                     </div>
                 </form>
@@ -456,6 +456,8 @@
             let assetCache = [];
             let genreMaster = [];
             let genreCache = [];
+            let pendingAssets = [];
+            let pendingGenres = [];
 
             const showLoading = () => $overlay.fadeIn(80);
             const hideLoading = () => $overlay.fadeOut(120);
@@ -487,7 +489,9 @@
             }
 
             function getMovieIdFromResponse(res) {
-                return res?.movieId ?? res?.MovieId ?? res?.data?.movieId ?? res?.data?.MovieId ?? null;
+                return res?.movieId ?? res?.MovieId
+                    ?? res?.data?.movieId ?? res?.data?.MovieId
+                    ?? res?.Data?.movieId ?? res?.Data?.MovieId ?? null;
             }
 
             const toDate10 = v => {
@@ -533,13 +537,8 @@
             }
 
             function setRelatedPanelsEnabled(enabled) {
-                $('#btnAssetSave').prop('disabled', !enabled);
-                $('#btnGenreAdd').prop('disabled', !enabled);
-
-                if (!enabled) {
-                    $assetTbody.html(`<tr><td colspan="5" class="text-center text-secondary">Hãy lưu Movie trước để quản lý tài nguyên.</td></tr>`);
-                    $genreTbody.html(`<tr><td colspan="4" class="text-center text-secondary">Hãy lưu Movie trước để quản lý thể loại.</td></tr>`);
-                }
+                $('#btnAssetSave').prop('disabled', false);
+                $('#btnGenreAdd').prop('disabled', false);
             }
 
             function paginate(list, pageNo, size) {
@@ -677,10 +676,16 @@
                 $('#movieForm')[0].reset();
                 $('#IsPremium').val('N');
                 bindMovieId('');
+                assetCache = [];
+                genreCache = [];
+                pendingAssets = [];
+                pendingGenres = [];
                 resetAssetForm();
                 resetGenreForm();
-                $('#assetPanel').removeClass('show');
-                setRelatedPanelsEnabled(false);
+                $('#assetPanel').addClass('show');
+                renderAssetRows(null);
+                renderGenreRows();
+                setRelatedPanelsEnabled(true);
                 modal.show();
             }
 
@@ -692,6 +697,8 @@
                 }
 
                 const movieId = getMovieId(m);
+                pendingAssets = [];
+                pendingGenres = [];
 
                 $('#movieModalTitle').text('Chỉnh sửa movie');
                 bindMovieId(movieId);
@@ -720,7 +727,7 @@
                 modal.show();
             }
 
-            function saveMovie() {
+            async function saveMovie() {
                 const anti = $('input[name="__RequestVerificationToken"]').val();
                 const idStr = ($('#MovieId').val() || '').trim();
                 const isEdit = !!idStr;
@@ -750,14 +757,15 @@
                 }
 
                 showLoading();
-                $.ajax({
-                    url: url,
-                    type: 'POST',
-                    contentType: 'application/json; charset=utf-8',
-                    headers: anti ? { "RequestVerificationToken": anti } : {},
-                    data: JSON.stringify(payload)
-                })
-                .done(res => {
+                $('#btnSave').prop('disabled', true);
+                try {
+                    const res = await $.ajax({
+                        url: url,
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        headers: anti ? { "RequestVerificationToken": anti } : {},
+                        data: JSON.stringify(payload)
+                    });
                     const ok = res && (res.success === true || res.Success === true || res.code === '200');
 
                     if (!ok) {
@@ -766,7 +774,15 @@
                     }
 
                     if (isEdit) {
-                        showToast('Đã cập nhật movie', true);
+                        const relatedResult = await savePendingRelated(+idStr);
+                        if (relatedResult.failed > 0) {
+                            showToast(`Đã cập nhật phim, nhưng ${relatedResult.failed} mục liên quan vẫn chưa lưu được.`, false, 6000);
+                        } else {
+                            showToast('Đã cập nhật movie', true);
+                        }
+                        await ensureAssetCache(+idStr);
+                        renderAssetRows(+idStr);
+                        await loadGenresFor(+idStr, false);
                         reloadAll();
                         return;
                     }
@@ -780,16 +796,23 @@
 
                     bindMovieId(newMovieId);
                     setRelatedPanelsEnabled(true);
-                    showToast(`Đã thêm movie #${newMovieId}. Bây giờ có thể thêm tài nguyên và thể loại.`, true);
+                    const relatedResult = await savePendingRelated(newMovieId);
+                    if (relatedResult.failed > 0) {
+                        showToast(`Đã tạo phim #${newMovieId}, nhưng ${relatedResult.failed} mục liên quan chưa lưu được. Bạn có thể thử lại ngay trong form.`, false, 6000);
+                    } else {
+                        showToast(`Đã tạo phim #${newMovieId} cùng tài nguyên và thể loại.`, true);
+                    }
 
-                    ensureAssetCache(newMovieId).then(() => renderAssetRows(newMovieId));
-                    loadGenreMaster().then(() => loadGenresFor(newMovieId));
+                    await ensureAssetCache(newMovieId);
+                    renderAssetRows(newMovieId);
+                    await loadGenresFor(newMovieId, false);
                     reloadAll();
-                })
-                .fail(xhr => {
+                } catch (xhr) {
                     showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi kết nối.', false);
-                })
-                .always(hideLoading);
+                } finally {
+                    $('#btnSave').prop('disabled', false);
+                    hideLoading();
+                }
             }
 
             function removeMovie(id) {
@@ -843,7 +866,7 @@
             }
 
             function renderAssetRows(movieId) {
-                const rows = (assetCache || [])
+                const savedRows = (assetCache || [])
                     .filter(a => String(a?.movieId ?? a?.MovieId ?? '') === String(movieId))
                     .map(a => {
                         const id = a?.assetId ?? a?.AssetId ?? a?.asseT_ID;
@@ -891,26 +914,55 @@
                         `;
                     }).join('');
 
+                const queuedRows = pendingAssets.map(a => `
+                    <tr class="table-warning">
+                        <td><span class="badge text-bg-warning">Chờ lưu</span></td>
+                        <td>${a.assetType}</td>
+                        <td>${a.file.name}</td>
+                        <td>${a.sortOrder}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger btn-pending-asset-del" data-key="${a.key}" title="Bỏ khỏi danh sách">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`).join('');
+
+                const rows = savedRows + queuedRows;
+
                 $assetTbody.html(rows || `<tr><td colspan="5" class="text-center text-secondary">Không có tài nguyên</td></tr>`);
             }
 
             function saveAsset() {
                 const movieId = toIntOrNull($('#Asset_MovieId').val());
-                if (!movieId) {
-                    showToast('Thiếu MovieId (hãy lưu Movie trước).', false);
-                    return;
-                }
-
                 const assetId = toIntOrNull($('#Asset_Id').val());
                 const type = ($('#Asset_Type').val() || '').trim();
                 const sort = toIntOrNull($('#Asset_Sort').val()) ?? 0;
                 const oldUrl = ($('#Asset_Url').val() || '').trim();
                 const file = $('#Asset_File')[0].files[0] || null;
 
+                if (!movieId) {
+                    if (!file) {
+                        showToast('Vui lòng chọn tệp tài nguyên.', false);
+                        return;
+                    }
+
+                    pendingAssets.push({
+                        key: `${Date.now()}-${Math.random()}`,
+                        file,
+                        assetType: type,
+                        sortOrder: sort
+                    });
+                    renderAssetRows(null);
+                    resetAssetForm();
+                    showToast('Đã thêm tài nguyên vào danh sách chờ. Nhấn Lưu movie để hoàn tất.', true);
+                    return;
+                }
+
                 const fd = new FormData();
                 if (file) fd.append('file', file);
 
-                fd.append('MovieId', movieId);
+                fd.append('ownerId', movieId);
+                fd.append('ownerType', 'MOVIE');
                 fd.append('AssetType', type);
                 fd.append('SortOrder', sort);
 
@@ -951,11 +1003,14 @@
             function deleteAsset(id) {
                 if (!confirm(`Xóa tài nguyên #${id}?`)) return;
                 const movieId = currentMovieId();
+                const asset = assetCache.find(x => String(x?.assetId ?? x?.AssetId ?? x?.asseT_ID) === String(id));
+                const assetUrl = asset?.url ?? asset?.Url ?? '';
 
                 showLoading();
                 $.ajax({
                     url: `${urls.asset.root}/${id}`,
-                    type: 'DELETE'
+                    type: 'DELETE',
+                    data: { ownerType: 'MOVIE', url: assetUrl }
                 })
                 .done(res => {
                     const ok = res && (res.success === true || res.Success === true || res.code === '200');
@@ -996,7 +1051,7 @@
             }
 
             function renderGenreRows() {
-                const rows = (genreCache || []).map(g => {
+                const savedRows = (genreCache || []).map(g => {
                     const movieGenreId = g?.movieGenreId ?? g?.MovieGenreId ?? g?.slug ?? g?.Id ?? g?.id ?? '';
                     const genreId = g?.genreId ?? g?.GenreId ?? '';
                     const genreName = g?.genreName ?? g?.GenreName ?? g?.Name ?? g?.name ?? '';
@@ -1017,17 +1072,31 @@
                     `;
                 }).join('');
 
+                const queuedRows = pendingGenres.map(g => `
+                    <tr class="table-warning">
+                        <td><span class="badge text-bg-warning">Chờ lưu</span></td>
+                        <td>${g.genreId}</td>
+                        <td>${g.genreName || ''}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger btn-pending-genre-del" data-id="${g.genreId}" title="Bỏ khỏi danh sách">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`).join('');
+
+                const rows = savedRows + queuedRows;
+
                 $genreTbody.html(rows || `<tr><td colspan="4" class="text-center text-secondary">Chưa có thể loại</td></tr>`);
             }
 
-            function loadGenresFor(movieId) {
+            function loadGenresFor(movieId, manageLoading = true) {
                 if (!movieId) {
-                    $genreTbody.html(`<tr><td colspan="4" class="text-center text-secondary">Hãy lưu Movie trước để quản lý thể loại.</td></tr>`);
-                    return;
+                    renderGenreRows();
+                    return Promise.resolve();
                 }
 
-                showLoading();
-                $.get(urls.genre.byMovie, { id: movieId })
+                if (manageLoading) showLoading();
+                return $.get(urls.genre.byMovie, { id: movieId })
                     .done(res => {
                         genreCache = pickList(res);
                         renderGenreRows();
@@ -1035,17 +1104,13 @@
                     .fail(xhr => {
                         showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi tải thể loại.', false);
                     })
-                    .always(hideLoading);
+                    .always(() => { if (manageLoading) hideLoading(); });
             }
 
             function addGenre() {
                 const movieId = +($('#Genre_MovieId').val() || '');
                 const genreId = ($('#Genre_Select').val() || '').trim();
 
-                if (!movieId) {
-                    showToast('Thiếu MovieId (hãy lưu Movie trước).', false);
-                    return;
-                }
                 if (!genreId) {
                     showToast('Hãy chọn thể loại.', false);
                     return;
@@ -1053,6 +1118,18 @@
 
                 const found = genreMaster.find(g => String(g?.GenreId ?? g?.Id ?? g?.id) === String(genreId));
                 const genreName = found ? (found?.Name ?? found?.GenreName ?? '') : null;
+
+                if (!movieId) {
+                    if (pendingGenres.some(g => String(g.genreId) === String(genreId))) {
+                        showToast('Thể loại này đã có trong danh sách chờ.', false);
+                        return;
+                    }
+                    pendingGenres.push({ genreId, genreName });
+                    renderGenreRows();
+                    resetGenreForm();
+                    showToast('Đã thêm thể loại vào danh sách chờ. Nhấn Lưu movie để hoàn tất.', true);
+                    return;
+                }
 
                 const payload = {
                     MovieId: movieId,
@@ -1115,6 +1192,71 @@
                 .always(hideLoading);
             }
 
+            function uploadPendingAsset(movieId, asset) {
+                const fd = new FormData();
+                fd.append('file', asset.file);
+                fd.append('ownerId', movieId);
+                fd.append('ownerType', 'MOVIE');
+                fd.append('AssetType', asset.assetType);
+                fd.append('SortOrder', asset.sortOrder);
+                return $.ajax({
+                    url: urls.asset.add,
+                    type: 'POST',
+                    processData: false,
+                    contentType: false,
+                    data: fd
+                });
+            }
+
+            function savePendingGenre(movieId, genre) {
+                return $.ajax({
+                    url: urls.genre.add,
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({
+                        MovieId: movieId,
+                        GenreId: genre.genreId,
+                        GenreName: genre.genreName
+                    })
+                });
+            }
+
+            async function savePendingRelated(movieId) {
+                let failed = 0;
+                const remainingAssets = [];
+                const remainingGenres = [];
+
+                for (const asset of pendingAssets) {
+                    try {
+                        const result = await uploadPendingAsset(movieId, asset);
+                        if (!(result?.success === true || result?.Success === true || result?.code === '200')) {
+                            failed++;
+                            remainingAssets.push(asset);
+                        }
+                    } catch {
+                        failed++;
+                        remainingAssets.push(asset);
+                    }
+                }
+
+                for (const genre of pendingGenres) {
+                    try {
+                        const result = await savePendingGenre(movieId, genre);
+                        if (!(result?.success === true || result?.Success === true || result?.code === '200')) {
+                            failed++;
+                            remainingGenres.push(genre);
+                        }
+                    } catch {
+                        failed++;
+                        remainingGenres.push(genre);
+                    }
+                }
+
+                pendingAssets = remainingAssets;
+                pendingGenres = remainingGenres;
+                return { failed };
+            }
+
             $('#btnRefresh').on('click', reloadAll);
             $('#btnAdd').on('click', openAdd);
             $('#btnSave').on('click', saveMovie);
@@ -1163,6 +1305,12 @@
                 deleteAsset($(this).data('id'));
             });
 
+            $assetTbody.on('click', '.btn-pending-asset-del', function () {
+                const key = String($(this).data('key'));
+                pendingAssets = pendingAssets.filter(x => String(x.key) !== key);
+                renderAssetRows(currentMovieId());
+            });
+
             $assetTbody.on('click', '.asset-open', function () {
                 const url = $(this).data('url');
                 if (url) openPreview(url);
@@ -1173,6 +1321,12 @@
 
             $genreTbody.on('click', '.btn-genre-del', function () {
                 deleteGenre($(this).data('id'), $(this).data('genre'));
+            });
+
+            $genreTbody.on('click', '.btn-pending-genre-del', function () {
+                const genreId = String($(this).data('id'));
+                pendingGenres = pendingGenres.filter(x => String(x.genreId) !== genreId);
+                renderGenreRows();
             });
 
             reloadAll();

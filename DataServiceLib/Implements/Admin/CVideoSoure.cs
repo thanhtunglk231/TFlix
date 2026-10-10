@@ -189,7 +189,7 @@ namespace DataServiceLib.Implements.Admin
 
                 return new CResponseMessage
                 {
-                    Data = new
+                    Data = new VideoSourceCreateResultDto
                     {
                         DataSet = ds,
                         SourceId = o_source_id.Value != DBNull.Value ? Convert.ToDecimal(o_source_id.Value) : (decimal?)null

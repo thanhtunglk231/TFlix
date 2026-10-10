@@ -249,7 +249,7 @@ namespace Server.Controllers
 
             var uploadDirectory = GetUploadDirectory(uploadId);
             if (!Directory.Exists(uploadDirectory))
-                CleanupExpiredUploads();
+                await CleanupExpiredUploadsAsync();
             Directory.CreateDirectory(uploadDirectory);
 
             var manifestPath = Path.Combine(uploadDirectory, "chunk-count.txt");
@@ -283,7 +283,13 @@ namespace Server.Controllers
                 await chunk.CopyToAsync(target, cancellationToken);
             }
 
-            _uploadProgress.SetStage(uploadId, "receiving-chunks", "Đang nhận các phần MP4");
+            var receivedChunkCount = Directory.EnumerateFiles(uploadDirectory, "chunk_*.part").Count();
+            var receivingPercent = (int)Math.Floor(receivedChunkCount * 30d / totalChunks);
+            _uploadProgress.SetStageProgress(
+                uploadId,
+                "receiving-chunks",
+                $"Đã nhận {receivedChunkCount}/{totalChunks} phần MP4 qua API",
+                receivingPercent);
 
             _logger.LogInformation(
                 "Stored MP4 upload chunk {ChunkIndex}/{TotalChunks} ({ChunkBytes} bytes) for upload {UploadId}",
@@ -365,7 +371,7 @@ namespace Server.Controllers
                 return BadRequest(new { success = false, message = "SourceId không hợp lệ." });
 
             var uploadDirectory = GetUploadDirectory(uploadId);
-            _uploadProgress.SetStage(uploadId, "packaging", "Đang đóng gói MP4 thành HLS");
+            _uploadProgress.SetStageProgress(uploadId, "assembling", "Đang ghép các phần MP4 trên server", 0);
             StoredVideoObject? uploadedPlaylist = null;
             decimal? sourceId = request.SourceId;
             var uploadedObjects = new ConcurrentBag<StoredVideoObject>();
@@ -408,6 +414,8 @@ namespace Server.Controllers
                     System.IO.File.Move(assemblingPath, inputPath, true);
                 }
 
+                _uploadProgress.SetStageProgress(uploadId, "packaging", "Đang tạo playlist và HLS segments", 0);
+
                 var hlsDirectory = Path.Combine(uploadDirectory, "hls");
                 var playlistPath = Path.Combine(hlsDirectory, "index.m3u8");
                 var existingSegments = Directory.Exists(hlsDirectory)
@@ -417,7 +425,20 @@ namespace Server.Controllers
                 {
                     if (Directory.Exists(hlsDirectory))
                         Directory.Delete(hlsDirectory, true);
-                    playlistPath = await _videoTranscodingService.CreateHlsAsync(inputPath, hlsDirectory, cancellationToken);
+                    var packagingProgress = new Progress<double>(value =>
+                    {
+                        var percent = Math.Clamp((int)Math.Floor(value), 0, 100);
+                        _uploadProgress.SetStageProgress(
+                            uploadId,
+                            "packaging",
+                            $"FFmpeg đang tạo HLS: {percent}%",
+                            percent);
+                    });
+                    playlistPath = await _videoTranscodingService.CreateHlsAsync(
+                        inputPath,
+                        hlsDirectory,
+                        packagingProgress,
+                        cancellationToken);
                 }
                 var ownerId = request.MovieId ?? request.EpisodeId!.Value;
                 var quality = string.IsNullOrWhiteSpace(request.Quality) ? "unknown" : request.Quality.Trim();
@@ -450,7 +471,14 @@ namespace Server.Controllers
                     uploadedObjects.Add(storedObject);
                 }
 
-                _uploadProgress.StartSegmentUpload(uploadId, segmentPaths.Count, segmentMap.Count);
+                var totalSegmentBytes = segmentPaths.Sum(path => new FileInfo(path).Length);
+                var uploadedSegmentBytes = segmentMap.Values.Sum(segment => segment.ByteSize);
+                _uploadProgress.StartSegmentUpload(
+                    uploadId,
+                    segmentPaths.Count,
+                    totalSegmentBytes,
+                    segmentMap.Count,
+                    uploadedSegmentBytes);
                 var pendingSegmentPaths = segmentPaths
                     .Where(path => !segmentMap.ContainsKey(Path.GetFileName(path)))
                     .ToList();
@@ -476,7 +504,7 @@ namespace Server.Controllers
                             token);
                         segmentMap[segmentName] = (storedSegment, byteSize);
                         uploadedObjects.Add(storedSegment);
-                        var progress = _uploadProgress.IncrementUploadedSegment(uploadId);
+                        var progress = _uploadProgress.IncrementUploadedSegment(uploadId, byteSize);
                         _logger.LogInformation(
                             "Uploaded HLS segment {UploadedSegments}/{TotalSegments} for upload {UploadId}",
                             progress.SegmentsUploaded,
@@ -573,10 +601,9 @@ namespace Server.Controllers
                 }
                 else
                 {
-                    dynamic sourceData = sourceResponse.Data!;
-                    if (sourceData.SourceId == null)
+                    if (sourceResponse.Data is not VideoSourceCreateResultDto sourceData || !sourceData.SourceId.HasValue)
                         throw new InvalidOperationException("Không lấy được SourceId từ database.");
-                    sourceId = Convert.ToDecimal(sourceData.SourceId);
+                    sourceId = sourceData.SourceId.Value;
                     createdSource = true;
                 }
 
@@ -629,6 +656,8 @@ namespace Server.Controllers
                 if (createdSource && sourceId.HasValue)
                     await _videoSourceService.Delete_video_source(sourceId.Value);
 
+                await TryCleanupUploadArtifactsAsync(uploadId);
+
                 return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = ex.Message });
             }
             finally
@@ -650,21 +679,7 @@ namespace Server.Controllers
         [HttpPost("mp4-uploads/{uploadId:guid}/cancel")]
         public async Task<IActionResult> CancelMp4Upload(Guid uploadId, CancellationToken cancellationToken)
         {
-            var uploadDirectory = GetUploadDirectory(uploadId);
-            var receiptDirectory = Path.Combine(uploadDirectory, "uploaded-objects");
-            if (Directory.Exists(receiptDirectory))
-            {
-                foreach (var receiptPath in Directory.EnumerateFiles(receiptDirectory, "*.json"))
-                {
-                    var receipt = await ReadStoredObjectReceiptAsync(receiptPath, cancellationToken);
-                    if (receipt != null)
-                        await TryDeleteStorageObjectAsync(new StoredVideoObject(receipt.Url, receipt.IsCloudflare));
-                }
-            }
-
-            if (Directory.Exists(uploadDirectory))
-                Directory.Delete(uploadDirectory, true);
-            _uploadProgress.Remove(uploadId);
+            await CleanupUploadArtifactsAsync(uploadId, cancellationToken);
             return Ok(new { success = true });
         }
 
@@ -893,6 +908,46 @@ namespace Server.Controllers
             return Path.Combine(UploadRoot, uploadId.ToString("N"));
         }
 
+        private async Task CleanupUploadArtifactsAsync(Guid uploadId, CancellationToken cancellationToken)
+        {
+            var uploadDirectory = GetUploadDirectory(uploadId);
+            var receiptDirectory = Path.Combine(uploadDirectory, "uploaded-objects");
+            if (Directory.Exists(receiptDirectory))
+            {
+                foreach (var receiptPath in Directory.EnumerateFiles(receiptDirectory, "*.json"))
+                {
+                    try
+                    {
+                        var receipt = await ReadStoredObjectReceiptAsync(receiptPath, cancellationToken);
+                        if (receipt != null)
+                            await TryDeleteStorageObjectAsync(new StoredVideoObject(receipt.Url, receipt.IsCloudflare));
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not clean uploaded object receipt {ReceiptName}", Path.GetFileName(receiptPath));
+                    }
+                }
+            }
+
+            if (Directory.Exists(uploadDirectory))
+                Directory.Delete(uploadDirectory, true);
+
+            _uploadProgress.Remove(uploadId);
+            _logger.LogInformation("Cleaned temporary and uploaded artifacts for video upload {UploadId}", uploadId);
+        }
+
+        private async Task TryCleanupUploadArtifactsAsync(Guid uploadId)
+        {
+            try
+            {
+                await CleanupUploadArtifactsAsync(uploadId, CancellationToken.None);
+            }
+            catch (Exception cleanupException)
+            {
+                _logger.LogError(cleanupException, "Cleanup failed for video upload {UploadId}", uploadId);
+            }
+        }
+
         private static string GetSegmentReceiptPath(string receiptDirectory, string segmentName)
         {
             return Path.Combine(receiptDirectory, $"{Path.GetFileName(segmentName)}.json");
@@ -932,7 +987,7 @@ namespace Server.Controllers
             return string.IsNullOrWhiteSpace(safeValue) ? "unknown" : safeValue;
         }
 
-        private void CleanupExpiredUploads()
+        private async Task CleanupExpiredUploadsAsync()
         {
             if (!Directory.Exists(UploadRoot))
                 return;
@@ -943,7 +998,12 @@ namespace Server.Controllers
                 try
                 {
                     if (Directory.GetLastWriteTimeUtc(directory) < expiredBefore)
-                        Directory.Delete(directory, true);
+                    {
+                        if (Guid.TryParseExact(Path.GetFileName(directory), "N", out var expiredUploadId))
+                            await TryCleanupUploadArtifactsAsync(expiredUploadId);
+                        else
+                            Directory.Delete(directory, true);
+                    }
                 }
                 catch (Exception ex)
                 {

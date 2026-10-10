@@ -1,6 +1,7 @@
 using CoreLib.Dtos.VideSoure;
 using CoreLib.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
 
@@ -121,6 +122,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         }
 
         [HttpPost]
+        [AllowAnonymous]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> CancelMp4Upload([FromQuery] Guid? uploadId, [FromForm(Name = "uploadId")] Guid? formUploadId)
         {

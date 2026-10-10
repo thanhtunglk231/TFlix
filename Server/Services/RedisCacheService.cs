@@ -11,10 +11,10 @@ namespace Server.Services
             DateParseHandling = DateParseHandling.None
         };
 
-        private readonly IConnectionMultiplexer _redis;
+        private readonly IRedisConnectionProvider _redis;
         private readonly ILogger<RedisCacheService> _logger;
 
-        public RedisCacheService(IConnectionMultiplexer redis, ILogger<RedisCacheService> logger)
+        public RedisCacheService(IRedisConnectionProvider redis, ILogger<RedisCacheService> logger)
         {
             _redis = redis;
             _logger = logger;
@@ -24,7 +24,9 @@ namespace Server.Services
         {
             try
             {
-                var value = await _redis.GetDatabase().StringGetAsync(key);
+                var database = await _redis.GetDatabaseAsync(cancellationToken);
+                if (database is null) return default;
+                var value = await database.StringGetAsync(key);
                 if (!value.HasValue)
                 {
                     _logger.LogInformation("Redis cache MISS for {CacheKey}", GetSafeCacheKey(key));
@@ -46,7 +48,9 @@ namespace Server.Services
             try
             {
                 var json = JsonConvert.SerializeObject(value, SerializerSettings);
-                await _redis.GetDatabase().StringSetAsync(key, json, expiration);
+                var database = await _redis.GetDatabaseAsync(cancellationToken);
+                if (database is null) return;
+                await database.StringSetAsync(key, json, expiration);
                 _logger.LogInformation(
                     "Redis cache SET for {CacheKey} with TTL {TtlSeconds} seconds",
                     GetSafeCacheKey(key),
@@ -62,7 +66,9 @@ namespace Server.Services
         {
             try
             {
-                await _redis.GetDatabase().KeyDeleteAsync(key);
+                var database = await _redis.GetDatabaseAsync(cancellationToken);
+                if (database is null) return;
+                await database.KeyDeleteAsync(key);
                 _logger.LogInformation("Redis cache DELETE for {CacheKey}", GetSafeCacheKey(key));
             }
             catch (Exception ex)
@@ -76,15 +82,18 @@ namespace Server.Services
             try
             {
                 var deletedCount = 0L;
-                foreach (var endpoint in _redis.GetEndPoints())
+                var connection = await _redis.GetConnectionAsync(cancellationToken);
+                if (connection is null) return;
+                var database = connection.GetDatabase();
+                foreach (var endpoint in connection.GetEndPoints())
                 {
-                    var server = _redis.GetServer(endpoint);
+                    var server = connection.GetServer(endpoint);
                     if (!server.IsConnected)
                         continue;
 
                     var keys = server.Keys(pattern: $"{prefix}*", pageSize: 250).ToArray();
                     if (keys.Length > 0)
-                        deletedCount += await _redis.GetDatabase().KeyDeleteAsync(keys);
+                        deletedCount += await database.KeyDeleteAsync(keys);
                 }
 
                 _logger.LogInformation(

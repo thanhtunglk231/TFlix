@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using CommonLib.Logging;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using System.Diagnostics;
@@ -9,6 +10,19 @@ using WebBrowser.Services.Implements.Movies;
 using WebBrowser.Services.Implements.Series;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Giữ khóa mã hóa cookie/session ổn định qua các lần restart hoặc publish lại.
+// Có thể cấu hình đường dẫn bên ngoài thư mục publish bằng DataProtection:KeysPath.
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
+}
+
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("TFlix.WebBrowser");
 
 // Cấu hình File Logger ghi lỗi ra file txt
 builder.Logging.AddFileLogger(options =>
@@ -92,8 +106,23 @@ var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticat
         opts.ExpireTimeSpan = TimeSpan.FromMinutes(10);
     });
 
-var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
-var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"]
+    ?? builder.Configuration["Google:ClientId"]
+    ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID");
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]
+    ?? builder.Configuration["Google:ClientSecret"]
+    ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET");
+var googleCallbackPath = builder.Configuration["Authentication:Google:CallbackPath"]
+    ?? builder.Configuration["Google:CallbackPath"]
+    ?? Environment.GetEnvironmentVariable("GOOGLE_CALLBACK_PATH")
+    ?? "/signin-google";
+
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Authentication:Google:ClientId"] = googleClientId,
+    ["Authentication:Google:ClientSecret"] = googleClientSecret,
+    ["Authentication:Google:CallbackPath"] = googleCallbackPath
+});
 if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
 {
     authenticationBuilder.AddGoogle("Google", opts =>
@@ -101,7 +130,7 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
         opts.SignInScheme = "GoogleExternal";
         opts.ClientId = googleClientId;
         opts.ClientSecret = googleClientSecret;
-        opts.CallbackPath = builder.Configuration["Authentication:Google:CallbackPath"] ?? "/signin-google";
+        opts.CallbackPath = googleCallbackPath;
         opts.SaveTokens = true;
         opts.Scope.Clear();
         opts.Scope.Add("openid"); opts.Scope.Add("email"); opts.Scope.Add("profile");

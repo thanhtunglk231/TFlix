@@ -93,6 +93,24 @@
         animation: progress-stripes .8s linear infinite;
       }
 
+      .inline-upload-status {
+        margin-top: .75rem;
+        padding: .875rem;
+        background: rgba(255, 255, 255, .035);
+        border: 1px solid rgba(255, 255, 255, .12);
+        border-radius: .5rem;
+      }
+
+      .inline-upload-status .progress {
+        height: 9px;
+        background: rgba(255, 255, 255, .1);
+      }
+
+      .inline-upload-status .progress-bar {
+        min-width: 0;
+        transition: width .18s ease-out;
+      }
+
       @@keyframes progress-stripes {
         to { background-position: 28px 0; }
       }
@@ -284,6 +302,26 @@
   </section>
 </div>
 <div class="toastx" id="__toastMessage"></div>
+
+<div class="modal fade" id="uploadResultModal" tabindex="-1" aria-labelledby="uploadResultModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="uploadResultModalTitle">
+                    <i class="bi" id="uploadResultModalIcon" aria-hidden="true"></i>
+                    <span id="uploadResultModalHeading">Kết quả upload</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0" id="uploadResultModalMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h4 class="m-0"><i class="bi bi-hdd-network me-2"></i>Quản lý Video Sources</h4>
@@ -501,6 +539,25 @@
                     <div class="col-12" id="blockFile">
                         <label class="form-label">Upload file video (1 file)</label>
                         <input id="File" type="file" class="form-control" accept=".mp4,video/mp4" />
+                        <div class="inline-upload-status" id="resumeUploadPanel" role="status" aria-live="polite">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                <div class="min-w-0">
+                                    <div class="fw-semibold" id="inlineUploadTitle">
+                                        <i class="bi bi-cloud-arrow-up me-1"></i>Tiến trình upload
+                                    </div>
+                                    <div class="small text-secondary" id="resumeUploadDetail">Chọn file MP4 để bắt đầu hoặc kiểm tra phiên upload trước.</div>
+                                </div>
+                                <button type="button" class="btn btn-warning" id="btnResumeUpload" disabled>
+                                    <i class="bi bi-play-fill me-1"></i>Resume
+                                </button>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" role="progressbar" aria-label="Tiến trình upload video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                    <div class="progress-bar progress-bar-striped" id="inlineUploadProgressBar" style="width: 0%"></div>
+                                </div>
+                                <span class="small fw-semibold text-nowrap" id="inlineUploadProgressText">0%</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- block upload HLS -->
@@ -585,12 +642,30 @@
           const sourceModal    = bootstrap.Modal.getOrCreateInstance(sourceModalEl);
           const previewModalEl = document.getElementById('videoPreviewModal');
           const previewModal   = bootstrap.Modal.getOrCreateInstance(previewModalEl);
+          const uploadResultModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('uploadResultModal'));
 
           let cache = [];     // full list
           let filtered = [];  // after filter
           let page = 1;
+          let resumeFileState = null;
 
           // ===== Helpers =====
+          function updateInlineUploadProgress(title, detail, percent, processing=false){
+            const value = Math.max(0, Math.min(100, Math.round(percent || 0)));
+            $('#inlineUploadTitle').html(`<i class="bi ${processing ? 'bi-hourglass-split' : 'bi-cloud-arrow-up'} me-1"></i>${title}`);
+            $('#resumeUploadDetail').text(detail);
+            $('#inlineUploadProgressText').text(`${value}%`);
+            $('#inlineUploadProgressBar')
+              .css('width', `${value}%`)
+              .toggleClass('progress-bar-animated', processing || (value > 0 && value < 100))
+              .parent().attr('aria-valuenow', value);
+          }
+
+          function resetInlineUploadProgress(){
+            updateInlineUploadProgress('Tiến trình upload', 'Chọn file MP4 để bắt đầu hoặc kiểm tra phiên upload trước.', 0);
+            $('#btnResumeUpload').prop('disabled', true);
+          }
+
           function showLoading(){
             $uploadProgress.addClass('d-none').removeClass('is-processing');
             $loadingSpinner.removeClass('d-none');
@@ -598,15 +673,8 @@
           }
           function showUploadProgress(title, detail, percent, processing=false){
             const value = Math.max(0, Math.min(100, Math.round(percent)));
-            $loadingSpinner.addClass('d-none');
-            $uploadProgress.toggleClass('is-processing', processing).removeClass('d-none');
-            $('#uploadProgressTitle').text(title);
-            $('#uploadProgressDetail').text(detail);
-            $('#uploadProgressPercent').text(`${value}%`);
-            $('#uploadProgressBar').css('width', `${value}%`)
-              .parent().attr('aria-valuenow', value);
-            $('#uploadProcessingStatus').toggleClass('d-flex', processing).toggleClass('d-none', !processing);
-            $overlay.stop(true, true).show();
+            updateInlineUploadProgress(title, detail, value, processing);
+            $overlay.stop(true, true).hide();
           }
           function hideLoading(){
             $overlay.fadeOut(120, ()=>{
@@ -618,6 +686,21 @@
           function showToast(msg, ok=true, ms=2600){
             $toast.text(msg||"").removeClass("success error").addClass(ok?"success":"error").fadeIn(120);
             setTimeout(()=> $toast.fadeOut(150), ms);
+          }
+          function showUploadResultPopup(ok, heading, message){
+            $('#uploadResultModalHeading').text(heading || (ok ? 'Upload thành công' : 'Upload thất bại'));
+            $('#uploadResultModalMessage').text(message || '');
+            $('#uploadResultModalTitle').toggleClass('text-success', ok).toggleClass('text-danger', !ok);
+            $('#uploadResultModalIcon')
+              .toggleClass('bi-check-circle-fill', ok)
+              .toggleClass('bi-exclamation-triangle-fill', !ok);
+            uploadResultModal.show();
+          }
+          function closeSourceAndShowUploadResult(ok, heading, message){
+            sourceModalEl.addEventListener('hidden.bs.modal', () => {
+              showUploadResultPopup(ok, heading, message);
+            }, { once: true });
+            sourceModal.hide();
           }
           function pickList(res){
             const d = res?.data ?? res?.Data ?? null;
@@ -839,6 +922,8 @@
             $('#SourceId').val('');
             $('#OldStreamUrl').val('');
             $('#File').prop('disabled', false);
+            resumeFileState = null;
+            resetInlineUploadProgress();
             $('#modeFile').prop('checked', true);
             toggleInputMode();
 
@@ -887,6 +972,8 @@
             $('#btnDeleteCurrentSource').removeClass('d-none').data('id', id).data('url', streamUrl);
 
             $('#File').val('').prop('disabled', false);
+            resumeFileState = null;
+            resetInlineUploadProgress();
             $('#modeFile').prop('checked', true);
             toggleInputMode();
             $('#fileNote').removeClass('text-muted').addClass('text-warning')
@@ -910,6 +997,44 @@
             combined.set(new Uint8Array(tail), metadata.length + head.byteLength);
             const digest = await crypto.subtle.digest('SHA-256', combined);
             return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+          }
+
+          async function detectResumeUpload(file){
+            resumeFileState = null;
+            resetInlineUploadProgress();
+            if (!file) return;
+
+            updateInlineUploadProgress('Đang kiểm tra phiên upload', `Đang kiểm tra ${file.name}...`, 0, true);
+
+            try {
+              const fingerprint = await createMp4Fingerprint(file);
+              const sessionKey = `tflix:mp4-upload:${fingerprint}`;
+              const uploadId = localStorage.getItem(sessionKey);
+              if (!uploadId){
+                updateInlineUploadProgress('Sẵn sàng upload', `${file.name} · ${(file.size / (1024 * 1024)).toFixed(1)} MiB`, 0);
+                return;
+              }
+
+              const status = await $.ajax({
+                url: `${urls.mp4UploadStatus}?uploadId=${encodeURIComponent(uploadId)}&fileFingerprint=${encodeURIComponent(fingerprint)}`,
+                type: 'GET'
+              });
+              const resumeAvailable = status.resumeAvailable ?? status.ResumeAvailable ?? false;
+              const uploadedChunks = status.uploadedChunks ?? status.UploadedChunks ?? [];
+              const totalChunks = status.totalChunks ?? status.TotalChunks ?? 0;
+              if (!resumeAvailable || uploadedChunks.length === 0 || totalChunks <= 0){
+                updateInlineUploadProgress('Sẵn sàng upload', 'Không có phiên upload dang dở cho file này.', 0);
+                return;
+              }
+
+              const percent = Math.floor(uploadedChunks.length * 100 / totalChunks);
+              resumeFileState = { uploadId, fingerprint, sessionKey, uploadedChunks, totalChunks };
+              updateInlineUploadProgress('Có phiên upload chưa hoàn tất', `Server đã nhận ${uploadedChunks.length}/${totalChunks} phần. Còn lại ${100 - percent}%.`, percent);
+              $('#btnResumeUpload').prop('disabled', false);
+            } catch {
+              resumeFileState = null;
+              updateInlineUploadProgress('Không kiểm tra được phiên upload', 'Bạn vẫn có thể bấm Lưu để bắt đầu upload mới.', 0);
+            }
           }
 
           async function cancelAndCleanupServerUpload(currentUploadId, token, storageKey){
@@ -1034,23 +1159,8 @@
                 } else {
                   const savedChunks = uploadStatus.uploadedChunks ?? uploadStatus.UploadedChunks ?? [];
                   if (savedChunks.length > 0 && savedChunks.length < totalChunks){
-                    const sentBytes = savedChunks.reduce((acc, cIdx) => acc + Math.max(0, Math.min(chunkSize, file.size - cIdx * chunkSize)), 0);
-                    const wantResume = await promptResumeDecision(
-                      savedChunks.length,
-                      totalChunks,
-                      sentBytes,
-                      file.size,
-                      "Hệ thống phát hiện phiên tải lên trước đó chưa hoàn tất trên server. Bạn có muốn tiếp tục tải lên (Resume) không? Nếu không, hệ thống sẽ xóa toàn bộ file tạm cũ ở server."
-                    );
-                    if (!wantResume){
-                      await cancelAndCleanupServerUpload(uploadId, antiForgeryToken, sessionKey);
-                      uploadId = crypto.randomUUID();
-                      localStorage.setItem(sessionKey, uploadId);
-                      uploadedChunks = new Set();
-                      showToast("Đã xóa toàn bộ file tạm cũ trên server. Bắt đầu tải mới từ đầu.", false, 4000);
-                    } else {
-                      uploadedChunks = new Set(savedChunks);
-                    }
+                    uploadedChunks = new Set(savedChunks);
+                    showToast(`Đang tiếp tục phiên cũ từ ${savedChunks.length}/${totalChunks} phần.`, true, 5000);
                   } else if (savedChunks.length >= totalChunks){
                     uploadedChunks = new Set(savedChunks);
                   }
@@ -1060,12 +1170,13 @@
               const updateChunkProgress = () => {
                 const sentBytes = Array.from(uploadedChunks).reduce((total, chunkIndex) =>
                   total + Math.max(0, Math.min(chunkSize, file.size - chunkIndex * chunkSize)), 0);
-                const percent = totalChunks === 0 ? 0 : Math.floor(uploadedChunks.size * 100 / totalChunks);
+                const stagePercent = totalChunks === 0 ? 0 : Math.floor(uploadedChunks.size * 100 / totalChunks);
+                const percent = Math.floor(stagePercent * 0.30);
                 showUploadProgress(
-                  'Đang tải MP4',
-                  `${uploadedChunks.size}/${totalChunks} phần đã lưu (${(sentBytes / (1024 * 1024)).toFixed(1)} / ${(file.size / (1024 * 1024)).toFixed(1)} MiB)`,
+                  'Đang upload qua API',
+                  `API ${stagePercent}% • tổng ${percent}% • còn lại ${100 - percent}% • ${uploadedChunks.size}/${totalChunks} phần (${(sentBytes / (1024 * 1024)).toFixed(1)} / ${(file.size / (1024 * 1024)).toFixed(1)} MiB)`,
                   percent);
-                $button.html(`<span class="spinner-border spinner-border-sm me-2"></span>Đang tải ${percent}%`);
+                $button.html(`<span class="spinner-border spinner-border-sm me-2"></span>Tổng ${percent}% (còn ${100 - percent}%)`);
               };
 
               updateChunkProgress();
@@ -1104,16 +1215,28 @@
                     const segmentsUploaded = progress.segmentsUploaded ?? progress.SegmentsUploaded ?? 0;
                     const totalSegments = progress.totalSegments ?? progress.TotalSegments ?? 0;
                     const percent = progress.percent ?? progress.Percent ?? 0;
+                    const stagePercent = progress.stagePercent ?? progress.StagePercent ?? 0;
+                    const storagePercent = progress.storagePercent ?? progress.StoragePercent ?? 0;
+                    const remainingPercent = progress.remainingPercent ?? progress.RemainingPercent ?? Math.max(0, 100 - percent);
+                    const bytesUploaded = progress.bytesUploaded ?? progress.BytesUploaded ?? 0;
+                    const totalBytes = progress.totalBytes ?? progress.TotalBytes ?? 0;
+                    const uploadedMiB = (bytesUploaded / (1024 * 1024)).toFixed(1);
+                    const totalMiB = (totalBytes / (1024 * 1024)).toFixed(1);
 
                     if (stage === 'uploading-segments' && totalSegments > 0){
                       showUploadProgress(
                         'Đang upload HLS segments',
-                        `Đã lưu ${segmentsUploaded}/${totalSegments} segments lên storage`,
+                        `Storage ${storagePercent}% • tổng ${percent}% • còn lại ${remainingPercent}% • ${segmentsUploaded}/${totalSegments} segments (${uploadedMiB}/${totalMiB} MiB)`,
                         percent);
+                      $button.html(`<span class="spinner-border spinner-border-sm me-2"></span>Storage ${storagePercent}% • tổng ${percent}%`);
                     } else if (stage === 'saving'){
-                      showUploadProgress('Đang lưu nguồn HLS', message || `Đã lưu ${segmentsUploaded}/${totalSegments} segments`, percent, true);
+                      showUploadProgress('Đang lưu nguồn HLS', message || `Đã tải đủ ${segmentsUploaded}/${totalSegments} segments`, percent, true);
+                      $button.html('<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu nguồn HLS...');
                     } else if (stage === 'packaging'){
-                      showUploadProgress('Đang tạo HLS', message || 'FFmpeg đang đóng gói video', 0, true);
+                      showUploadProgress('Đang tạo HLS', `${message || 'FFmpeg đang đóng gói video'} • tổng ${percent}% • còn lại ${remainingPercent}%`, percent);
+                      $button.html(`<span class="spinner-border spinner-border-sm me-2"></span>Tạo HLS ${stagePercent}% • tổng ${percent}%`);
+                    } else if (stage === 'assembling'){
+                      showUploadProgress('Đang ghép MP4', `${message || 'Đang ghép các phần MP4'} • tổng ${percent}% • còn lại ${remainingPercent}%`, percent, true);
                     }
                   } catch {
                     // Keep polling through brief network interruptions.
@@ -1136,37 +1259,38 @@
 
               const ok = result && (result.success === true || result.code === '200' || result.Success === true);
               if (!ok){
-                showToast(result?.message || result?.Message || 'Chuyển MP4 sang HLS thất bại.', false, 6000);
-                return;
+                throw new Error(result?.message || result?.Message || 'Chuyển MP4 sang HLS thất bại.');
               }
 
               localStorage.removeItem(sessionKey);
               showUploadProgress('Hoàn tất', `Đã upload ${result.segmentsCount ?? result.SegmentsCount ?? 0} HLS segments`, 100);
-              showToast(sourceId ? 'Đã thay nguồn bằng HLS mới.' : 'Đã upload MP4 và tạo nguồn HLS.', true);
-              sourceModal.hide();
+              const successMessage = sourceId
+                ? 'Đã thay nguồn bằng HLS mới và lưu thành công.'
+                : 'Đã upload MP4, chuyển đổi HLS và lưu nguồn video thành công.';
               loadAll();
+              closeSourceAndShowUploadResult(true, 'Upload thành công', successMessage);
             } catch (xhr){
-              const uploadedCount = uploadedChunks.size;
               const detail = xhr?.responseJSON?.message || xhr?.responseText || xhr?.message || 'Mạng bị ngắt hoặc server gặp lỗi.';
-              if (uploadId && uploadedCount > 0 && uploadedCount < totalChunks){
-                const sentBytes = Array.from(uploadedChunks).reduce((total, chunkIndex) =>
-                  total + Math.max(0, Math.min(chunkSize, file.size - chunkIndex * chunkSize)), 0);
-                const wantResume = await promptResumeDecision(
-                  uploadedCount,
-                  totalChunks,
-                  sentBytes,
-                  file.size,
-                  `${detail} Quá trình tải lên chưa gửi hết lên server (${uploadedCount}/${totalChunks} phần). Bạn có muốn lưu lại để tiếp tục tải lên (Resume) lần sau không?`
-                );
-                if (!wantResume){
+              const sessionExpired = xhr?.status === 401 || xhr?.status === 403;
+              const canResume = xhr?.status === 0 && uploadId && uploadedChunks.size > 0 && uploadedChunks.size < totalChunks;
+              let cleanupMessage = canResume
+                ? `Đã giữ ${uploadedChunks.size}/${totalChunks} phần trên server. Chọn lại đúng file để Resume.`
+                : 'Toàn bộ file tạm và các phần đã upload đã được xóa.';
+              if (uploadId && !canResume){
+                try {
                   await cancelAndCleanupServerUpload(uploadId, antiForgeryToken, sessionKey);
-                  showToast("Đã hủy và xóa toàn bộ file cũ ở server theo yêu cầu.", false, 6000);
-                } else {
-                  showToast(`Đã giữ ${uploadedCount}/${totalChunks} phần trên server. Khi chọn lại file này, bạn có thể tiếp tục (Resume).`, true, 8000);
+                } catch {
+                  cleanupMessage = 'Không thể xác nhận việc dọn dẹp do kết nối mạng đang gián đoạn. Server sẽ tự dọn dữ liệu khi nhận được lỗi hoặc khi phiên upload hết hạn.';
                 }
-              } else {
-                showToast(detail, false, 8000);
               }
+              if (sessionExpired){
+                if (sessionKey) localStorage.removeItem(sessionKey);
+                showToast('Phiên đăng nhập Admin đã hết hạn. Dữ liệu upload đang được dọn dẹp.', false, 4000);
+                window.location.href = `/Admin/Auth?returnUrl=${encodeURIComponent('/Admin/VideoSoure')}`;
+                return;
+              }
+              showToast(detail, false, 8000);
+              showUploadResultPopup(false, canResume ? 'Upload bị gián đoạn' : 'Upload thất bại', `${detail} ${cleanupMessage}`);
             } finally {
               stopProgressPolling = true;
               if (progressPollTask) await progressPollTask;
@@ -1220,16 +1344,19 @@
               success(response){
                 const ok = response && (response.success === true || response.Success === true || response.code === '200');
                 if (!ok){
-                  showToast(response?.message || response?.Message || 'Cập nhật HLS thất bại.', false, 6000);
+                  const message = response?.message || response?.Message || 'Cập nhật HLS thất bại.';
+                  showToast(message, false, 6000);
+                  showUploadResultPopup(false, 'Upload thất bại', `${message} Các phần upload chưa hoàn tất đã được server thu hồi.`);
                   return;
                 }
                 showUploadProgress('Hoàn tất', 'Đã thay playlist và HLS segments.', 100);
-                showToast('Đã cập nhật nguồn HLS.', true);
-                sourceModal.hide();
                 loadAll();
+                closeSourceAndShowUploadResult(true, 'Upload thành công', 'Đã cập nhật playlist và toàn bộ HLS segments thành công.');
               },
               error(xhr){
-                showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi upload HLS.', false, 9000);
+                const message = xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi upload HLS.';
+                showToast(message, false, 9000);
+                showUploadResultPopup(false, 'Upload thất bại', `${message} Các phần upload chưa hoàn tất đã được server thu hồi.`);
               },
               complete(){
                 hideLoading();
@@ -1323,10 +1450,20 @@
                 headers: anti ? { "RequestVerificationToken": anti } : {},
                 success(res){
                   const ok = res && (res.success===true || res.code==="200" || res.Success===true);
-                  if (ok){ showToast("Đã thêm nguồn.", true); sourceModal.hide(); loadAll(); }
-                  else    { showToast(res?.message || res?.Message || "Thêm thất bại.", false); }
+                  if (ok){
+                    loadAll();
+                    closeSourceAndShowUploadResult(true, 'Upload thành công', 'Nguồn video đã được upload và lưu thành công.');
+                  } else {
+                    const message = res?.message || res?.Message || "Thêm thất bại.";
+                    showToast(message, false);
+                    showUploadResultPopup(false, 'Upload thất bại', message);
+                  }
                 },
-                error(xhr){ showToast(xhr?.responseJSON?.message || xhr?.responseText || "Lỗi thêm nguồn.", false); },
+                error(xhr){
+                  const message = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi thêm nguồn.";
+                  showToast(message, false);
+                  showUploadResultPopup(false, 'Upload thất bại', message);
+                },
                 complete(){ hideLoading(); }
               });
 
@@ -1400,6 +1537,16 @@
           $('#btnRefresh').on('click', ()=> loadAll());
           $('#btnAdd').on('click', ()=> { openAdd(); });
           $('#btnSave').on('click', save);
+          $('#File').on('change', function(){
+            detectResumeUpload(this.files?.[0] || null);
+          });
+          $('#btnResumeUpload').on('click', function(){
+            if (!resumeFileState){
+              showToast('Không còn phiên upload có thể tiếp tục.', false);
+              return;
+            }
+            save();
+          });
 
           // Lọc + phân trang
           $('#txtSearch, #txtMovieId, #txtEpisodeId, #txtQuality').on('input', ()=> { applyFilter(); page=1; renderTablePage(); });

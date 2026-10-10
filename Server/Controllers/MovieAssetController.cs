@@ -13,12 +13,18 @@ namespace Server.Controllers
     {
         private readonly ICMovieAsset _cMovieAsset;
         private readonly ISupabaseService _supabase;
+        private readonly ICloudflareR2Service _cloudflareR2;
         private readonly IRedisCacheService _cache;
 
-        public MovieAssetController(ICMovieAsset cMovieAsset, ISupabaseService supabase, IRedisCacheService cache)
+        public MovieAssetController(
+            ICMovieAsset cMovieAsset,
+            ISupabaseService supabase,
+            ICloudflareR2Service cloudflareR2,
+            IRedisCacheService cache)
         {
             _cMovieAsset = cMovieAsset;
             _supabase = supabase;
+            _cloudflareR2 = cloudflareR2;
             _cache = cache;
         }
 
@@ -66,16 +72,16 @@ namespace Server.Controllers
             if (form.OwnerId <= 0 || !IsValidOwnerType(form.OwnerType) || string.IsNullOrWhiteSpace(form.AssetType))
                 return BadRequest(new { code = "400", message = "Thiếu hoặc sai loại nội dung/AssetType." });
 
-            // Upload lên Supabase
-            var publicUrl = await _supabase.UploadFileAsync(form.File);
+            var ownerType = NormalizeOwnerType(form.OwnerType);
+            var publicUrl = await UploadFileAsync(form.File, form.OwnerId, ownerType);
             if (string.IsNullOrWhiteSpace(publicUrl))
-                return StatusCode(500, new { code = "500", message = "Upload Supabase thất bại." });
+                return StatusCode(503, new { code = "503", message = GetUploadFailureMessage(ownerType) });
 
             // Gọi SP lưu DB
             var dto = new AddMovieAssetDto
             {
                 OwnerId = form.OwnerId,
-                OwnerType = form.OwnerType,
+                OwnerType = ownerType,
                 AssetType = form.AssetType,
                 Url = publicUrl,
                 SortOrder = form.SortOrder ?? 0
@@ -84,7 +90,7 @@ namespace Server.Controllers
             var resp = await _cMovieAsset.Add(dto);
             if (!resp.Success)
             {
-                _ = _supabase.DeleteFileAsync(publicUrl); // rollback file
+                _ = DeleteFileAsync(publicUrl, ownerType); // rollback file
                 return StatusCode(500, new { code = resp.code, message = resp.message });
             }
 
@@ -105,15 +111,16 @@ namespace Server.Controllers
             if (form.OwnerId <= 0 || !IsValidOwnerType(form.OwnerType) || string.IsNullOrWhiteSpace(form.AssetType))
                 return BadRequest(new { code = "400", message = "Thiếu hoặc sai loại nội dung/AssetType." });
 
-            var newUrl = await _supabase.UploadFileAsync(form.File);
+            var ownerType = NormalizeOwnerType(form.OwnerType);
+            var newUrl = await UploadFileAsync(form.File, form.OwnerId, ownerType);
             if (string.IsNullOrWhiteSpace(newUrl))
-                return StatusCode(500, new { code = "500", message = "Upload Supabase thất bại." });
+                return StatusCode(503, new { code = "503", message = GetUploadFailureMessage(ownerType) });
 
             var dto = new UpdateMovieAssetDto
             {
                 AssetId = assetId,
                 OwnerId = form.OwnerId,
-                OwnerType = form.OwnerType,
+                OwnerType = ownerType,
                 AssetType = form.AssetType,
                 Url = newUrl,
                 SortOrder = form.SortOrder ?? 0
@@ -122,12 +129,12 @@ namespace Server.Controllers
             var resp = await _cMovieAsset.Update_episode(dto); // (hàm tên cũ) => nếu được, rename thành Update
             if (!resp.Success)
             {
-                _ = _supabase.DeleteFileAsync(newUrl); // rollback file
+                _ = DeleteFileAsync(newUrl, ownerType); // rollback file
                 return StatusCode(500, new { code = resp.code, message = resp.message });
             }
 
             if (!string.IsNullOrWhiteSpace(form.OldUrl))
-                _ = _supabase.DeleteFileAsync(form.OldUrl); // best-effort
+                _ = DeleteFileAsync(form.OldUrl, ownerType); // best-effort
 
             await _cache.RemoveByPrefixAsync("tflix:movies:");
 
@@ -149,7 +156,7 @@ namespace Server.Controllers
                 return StatusCode(500, new { code = resp.code, message = resp.message });
 
             if (!string.IsNullOrWhiteSpace(url))
-                _ = _supabase.DeleteFileAsync(url);
+                _ = DeleteFileAsync(url, NormalizeOwnerType(ownerType));
 
             await _cache.RemoveByPrefixAsync("tflix:movies:");
 
@@ -158,6 +165,28 @@ namespace Server.Controllers
 
         private static bool IsValidOwnerType(string? ownerType)
             => ownerType is not null && new[] { "MOVIE", "SERIES", "EPISODE" }.Contains(ownerType.Trim().ToUpperInvariant());
+
+        private static string NormalizeOwnerType(string ownerType) => ownerType.Trim().ToUpperInvariant();
+
+        private async Task<string?> UploadFileAsync(IFormFile file, long ownerId, string ownerType)
+        {
+            if (ownerType != "MOVIE")
+                return await _supabase.UploadFileAsync(file);
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var objectPath = $"movies/{ownerId}/assets/{Guid.NewGuid():N}{extension}";
+            return await _cloudflareR2.UploadFileAsync(file, objectPath);
+        }
+
+        private Task<bool> DeleteFileAsync(string pathOrUrl, string ownerType)
+            => ownerType == "MOVIE"
+                ? _cloudflareR2.DeleteFileAsync(pathOrUrl)
+                : _supabase.DeleteFileAsync(pathOrUrl);
+
+        private static string GetUploadFailureMessage(string ownerType)
+            => ownerType == "MOVIE"
+                ? "Upload tài nguyên phim lên Cloudflare R2 thất bại. Vui lòng kiểm tra cấu hình CloudflareR2."
+                : "Upload tài nguyên lên Supabase thất bại.";
     }
 
     // ======= FORM MODELS (FromForm) =======

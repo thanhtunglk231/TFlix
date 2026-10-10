@@ -13,27 +13,56 @@ namespace Server.Services
             Update(uploadId, current => current with { Stage = stage, Message = message });
         }
 
-        public void StartSegmentUpload(Guid uploadId, int totalSegments, int segmentsAlreadyUploaded = 0)
+        public void SetStageProgress(Guid uploadId, string stage, string message, int stagePercent)
+        {
+            Update(uploadId, current => current with
+            {
+                Stage = stage,
+                Message = message,
+                StagePercent = Math.Clamp(stagePercent, 0, 100)
+            });
+        }
+
+        public void StartSegmentUpload(
+            Guid uploadId,
+            int totalSegments,
+            long totalBytes,
+            int segmentsAlreadyUploaded = 0,
+            long bytesAlreadyUploaded = 0)
         {
             Update(uploadId, current => current with
             {
                 Stage = "uploading-segments",
                 Message = "Đang tải HLS segments lên storage",
                 SegmentsUploaded = Math.Clamp(segmentsAlreadyUploaded, 0, totalSegments),
-                TotalSegments = totalSegments
+                TotalSegments = totalSegments,
+                BytesUploaded = Math.Clamp(bytesAlreadyUploaded, 0, totalBytes),
+                TotalBytes = Math.Max(totalBytes, 0)
             });
         }
 
-        public VideoUploadProgressDto IncrementUploadedSegment(Guid uploadId)
+        public VideoUploadProgressDto IncrementUploadedSegment(Guid uploadId, long uploadedBytes)
         {
+            var safeUploadedBytes = Math.Max(uploadedBytes, 0);
             var entry = _entries.AddOrUpdate(
                 uploadId,
-                _ => new ProgressEntry(new VideoUploadProgressDto("uploading-segments", "Đang tải HLS segments lên storage", 1, 1), DateTimeOffset.UtcNow),
+                _ => new ProgressEntry(
+                    new VideoUploadProgressDto(
+                        "uploading-segments",
+                        "Đang tải HLS segments lên storage",
+                        1,
+                        1,
+                        safeUploadedBytes,
+                        safeUploadedBytes),
+                    DateTimeOffset.UtcNow),
                 (_, current) => current with
                 {
                     Progress = current.Progress with
                     {
-                        SegmentsUploaded = Math.Min(current.Progress.SegmentsUploaded + 1, current.Progress.TotalSegments)
+                        SegmentsUploaded = Math.Min(current.Progress.SegmentsUploaded + 1, current.Progress.TotalSegments),
+                        BytesUploaded = Math.Min(
+                            current.Progress.BytesUploaded + safeUploadedBytes,
+                            current.Progress.TotalBytes)
                     },
                     UpdatedAt = DateTimeOffset.UtcNow
                 });
@@ -63,7 +92,9 @@ namespace Server.Services
         {
             _entries.AddOrUpdate(
                 uploadId,
-                _ => new ProgressEntry(update(new VideoUploadProgressDto("starting", "Đang khởi tạo upload", 0, 0)), DateTimeOffset.UtcNow),
+                _ => new ProgressEntry(
+                    update(new VideoUploadProgressDto("starting", "Đang khởi tạo upload", 0, 0)),
+                    DateTimeOffset.UtcNow),
                 (_, current) => new ProgressEntry(update(current.Progress), DateTimeOffset.UtcNow));
             RemoveExpiredEntries();
         }

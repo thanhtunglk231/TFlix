@@ -24,7 +24,7 @@ namespace WebBrowser.Areas.Admin.Controllers
             var adminToken = HttpContext.Session.GetString("AdminJWToken");
             if (!string.IsNullOrEmpty(adminToken))
             {
-                return Redirect(string.IsNullOrWhiteSpace(returnUrl) ? "/Admin" : returnUrl);
+                return Redirect(GetSafeReturnUrl(returnUrl));
             }
 
             ViewBag.ReturnUrl = returnUrl;
@@ -56,7 +56,7 @@ namespace WebBrowser.Areas.Admin.Controllers
 
             HttpContext.Session.SetString("AdminJWToken", data.token);
             HttpContext.Session.SetString("AdminCurrentUser", JsonConvert.SerializeObject(data.user));
-            return Json(new { success = true, code = "200", message = "Đăng nhập OTP thành công.", redirectUrl = string.IsNullOrWhiteSpace(returnUrl) ? "/Admin" : returnUrl });
+            return Json(new { success = true, code = "200", message = "Đăng nhập OTP thành công.", redirectUrl = GetSafeReturnUrl(returnUrl) });
         }
 
         [HttpPost]
@@ -82,7 +82,8 @@ namespace WebBrowser.Areas.Admin.Controllers
                 var data = JsonConvert.DeserializeObject<LoginResponseData>(dataJson);
 
                 var isAdmin = data?.user?.roles?.Any(role =>
-                    string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase)) == true;
+                string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(role, "SUPER_ADMIN", StringComparison.OrdinalIgnoreCase)) == true;
 
                 if (!isAdmin)
                 {
@@ -106,7 +107,7 @@ namespace WebBrowser.Areas.Admin.Controllers
                         HttpContext.Session.SetString("AdminCurrentUser", JsonConvert.SerializeObject(data.user));
                     }
 
-                    string redirect = string.IsNullOrWhiteSpace(returnUrl) ? "/Admin" : returnUrl;
+                    string redirect = GetSafeReturnUrl(returnUrl);
                     return new JsonResult(new
                     {
                         success = true,
@@ -126,7 +127,13 @@ namespace WebBrowser.Areas.Admin.Controllers
                 { StatusCode = 502 };
             }
 
-            var status = response?.code == "401" ? 401 : 400;
+            var status = response?.code switch
+            {
+                "401" => StatusCodes.Status401Unauthorized,
+                "403" => StatusCodes.Status403Forbidden,
+                "500" or "502" or "503" => StatusCodes.Status503ServiceUnavailable,
+                _ => StatusCodes.Status400BadRequest
+            };
             return new JsonResult(response ?? new CResponseMessage
             {
                 Success = false,
@@ -142,6 +149,13 @@ namespace WebBrowser.Areas.Admin.Controllers
             HttpContext.Session.Remove("AdminJWToken");
             HttpContext.Session.Remove("AdminCurrentUser");
             return RedirectToAction("Index", "Auth", new { area = "Admin" });
+        }
+
+        private string GetSafeReturnUrl(string? returnUrl)
+        {
+            return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+                ? returnUrl
+                : "/Admin";
         }
     }
 }
