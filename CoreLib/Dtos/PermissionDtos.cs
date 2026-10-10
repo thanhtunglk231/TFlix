@@ -25,6 +25,13 @@ namespace CoreLib.Dtos
         public long? ExpectedVersion { get; set; }
     }
 
+    public class UserPermissionSetDto
+    {
+        public long UserId { get; set; }
+        public long PermissionId { get; set; }
+        public bool IsAllowed { get; set; }
+    }
+
     public class CheckPermissionDto
     {
         public string Email { get; set; } = string.Empty;

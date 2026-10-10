@@ -4,37 +4,125 @@
 
     var urlMatrix = Url.Action("Matrix", "Permission", new { area = "Admin" });
     var urlSet = Url.Action("SetRolePermission", "Permission", new { area = "Admin" });
+    var urlUserMatrix = Url.Action("UserMatrix", "Permission", new { area = "Admin" });
+    var urlSetUser = Url.Action("SetUserPermission", "Permission", new { area = "Admin" });
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h4 class="m-0"><i class="bi bi-shield-lock me-2"></i>Quản lý phân quyền</h4>
+    <div>
+        <h4 class="m-0"><i class="bi bi-shield-lock me-2 text-primary"></i>Quản lý phân quyền hệ thống</h4>
+        <small class="text-secondary">Thiết lập quyền truy cập chức năng và phạm vi quản lý dữ liệu theo Vai trò hoặc từng Tài khoản cụ thể</small>
+    </div>
     <button class="btn btn-outline-secondary" id="btnRefresh" type="button">
         <i class="bi bi-arrow-clockwise me-1"></i>Nạp lại
     </button>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <div class="row g-2 mb-3">
-            <div class="col-md-4">
-                <input id="txtSearch" class="form-control" placeholder="Tìm màn hình/quyền..." />
-            </div>
-            <div class="col-md-3">
-                <select id="roleFilter" class="form-select">
-                    <option value="">Tất cả role</option>
-                </select>
+<!-- Nav Tabs -->
+<ul class="nav nav-tabs mb-3" id="permissionTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-account-btn" data-bs-toggle="tab" data-bs-target="#tab-account" type="button" role="tab">
+            <i class="bi bi-person-gear me-1 text-primary"></i>Phân quyền theo Tài khoản (Chi tiết)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-role-btn" data-bs-toggle="tab" data-bs-target="#tab-role" type="button" role="tab">
+            <i class="bi bi-people-fill me-1 text-info"></i>Phân quyền theo Vai trò (Role Matrix)
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="permissionTabContent">
+    <!-- TAB 1: PHÂN QUYỀN THEO TÀI KHOẢN -->
+    <div class="tab-pane fade show active" id="tab-account" role="tabpanel">
+        <div class="card shadow-sm border-0 mb-3 bg-dark-subtle border">
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-5">
+                        <label for="cboUser" class="form-label fw-semibold text-light mb-1">
+                            <i class="bi bi-person-circle me-1 text-primary"></i>Chọn tài khoản quản trị viên:
+                        </label>
+                        <select id="cboUser" class="form-select bg-dark text-light border-secondary">
+                            <option value="">-- Đang tải danh sách tài khoản --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="txtUserSearch" class="form-label fw-semibold text-light mb-1">
+                            <i class="bi bi-search me-1"></i>Tìm chức năng/quyền:
+                        </label>
+                        <input id="txtUserSearch" class="form-control bg-dark text-light border-secondary" placeholder="Nhập tên màn hình, quyền..." />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label d-block text-secondary mb-1">&nbsp;</label>
+                        <div class="alert alert-info py-2 px-3 m-0 small">
+                            <i class="bi bi-info-circle me-1"></i>Quyền tài khoản sẽ <strong>ghi đè</strong> quyền kế thừa từ Vai trò.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-hover align-middle" id="tblPermissions">
-                <thead>
-                    <tr id="permissionHeader">
-                        <th style="min-width:260px;">Màn hình / Quyền</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+        <!-- Banner giải thích quyền phạm vi dữ liệu -->
+        <div class="alert alert-warning border-warning-subtle py-2 px-3 mb-3 d-flex align-items-center gap-2 small">
+            <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+            <div>
+                <strong>Lưu ý về phạm vi dữ liệu phim (Movie Scope):</strong>
+                Nếu một tài khoản <u>bị tắt quyền</u> <strong>"Movie - ViewAll" (Xem tất cả phim)</strong>, tài khoản đó <strong>chỉ có thể xem và thực hiện CRUD trên những phim do chính họ thêm</strong>. Họ sẽ không thấy và không thể can thiệp vào phim của người khác!
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="tblUserPermissions">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="min-width: 280px;">Màn hình / Quyền</th>
+                                <th class="text-center" style="width: 170px;">Quyền từ Vai trò</th>
+                                <th class="text-center" style="width: 190px;">Cấu hình cho Account</th>
+                                <th class="text-center" style="width: 160px;">Trạng thái hiệu lực</th>
+                                <th class="text-center" style="width: 140px;">Bật / Tắt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-secondary">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div> Đang nạp ma trận quyền tài khoản...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: PHÂN QUYỀN THEO VAI TRÒ (ROLE) -->
+    <div class="tab-pane fade" id="tab-role" role="tabpanel">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <input id="txtSearch" class="form-control" placeholder="Tìm màn hình/quyền..." />
+                    </div>
+                    <div class="col-md-3">
+                        <select id="roleFilter" class="form-select">
+                            <option value="">Tất cả role</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="tblPermissions">
+                        <thead>
+                            <tr id="permissionHeader">
+                                <th style="min-width:260px;">Màn hình / Quyền</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -45,16 +133,27 @@
         (function(){
           const urls = {
             matrix: '@urlMatrix',
-            set: '@urlSet'
+            set: '@urlSet',
+            userMatrix: '@urlUserMatrix',
+            setUser: '@urlSetUser'
           };
 
+          // ======================= BIẾN QUẢN LÝ TAB ROLE =======================
           let roles = [];
           let permissions = [];
           let rolePermissions = new Set();
           let rolePermissionVersions = new Map();
 
+          // ======================= BIẾN QUẢN LÝ TAB ACCOUNT =======================
+          let adminUsers = [];
+          let selectedUserId = null;
+          let userPermissionsList = [];
+          let userPermissionMatrix = []; // Table 2 từ sp_user_permission_matrix_get
+
           const $header = $('#permissionHeader');
-          const $tbody = $('#tblPermissions tbody');
+          const $tbodyRole = $('#tblPermissions tbody');
+          const $tbodyUser = $('#tblUserPermissions tbody');
+          const $cboUser = $('#cboUser');
 
           function showToast(msg, ok=true){
             if (window.__showAdminToast) {
@@ -88,6 +187,191 @@
             return `${roleId}:${permissionId}`;
           }
 
+          // =========================================================================
+          // TAB 1: PHÂN QUYỀN THEO ACCOUNT (USER LEVEL)
+          // =========================================================================
+
+          function renderUserSelect(){
+            if (!adminUsers || adminUsers.length === 0) {
+              $cboUser.html('<option value="">-- Không có tài khoản quản trị nào --</option>');
+              return;
+            }
+
+            const opts = adminUsers.map(u => {
+              const id = gv(u, 'UserId', 'userId', 'USER_ID');
+              const email = gv(u, 'Email', 'email', 'EMAIL');
+              const name = gv(u, 'FullName', 'fullName', 'FULL_NAME') || email;
+              const r = gv(u, 'Roles', 'roles', 'ROLES') || '';
+              return `<option value="${id}">${name} (${email}) - [${r}]</option>`;
+            });
+
+            $cboUser.html(opts.join(''));
+            if (!selectedUserId && adminUsers.length > 0) {
+              selectedUserId = gv(adminUsers[0], 'UserId', 'userId', 'USER_ID');
+            }
+            if (selectedUserId) {
+              $cboUser.val(selectedUserId);
+            }
+          }
+
+          function renderUserTable(){
+            const q = ($('#txtUserSearch').val() || '').trim().toLowerCase();
+            if (!userPermissionsList || userPermissionsList.length === 0) {
+              $tbodyUser.html('<tr><td colspan="5" class="text-center py-4 text-secondary">Chưa có danh sách quyền.</td></tr>');
+              return;
+            }
+
+            // Tạo map từ Table 2 để lookup nhanh
+            const matrixMap = new Map();
+            userPermissionMatrix.forEach(item => {
+              const pid = gv(item, 'PermissionId', 'permissionId', 'PERMISSION_ID');
+              matrixMap.set(String(pid), item);
+            });
+
+            const rows = userPermissionsList.filter(p => {
+              const text = [
+                gv(p, 'ScreenCode', 'screenCode', 'SCREEN_CODE'),
+                gv(p, 'PermissionCode', 'permissionCode', 'PERMISSION_CODE'),
+                gv(p, 'PermissionName', 'permissionName', 'PERMISSION_NAME')
+              ].join(' ').toLowerCase();
+              return !q || text.includes(q);
+            }).map(p => {
+              const pid = String(gv(p, 'PermissionId', 'permissionId', 'PERMISSION_ID'));
+              const screen = gv(p, 'ScreenCode', 'screenCode', 'SCREEN_CODE') || '';
+              const code = gv(p, 'PermissionCode', 'permissionCode', 'PERMISSION_CODE') || '';
+              const name = gv(p, 'PermissionName', 'permissionName', 'PERMISSION_NAME') || '';
+
+              const item = matrixMap.get(pid);
+              const isAllowedVal = item ? gv(item, 'IsAllowed', 'isAllowed', 'IS_ALLOWED') : false;
+              const isAllowed = isAllowedVal === true || isAllowedVal === 1 || ['true', '1'].includes(String(isAllowedVal).toLowerCase());
+
+              const isCustomVal = item ? gv(item, 'IsCustomUser', 'isCustomUser', 'IS_CUSTOM_USER') : 0;
+              const isCustom = isCustomVal === true || isCustomVal === 1 || ['true', '1'].includes(String(isCustomVal).toLowerCase());
+
+              const roleAllowedVal = item ? gv(item, 'RoleAllowed', 'roleAllowed', 'ROLE_ALLOWED') : 0;
+              const roleAllowed = roleAllowedVal === true || roleAllowedVal === 1 || ['true', '1'].includes(String(roleAllowedVal).toLowerCase());
+
+              // Đặc biệt: Nhấn mạnh quyền Movie.ViewAll
+              const isViewAllMovie = screen.toLowerCase() === 'movie' && code.toLowerCase() === 'viewall';
+
+              const roleBadge = roleAllowed
+                ? `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle me-1"></i>Được cấp</span>`
+                : `<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="bi bi-dash-circle me-1"></i>Không có</span>`;
+
+              const customBadge = isCustom
+                ? `<span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-person-fill-gear me-1"></i>Đã gán riêng</span>`
+                : `<span class="badge bg-dark-subtle text-secondary border border-secondary-subtle"><i class="bi bi-diagram-3 me-1"></i>Kế thừa Role</span>`;
+
+              const statusBadge = isAllowed
+                ? `<span class="badge bg-primary text-white"><i class="bi bi-unlock-fill me-1"></i>ĐANG CHO PHÉP</span>`
+                : `<span class="badge bg-danger text-white"><i class="bi bi-lock-fill me-1"></i>ĐANG BỊ CHẶN</span>`;
+
+              const switchChecked = isAllowed ? 'checked' : '';
+
+              return `
+                <tr class="${isViewAllMovie ? 'table-warning-subtle' : ''}">
+                  <td>
+                    <div class="fw-bold d-flex align-items-center gap-2">
+                      <span class="badge bg-secondary">${screen}</span>
+                      <span>${code}</span>
+                      ${isViewAllMovie ? '<span class="badge bg-danger text-white"><i class="bi bi-star-fill me-1"></i>Quyền phạm vi xem phim</span>' : ''}
+                    </div>
+                    <div class="text-secondary small mt-1">${name}</div>
+                    ${isViewAllMovie ? '<div class="text-warning-emphasis small fst-italic mt-1"><i class="bi bi-info-circle me-1"></i>Bật = Xem mọi phim hệ thống. Tắt = Chỉ xem & CRUD phim do chính tài khoản này thêm!</div>' : ''}
+                  </td>
+                  <td class="text-center">${roleBadge}</td>
+                  <td class="text-center">${customBadge}</td>
+                  <td class="text-center">${statusBadge}</td>
+                  <td class="text-center">
+                    <div class="form-check form-switch d-inline-block">
+                      <input class="form-check-input js-user-perm-switch"
+                             type="checkbox"
+                             role="switch"
+                             style="cursor: pointer; width: 2.8em; height: 1.4em;"
+                             data-permission-id="${pid}"
+                             ${switchChecked} />
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+
+            $tbodyUser.html(rows || '<tr><td colspan="5" class="text-center py-4 text-secondary">Không tìm thấy quyền phù hợp.</td></tr>');
+          }
+
+          function loadUserMatrix(userId){
+            $tbodyUser.html('<tr><td colspan="5" class="text-center py-4 text-secondary"><div class="spinner-border spinner-border-sm text-primary me-2"></div> Đang tải quyền của tài khoản...</td></tr>');
+            const q = userId ? `?userId=${userId}` : '';
+            $.get(urls.userMatrix + q)
+              .done(res => {
+                const tables = pickTables(res);
+                adminUsers = tables[0] || [];
+                userPermissionsList = tables[1] || [];
+                userPermissionMatrix = tables[2] || [];
+
+                renderUserSelect();
+                renderUserTable();
+              })
+              .fail(xhr => {
+                $tbodyUser.html('<tr><td colspan="5" class="text-center py-4 text-danger">Lỗi tải dữ liệu quyền tài khoản.</td></tr>');
+                showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Không tải được quyền tài khoản.', false);
+              });
+          }
+
+          $cboUser.on('change', function(){
+            selectedUserId = $(this).val();
+            if (selectedUserId) {
+              loadUserMatrix(selectedUserId);
+            }
+          });
+
+          $('#txtUserSearch').on('input', renderUserTable);
+
+          // Sự kiện Toggle Switch phân quyền cho Account
+          $tbodyUser.on('change', '.js-user-perm-switch', function(){
+            const $switch = $(this);
+            const pid = Number($switch.data('permission-id'));
+            const isAllowed = $switch.is(':checked');
+
+            if (!selectedUserId || selectedUserId <= 0) {
+              $switch.prop('checked', !isAllowed);
+              showToast('Vui lòng chọn tài khoản quản trị trước.', false);
+              return;
+            }
+
+            $switch.prop('disabled', true);
+            const payload = {
+              UserId: Number(selectedUserId),
+              PermissionId: pid,
+              IsAllowed: isAllowed
+            };
+
+            $.ajax({
+              url: urls.setUser,
+              method: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify(payload)
+            }).done(res => {
+              const ok = res?.Success === true || res?.success === true || res?.code === '200';
+              if (!ok) {
+                $switch.prop('checked', !isAllowed);
+                showToast(res?.message || 'Cập nhật phân quyền tài khoản thất bại.', false);
+                return;
+              }
+
+              showToast(`Đã ${isAllowed ? 'cấp quyền' : 'chặn quyền'} thành công cho tài khoản!`, true);
+              // Nạp lại ma trận tài khoản để cập nhật ngay các badge trạng thái
+              loadUserMatrix(selectedUserId);
+            }).fail(xhr => {
+              $switch.prop('checked', !isAllowed);
+              showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi server khi cập nhật quyền tài khoản.', false);
+            }).always(() => $switch.prop('disabled', false));
+          });
+
+          // =========================================================================
+          // TAB 2: PHÂN QUYỀN THEO ROLE MATRIX
+          // =========================================================================
+
           function renderRoleFilter(){
             const current = $('#roleFilter').val() || '';
             const options = ['<option value="">Tất cả role</option>']
@@ -99,7 +383,7 @@
             $('#roleFilter').html(options.join('')).val(current);
           }
 
-          function render(){
+          function renderRoleTable(){
             const q = ($('#txtSearch').val() || '').trim().toLowerCase();
             const roleFilter = $('#roleFilter').val();
             const visibleRoles = roleFilter
@@ -142,10 +426,10 @@
               </tr>`;
             }).join('');
 
-            $tbody.html(rows || `<tr><td colspan="${visibleRoles.length + 1}" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
+            $tbodyRole.html(rows || `<tr><td colspan="${visibleRoles.length + 1}" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
           }
 
-          function load(){
+          function loadRoleMatrix(){
             $.get(urls.matrix)
               .done(res => {
                 const tables = pickTables(res);
@@ -164,12 +448,12 @@
                   Number(gv(x, 'Version', 'version', 'VERSION'))
                 ]));
                 renderRoleFilter();
-                render();
+                renderRoleTable();
               })
-              .fail(xhr => showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Không tải được phân quyền.', false));
+              .fail(xhr => showToast(xhr?.responseJSON?.message || xhr?.responseText || 'Không tải được phân quyền theo vai trò.', false));
           }
 
-          $tbody.on('change', '.js-role-permission', function(){
+          $tbodyRole.on('change', '.js-role-permission', function(){
             const $cb = $(this);
             const payload = {
               RoleId: Number($cb.data('role-id')),
@@ -200,7 +484,7 @@
               if (payload.IsAllowed) rolePermissions.add(k);
               else rolePermissions.delete(k);
               rolePermissionVersions.set(k, payload.ExpectedVersion + 1);
-              showToast('Đã cập nhật phân quyền.', true);
+              showToast('Đã cập nhật phân quyền theo vai trò.', true);
             }).fail(xhr => {
               $cb.prop('checked', !payload.IsAllowed);
               const isStale = xhr?.status === 409 || xhr?.responseJSON?.code === '409';
@@ -210,10 +494,17 @@
             }).always(() => $cb.prop('disabled', false));
           });
 
-          $('#btnRefresh').on('click', load);
-          $('#txtSearch, #roleFilter').on('input change', render);
+          $('#txtSearch, #roleFilter').on('input change', renderRoleTable);
 
-          load();
+          // Nút Refresh cả 2 tab
+          $('#btnRefresh').on('click', function(){
+            loadUserMatrix(selectedUserId);
+            loadRoleMatrix();
+          });
+
+          // Khởi chạy khi load trang
+          loadUserMatrix(null);
+          loadRoleMatrix();
         })();
     </script>
 }

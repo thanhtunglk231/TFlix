@@ -25,12 +25,17 @@ namespace DataServiceLib.Implements.Admin.Movies
         }
 
 
-        public async Task<CResponseMessage> get_all()
+        public async Task<CResponseMessage> get_all(long? userId = null)
         {
             try
             {
                 await EnsureStoredProcedureExistsAsync();
 
+                var p_user_id = new SqlParameter("@p_user_id", SqlDbType.BigInt)
+                {
+                    Direction = ParameterDirection.Input,
+                    Value = (object?)userId ?? DBNull.Value
+                };
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10)
                 {
                     Direction = ParameterDirection.Output
@@ -40,7 +45,7 @@ namespace DataServiceLib.Implements.Admin.Movies
                     Direction = ParameterDirection.Output
                 };
 
-                var parameters = new IDbDataParameter[] { o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_user_id, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_get_all_movie", parameters, _connectionString);
 
@@ -162,6 +167,7 @@ namespace DataServiceLib.Implements.Admin.Movies
                 var p_is_premium = new SqlParameter("@p_is_premium", SqlDbType.Char, 1) { Direction = ParameterDirection.Input, Value = addMovieDto.IsPremium ? "Y" : "N" };
                 var p_overview = new SqlParameter("@p_overview", SqlDbType.NVarChar, -1) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.Overview ?? DBNull.Value };
                 var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.Status ?? "PUBLISHED" };
+                var p_created_by = new SqlParameter("@p_created_by", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = (object?)addMovieDto.CreatedBy ?? DBNull.Value };
 
                 // OUT parameters
                 var o_movie_id = new SqlParameter("@o_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Output };
@@ -172,7 +178,7 @@ namespace DataServiceLib.Implements.Admin.Movies
                 {
             p_title,p_original_title, p_release_date, p_duration_min,
             p_language_code, p_country_code, p_is_premium,
-            p_overview, p_status,
+            p_overview, p_status, p_created_by,
             o_movie_id, o_code, o_message
                 };
 
@@ -225,6 +231,7 @@ namespace DataServiceLib.Implements.Admin.Movies
                 var p_is_premium = new SqlParameter("@p_is_premium", SqlDbType.Char, 1) { Direction = ParameterDirection.Input, Value = updateMovieDto.IsPremium ? "Y" : "N" };
                 var p_overview = new SqlParameter("@p_overview", SqlDbType.NVarChar, -1) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.Overview ?? DBNull.Value };
                 var p_status = new SqlParameter("@p_status", SqlDbType.NVarChar, 50) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.Status ?? "PUBLISHED" };
+                var p_user_id = new SqlParameter("@p_user_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = (object?)updateMovieDto.UserId ?? DBNull.Value };
 
                 // OUT parameters
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
@@ -234,7 +241,7 @@ namespace DataServiceLib.Implements.Admin.Movies
                 {
             p_movie_id, p_title,p_original_title, p_release_date, p_duration_min,
             p_language_code, p_country_code, p_is_premium,
-            p_overview, p_status,
+            p_overview, p_status, p_user_id,
             o_code, o_message
                 };
 
@@ -261,18 +268,19 @@ namespace DataServiceLib.Implements.Admin.Movies
         }
 
 
-        public async Task<CResponseMessage> Delete_movie(decimal movieId)
+        public async Task<CResponseMessage> Delete_movie(decimal movieId, long? userId = null)
         {
             try
             {
                 // IN parameter
                 var p_movie_id = new SqlParameter("@p_movie_id", SqlDbType.Decimal) { Direction = ParameterDirection.Input, Value = movieId };
+                var p_user_id = new SqlParameter("@p_user_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = (object?)userId ?? DBNull.Value };
 
                 // OUT parameters
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new IDbDataParameter[] { p_movie_id, o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_movie_id, p_user_id, o_code, o_message };
 
                 // Gọi stored procedure
                 var dataset = _baseProvider.GetDatasetFromSP("sp_movie_delete", parameters, _connectionString);

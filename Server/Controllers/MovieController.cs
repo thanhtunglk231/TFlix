@@ -24,11 +24,11 @@ namespace Server.Controllers
             _cache = cache;
         }
         [HttpGet("getall")]
-        public async Task<IActionResult> GetAllMovies()
+        public async Task<IActionResult> GetAllMovies([FromQuery] long? userId = null)
         {
-            const string cacheKey = "tflix:movies:all";
+            var cacheKey = userId.HasValue ? $"tflix:movies:all:u_{userId.Value}" : "tflix:movies:all";
             var response = await _cache.GetAsync<CoreLib.Models.CResponseMessage>(cacheKey)
-                ?? await _cMovie.get_all();
+                ?? await _cMovie.get_all(userId);
             if (response == null)
                 return StatusCode(500, new { code = "500", message = "Null response from service" });
 
@@ -106,7 +106,7 @@ namespace Server.Controllers
         public async Task<IActionResult> deletemovie([FromBody] IdRequest req)
         {
             if (req == null || req.id <= 0) return BadRequest(new { code = "400", message = "Invalid id." });
-            var response = await _cMovie.Delete_movie(req.id);
+            var response = await _cMovie.Delete_movie(req.id, req.userId);
             if (response == null) return StatusCode(500, new { code = "500", message = "Null response from service" });
             if (response.Success)
                 await _cache.RemoveByPrefixAsync("tflix:movies:");
@@ -159,6 +159,6 @@ namespace Server.Controllers
         private static string HashKey(string value)
             => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
-        public class IdRequest { public decimal id { get; set; } }
+        public class IdRequest { public decimal id { get; set; } public long? userId { get; set; } }
     }
 }

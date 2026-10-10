@@ -1,6 +1,7 @@
 using CoreLib.Dtos;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Server.Services;
 using System.Security.Claims;
 
 namespace Server.Controllers
@@ -10,10 +11,12 @@ namespace Server.Controllers
     public class PermissionsController : ControllerBase
     {
         private readonly ICPermission _permission;
+        private readonly IRedisCacheService _cache;
 
-        public PermissionsController(ICPermission permission)
+        public PermissionsController(ICPermission permission, IRedisCacheService cache)
         {
             _permission = permission;
+            _cache = cache;
         }
 
         [HttpGet("getall")]
@@ -58,6 +61,47 @@ namespace Server.Controllers
                 return Conflict(result);
             }
 
+            if (result.Success)
+            {
+                await _cache.RemoveByPrefixAsync("tflix:movies:");
+            }
+
+            return Ok(result);
+        }
+
+        [HttpGet("user-matrix")]
+        public async Task<IActionResult> GetUserMatrix([FromQuery] long? userId)
+        {
+            var forbidden = await RequirePermission("View");
+            if (forbidden != null) return forbidden;
+
+            var result = await _permission.GetUserMatrix(userId);
+            return Ok(result);
+        }
+
+        [HttpPost("set-user-permission")]
+        public async Task<IActionResult> SetUserPermission([FromBody] UserPermissionSetDto dto)
+        {
+            Console.WriteLine($"[Server/PermissionsController] SetUserPermission received: UserId={dto?.UserId}, PermissionId={dto?.PermissionId}, IsAllowed={dto?.IsAllowed}");
+            if (dto == null || dto.UserId <= 0 || dto.PermissionId <= 0)
+            {
+                Console.WriteLine($"[Server/PermissionsController] SetUserPermission 400 invalid: dto null={dto == null}, UserId={dto?.UserId}, PermissionId={dto?.PermissionId}");
+                return BadRequest(new
+                {
+                    code = "400",
+                    Success = false,
+                    message = "Thông tin phân quyền tài khoản không hợp lệ."
+                });
+            }
+
+            var forbidden = await RequirePermission("Update");
+            if (forbidden != null) return forbidden;
+
+            var result = await _permission.SetUserPermission(dto);
+            if (result.Success)
+            {
+                await _cache.RemoveByPrefixAsync("tflix:movies:");
+            }
             return Ok(result);
         }
 

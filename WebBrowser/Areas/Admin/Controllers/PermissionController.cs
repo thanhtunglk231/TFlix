@@ -43,5 +43,20 @@ namespace WebBrowser.Areas.Admin.Controllers
 
             return Content(JsonConvert.SerializeObject(result), "application/json");
         }
+
+        [HttpGet]
+        public async Task<IActionResult> UserMatrix([FromQuery] long? userId)
+        {
+            var result = await _permissionService.GetUserMatrix(userId);
+            return Content(JsonConvert.SerializeObject(result), "application/json");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SetUserPermission([FromBody] UserPermissionSetDto dto)
+        {
+            Console.WriteLine("[Admin/PermissionController] SetUserPermission: " + JsonConvert.SerializeObject(dto));
+            var result = await _permissionService.SetUserPermission(dto);
+            return Content(JsonConvert.SerializeObject(result), "application/json");
+        }
     }
 }

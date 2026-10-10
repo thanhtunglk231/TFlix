@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,15 +30,16 @@ namespace CoreLib.Dtos.Movies
 
         public string? ImdbId { get; set; }
         public string? TmdbId { get; set; }
+        public long? CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
 
     public class UpdateMovieDto : AddMovieDto
     {
-
         [JsonPropertyName("MovieId")]
         public decimal MovieId { get; set; }
+        public long? UserId { get; set; }
     }
 }
 

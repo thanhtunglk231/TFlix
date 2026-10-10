@@ -94,6 +94,62 @@ namespace DataServiceLib.Implements.Admin
             }
         }
 
+        public Task<CResponseMessage> GetUserMatrix(long? userId)
+        {
+            try
+            {
+                var p_user_id = new SqlParameter("@p_user_id", SqlDbType.BigInt)
+                {
+                    Direction = ParameterDirection.Input,
+                    Value = (object?)userId ?? DBNull.Value
+                };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+                var parameters = new IDbDataParameter[] { p_user_id, o_code, o_message };
+
+                var dataset = _baseProvider.GetDatasetFromSP("sp_user_permission_matrix_get", parameters, _connectionString);
+
+                return Task.FromResult(new CResponseMessage
+                {
+                    Data = dataset,
+                    code = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                });
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(Error(ex));
+            }
+        }
+
+        public Task<CResponseMessage> SetUserPermission(UserPermissionSetDto dto)
+        {
+            try
+            {
+                var p_user_id = new SqlParameter("@p_user_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = dto.UserId };
+                var p_permission_id = new SqlParameter("@p_permission_id", SqlDbType.BigInt) { Direction = ParameterDirection.Input, Value = dto.PermissionId };
+                var p_is_allowed = new SqlParameter("@p_is_allowed", SqlDbType.Bit) { Direction = ParameterDirection.Input, Value = dto.IsAllowed };
+                var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+                var parameters = new IDbDataParameter[] { p_user_id, p_permission_id, p_is_allowed, o_code, o_message };
+
+                var dataset = _baseProvider.GetDatasetFromSP("sp_user_permission_set", parameters, _connectionString);
+
+                return Task.FromResult(new CResponseMessage
+                {
+                    Data = dataset,
+                    code = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                });
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(Error(ex));
+            }
+        }
+
         public Task<CResponseMessage> GetUserPermissions(string email, string? screenCode)
         {
             try

@@ -8,6 +8,8 @@ namespace DataServiceLib.Interfaces
         Task<CResponseMessage> GetAll();
         Task<CResponseMessage> GetMatrix();
         Task<CResponseMessage> SetRolePermission(RolePermissionSetDto dto);
+        Task<CResponseMessage> GetUserMatrix(long? userId);
+        Task<CResponseMessage> SetUserPermission(UserPermissionSetDto dto);
         Task<CResponseMessage> GetUserPermissions(string email, string? screenCode);
         Task<CResponseMessage> CheckUserPermission(CheckPermissionDto dto);
     }

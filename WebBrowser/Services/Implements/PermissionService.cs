@@ -59,5 +59,29 @@ namespace WebBrowser.Services.Implements
             Console.WriteLine("[PermissionService] SetRolePermission payload: " + JsonConvert.SerializeObject(dto));
             return await _httpService.PostAsync<CResponseMessage>($"{BASE}/set-role-permission", dto);
         }
+
+        public async Task<CResponseMessage> GetUserMatrix(long? userId)
+        {
+            try
+            {
+                var url = userId.HasValue ? $"{BASE}/user-matrix?userId={userId.Value}" : $"{BASE}/user-matrix";
+                return await _httpService.GetAsync<CResponseMessage>(url);
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Không lấy được ma trận phân quyền tài khoản: " + ex.Message
+                };
+            }
+        }
+
+        public async Task<CResponseMessage> SetUserPermission(UserPermissionSetDto dto)
+        {
+            Console.WriteLine("[PermissionService] SetUserPermission payload: " + JsonConvert.SerializeObject(dto));
+            return await _httpService.PostAsync<CResponseMessage>($"{BASE}/set-user-permission", dto);
+        }
     }
 }

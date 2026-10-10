@@ -10,8 +10,8 @@ namespace WebBrowser.Services.Interfaces
     {
         Task<CResponseMessage> add_Movie(AddMovieDto addSeriesDto);
         Task<ApiResponse<List<MovieAutocompleteItemDto>>> Autocomplete(string query, int limit = 8);
-        Task<CResponseMessage> delete_Season(decimal id);
-        Task<ApiResponse<MovieTableWrapper>> get_all();
+        Task<CResponseMessage> delete_Season(decimal id, long? userId = null);
+        Task<ApiResponse<MovieTableWrapper>> get_all(long? userId = null);
         Task<CResponseMessage> uppdate_Movie(UpdateMovieDto updateDto);
         Task<CResponseMessage> GetCatalogMovies(MovieCatalogFilterDto filter);
     }

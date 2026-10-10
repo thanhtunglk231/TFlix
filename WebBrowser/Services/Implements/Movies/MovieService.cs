@@ -58,20 +58,20 @@ namespace WebBrowser.Services.Implements.Movies
             return resp!;
         }
 
-        public async Task<CResponseMessage> delete_Season(decimal id)
+        public async Task<CResponseMessage> delete_Season(decimal id, long? userId = null)
         {
             const string url = "/api/Movie/delete";
-            Console.WriteLine($"[MovieService] -> delete_Season ENTER url={url}, id={id}");
+            Console.WriteLine($"[MovieService] -> delete_Season ENTER url={url}, id={id}, userId={userId}");
 
-            var resp = await _httpService.PostAsync<CResponseMessage>(url, new { id });
+            var resp = await _httpService.PostAsync<CResponseMessage>(url, new { id, userId });
 
             Console.WriteLine("[MovieService] <- delete_Season EXIT: " + JsonConvert.SerializeObject(resp));
             return resp!;
         }
 
-        public async Task<ApiResponse<MovieTableWrapper>> get_all()
+        public async Task<ApiResponse<MovieTableWrapper>> get_all(long? userId = null)
         {
-            const string url = "/api/Movie/getall";
+            var url = userId.HasValue ? $"/api/Movie/getall?userId={userId.Value}" : "/api/Movie/getall";
             Console.WriteLine("[MoviesService] -> get_all ENTER url=" + url);
 
             var resp = await _httpService.GetAsync<ApiResponse<MovieTableWrapper>>(url);
