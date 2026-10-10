@@ -11,6 +11,7 @@ using System.Security.Claims;
 using System.Text;
 using Server.Services;
 using Google.Apis.Auth;
+using CommonLib.Logging;
 
 namespace Server.Controllers
 {
@@ -131,31 +132,43 @@ namespace Server.Controllers
         {
             if (string.IsNullOrWhiteSpace(request?.IdToken))
             {
+                GoogleAuthDebugLogger.Log("SERVER_API_NO_TOKEN", "Server API /api/Auth/google nhận request nhưng không có ID token.");
                 _logger.LogWarning("Google login request did not contain an ID token.");
                 return BadRequest(new { code="400",success=false,message="Google ID token không hợp lệ." });
             }
             try
             {
-                var audience = _configuration["Authentication:Google:ClientId"];
+                var audience = _configuration["Authentication:Google:ClientId"]
+                    ?? _configuration["Google:ClientId"]
+                    ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID");
+
                 if (string.IsNullOrWhiteSpace(audience))
                 {
+                    GoogleAuthDebugLogger.Log("SERVER_API_MISSING_AUDIENCE", "Server API chưa được cấu hình ClientId (audience).");
                     _logger.LogError("Google login is unavailable because the API client ID is not configured.");
-                    return StatusCode(503, new { code="503",success=false,message="Google Login chưa được cấu hình." });
+                    return StatusCode(503, new { code="503",success=false,message="Google Login chưa được cấu hình trên Server API." });
                 }
+
+                GoogleAuthDebugLogger.Log("SERVER_API_VALIDATING", $"Đang xác thực Google ID token với Audience = {GoogleAuthDebugLogger.Mask(audience)}");
                 var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken,
                     new GoogleJsonWebSignature.ValidationSettings { Audience = new[] { audience } });
+
                 if (payload.EmailVerified != true || string.IsNullOrWhiteSpace(payload.Subject) || string.IsNullOrWhiteSpace(payload.Email))
                 {
+                    GoogleAuthDebugLogger.Log("SERVER_API_EMAIL_UNVERIFIED", $"Google payload chưa verify email hoặc thiếu thông tin: Email={payload.Email}, Verified={payload.EmailVerified}");
                     _logger.LogWarning("Google login was rejected because the verified identity fields were incomplete.");
                     return Unauthorized(new { code="401",success=false,message="Tài khoản Google chưa xác minh email." });
                 }
+
                 var response = await _auth.GoogleLoginAsync(new GoogleIdentityDto
                 {
                     Subject=payload.Subject, Email=payload.Email, EmailVerified=true,
                     FullName=payload.Name ?? payload.Email, AvatarUrl=payload.Picture
                 });
+
                 if (!response.Success)
                 {
+                    GoogleAuthDebugLogger.Log("SERVER_API_DB_FAILED", $"Database lưu identity Google thất bại: Code={response.code}, Msg={response.message}");
                     _logger.LogWarning("Google identity persistence failed with response code {ResponseCode}.", response.code);
                     var statusCode = response.code switch
                     {
@@ -166,15 +179,29 @@ namespace Server.Controllers
                     };
                     return StatusCode(statusCode, response);
                 }
+
                 var user = MapUserFromDataSet(response.Data as DataSet);
-                if (user == null) return StatusCode(500, new { code="500",success=false,message="Không đọc được tài khoản Google." });
+                if (user == null)
+                {
+                    GoogleAuthDebugLogger.Log("SERVER_API_MAP_USER_FAILED", "Không đọc được tài khoản Google sau khi ghi DB.");
+                    return StatusCode(500, new { code="500",success=false,message="Không đọc được tài khoản Google." });
+                }
+
+                GoogleAuthDebugLogger.Log("SERVER_API_SUCCESS", $"Đăng nhập Google thành công cho user: {user.Email}");
                 _logger.LogInformation("Google login completed successfully.");
                 return Ok(new { code="200",success=true,message=response.message,data=new { token=GenerateJwtToken(user.Email,user.Roles),user } });
             }
-            catch (InvalidJwtException)
+            catch (InvalidJwtException ex)
             {
+                GoogleAuthDebugLogger.Log("SERVER_API_INVALID_JWT", $"ID token không hợp lệ hoặc audience không khớp: {ex.Message}", ex);
                 _logger.LogWarning("Google login was rejected because ID token validation failed.");
                 return Unauthorized(new { code="401",success=false,message="Phiên xác thực Google không hợp lệ hoặc đã hết hạn." });
+            }
+            catch (Exception ex)
+            {
+                GoogleAuthDebugLogger.Log("SERVER_API_EXCEPTION", $"Ngoại lệ khi đăng nhập Google: {ex.Message}", ex);
+                _logger.LogError(ex, "Unexpected error during Google login.");
+                return StatusCode(500, new { code="500",success=false,message="Lỗi hệ thống khi xử lý đăng nhập Google." });
             }
         }
 

@@ -109,6 +109,8 @@ var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticat
         opts.ExpireTimeSpan = TimeSpan.FromMinutes(10);
     });
 
+GoogleAuthDebugLogger.SetLogDirectory(Path.Combine(builder.Environment.ContentRootPath, "Logs"));
+
 var googleClientId = builder.Configuration["Authentication:Google:ClientId"]
     ?? builder.Configuration["Google:ClientId"]
     ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID");
@@ -126,6 +128,31 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     ["Authentication:Google:ClientSecret"] = googleClientSecret,
     ["Authentication:Google:CallbackPath"] = googleCallbackPath
 });
+
+var startupLog = new System.Text.StringBuilder();
+startupLog.AppendLine("=== WEBBROWSER STARTUP: KIỂM TRA CẤU HÌNH GOOGLE AUTHENTICATION ===");
+startupLog.AppendLine($"- Authentication:Google:ClientId trong appsettings: {(string.IsNullOrWhiteSpace(builder.Configuration["Authentication:Google:ClientId"]) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.Mask(builder.Configuration["Authentication:Google:ClientId"]))}");
+startupLog.AppendLine($"- Authentication:Google:ClientSecret trong appsettings: {(string.IsNullOrWhiteSpace(builder.Configuration["Authentication:Google:ClientSecret"]) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.MaskSecret(builder.Configuration["Authentication:Google:ClientSecret"]))}");
+startupLog.AppendLine($"- Biến môi trường GOOGLE_CLIENT_ID: {(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID")) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.Mask(Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID")))}");
+startupLog.AppendLine($"- Biến môi trường GOOGLE_CLIENT_SECRET: {(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET")) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.MaskSecret(Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET")))}");
+startupLog.AppendLine($"- CallbackPath: {googleCallbackPath}");
+if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    startupLog.AppendLine("-> KẾT QUẢ: ✅ ĐẦY ĐỦ THÔNG TIN. Middleware Google Authentication (AddGoogle) đã được đăng ký thành công.");
+}
+else
+{
+    var missingFields = new List<string>();
+    if (string.IsNullOrWhiteSpace(googleClientId)) missingFields.Add("ClientId");
+    if (string.IsNullOrWhiteSpace(googleClientSecret)) missingFields.Add("ClientSecret");
+    startupLog.AppendLine($"-> KẾT QUẢ: ❌ THIẾU ({string.Join(", ", missingFields)}). Google Authentication KHÔNG được đăng ký!");
+    startupLog.AppendLine("-> HƯỚNG DẪN KHẮC PHỤC:");
+    startupLog.AppendLine("   Thêm vào WebBrowser/appsettings.json trên server:");
+    startupLog.AppendLine("   \"Authentication\": { \"Google\": { \"ClientId\": \"...\", \"ClientSecret\": \"...\", \"CallbackPath\": \"/signin-google\" } }");
+    startupLog.AppendLine("   Hoặc set biến môi trường GOOGLE_CLIENT_ID và GOOGLE_CLIENT_SECRET.");
+}
+GoogleAuthDebugLogger.Log("STARTUP_INIT", startupLog.ToString());
+
 if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
 {
     authenticationBuilder.AddGoogle("Google", opts =>
@@ -159,13 +186,19 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
         };
         opts.Events.OnRemoteFailure = context =>
         {
+            var remoteFailLog = new System.Text.StringBuilder();
+            remoteFailLog.AppendLine("Google OAuth Callback thất bại từ phía Google (OnRemoteFailure)!");
+            remoteFailLog.AppendLine($"URL: {context.Request.Scheme}://{context.Request.Host}{context.Request.Path}{context.Request.QueryString}");
+            remoteFailLog.AppendLine($"Lỗi từ Google: {context.Failure?.Message}");
+            GoogleAuthDebugLogger.Log("REMOTE_FAILURE", remoteFailLog.ToString(), context.Failure);
+
             var logger = context.HttpContext.RequestServices
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("GoogleAuthentication");
-            logger.LogWarning(context.Failure, "Google OAuth callback failed.");
+            logger.LogWarning(context.Failure, "Google OAuth callback failed: {Message}", context.Failure?.Message);
             context.HandleResponse();
             context.Response.Redirect("/Auth/AuthenticationError?message=" +
-                Uri.EscapeDataString("Bạn đã hủy hoặc Google từ chối yêu cầu đăng nhập."));
+                Uri.EscapeDataString("Google từ chối yêu cầu đăng nhập: " + (context.Failure?.Message ?? "Lỗi không xác định.")));
             return Task.CompletedTask;
         };
     });
