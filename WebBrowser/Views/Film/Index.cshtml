@@ -31,7 +31,13 @@
     var movieYear = content.ReleaseOrAirDate?.Year ?? 2024;
     var movieGenres = content.genres ?? "Hành động, Phiêu lưu";
     var countryCode = content.CountryCode ?? "VN";
-    var rating = "8.8";
+    var ratingInfo = Model.RatingInfo;
+    var avgRating = ratingInfo != null && ratingInfo.AverageRating > 0
+        ? ratingInfo.AverageRating
+        : (decimal)(content.Rating.HasValue && content.Rating.Value > 0 ? content.Rating.Value : 4.5);
+    var avgRatingText = avgRating.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+    var ratingCount = ratingInfo?.RatingCount ?? 0;
+    var userRatingVal = ratingInfo?.UserRating ?? 0;
     var poster = content.PrimaryPosterUrl ?? "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1200&auto=format&fit=crop";
     var description = content.OverviewText ?? "Theo dõi những diễn biến kịch tính và hấp dẫn nhất trong tác phẩm điện ảnh đỉnh cao, được phát sóng độc quyền với chất lượng chuẩn 4K Ultra HD trên nền tảng TFlix.";
 
@@ -517,6 +523,94 @@
             z-index: 1000;
             box-shadow: 0 0 100px rgba(0, 0, 0, 0.9);
         }
+
+        /* Fullscreen styles (Native + Mobile Fallback) */
+        :fullscreen #playerBox,
+        :-webkit-full-screen #playerBox,
+        :-moz-full-screen #playerBox,
+        :-ms-fullscreen #playerBox,
+        #playerBox:fullscreen,
+        #playerBox:-webkit-full-screen,
+        #playerBox.mobile-fullscreen-active {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            background: #000000 !important;
+            border: none !important;
+        }
+
+        :fullscreen #video,
+        :-webkit-full-screen #video,
+        :-moz-full-screen #video,
+        :-ms-fullscreen #video,
+        #playerBox:fullscreen #video,
+        #playerBox:-webkit-full-screen #video,
+        #playerBox.mobile-fullscreen-active #video {
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 100vh !important;
+            aspect-ratio: auto !important;
+            object-fit: contain !important;
+            background: #000000 !important;
+        }
+
+        #playerBox.mobile-fullscreen-active {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            z-index: 999999 !important;
+            margin: 0 !important;
+        }
+
+        body.has-fullscreen-player {
+            overflow: hidden !important;
+            touch-action: none;
+        }
+
+        /* Star Rating Widget */
+        .rating-widget-box {
+            background: linear-gradient(135deg, rgba(28, 31, 38, 0.9) 0%, rgba(20, 23, 29, 0.95) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            transition: border-color 0.3s ease;
+        }
+        .rating-widget-box:hover {
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+        .rating-stars-interactive {
+            display: inline-flex;
+            gap: 4px;
+        }
+        .star-btn {
+            background: transparent;
+            border: none;
+            padding: 2px 4px;
+            font-size: 1.35rem;
+            color: #475569;
+            cursor: pointer;
+            transition: color 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            outline: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .star-btn:hover,
+        .star-btn.hovered {
+            color: #fbbf24 !important;
+            transform: scale(1.22);
+        }
+        .star-btn.active {
+            color: #f59e0b;
+        }
+        .star-btn:focus-visible {
+            outline: 2px solid #fbbf24;
+            border-radius: 4px;
+        }
     </style>
 }
 
@@ -553,7 +647,11 @@
                     </span>
                     <span class="meta-tag">@movieYear</span>
                     <span class="meta-tag text-info">4K Ultra HD</span>
-                    <span class="meta-tag text-warning">★ @rating IMDb</span>
+                    <span class="meta-tag text-warning d-inline-flex align-items-center gap-1" id="watchRatingBadge">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <span id="badgeAvgRating">@avgRatingText</span>
+                        <span class="opacity-75 small">(<span id="badgeRatingCount">@ratingCount</span>)</span>
+                    </span>
                     <span class="meta-tag">@countryCode</span>
                     <span class="meta-tag">T16</span>
                 </div>
@@ -575,6 +673,42 @@
                 <p class="text-light mb-0 opacity-75" style="max-width: 780px; font-size: 0.95rem; line-height: 1.6;">
                     @description
                 </p>
+
+                <!-- Interactive Star Rating Widget -->
+                <div class="rating-widget-box mt-3 p-3" style="max-width: 520px;">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rating-score-display text-center px-3 py-1 rounded-3" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.25);">
+                                <div class="fw-bold fs-4 text-warning" id="ratingAvgDisplay">@avgRatingText</div>
+                                <div class="text-white-50" style="font-size: 0.68rem; letter-spacing: 0.5px; text-transform: uppercase;">Thang điểm 5</div>
+                            </div>
+                            <div>
+                                <div class="rating-stars-interactive" id="starRatingContainer" data-movie-id="@contentId" data-user-rating="@userRatingVal">
+                                    @for (int s = 1; s <= 5; s++)
+                                    {
+                                        var isFilled = s <= userRatingVal;
+                                        <button type="button" class="star-btn @(isFilled ? "active" : "")" data-star="@s" title="@s sao" aria-label="Đánh giá @s sao">
+                                            <i class="bi @(isFilled ? "bi-star-fill" : "bi-star")"></i>
+                                        </button>
+                                    }
+                                </div>
+                                <div class="small mt-1" id="ratingFeedbackText" style="color: #94a3b8;">
+                                    @if (userRatingVal > 0)
+                                    {
+                                        <span class="text-warning"><i class="bi bi-check-circle-fill me-1"></i>Bạn đã đánh giá @userRatingVal sao</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Bấm sao để đánh giá phim</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end text-muted small">
+                            <div><span id="ratingTotalCount" class="text-white fw-bold">@ratingCount</span> đánh giá</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="col-lg-4 text-lg-end">
@@ -1523,11 +1657,162 @@
 
             if (selSpeed) selSpeed.addEventListener('change', e => video.playbackRate = +e.target.value);
 
+            // ==========================================
+            // CROSS-DEVICE & MOBILE FULLSCREEN CONTROLLER
+            // ==========================================
+            function isFullscreenActive() {
+                return !!(
+                    document.fullscreenElement ||
+                    document.webkitFullscreenElement ||
+                    document.mozFullScreenElement ||
+                    document.msFullscreenElement ||
+                    (playerBox && playerBox.classList.contains('mobile-fullscreen-active'))
+                );
+            }
+
+            function updateFsButtonIcon(isFs) {
+                if (!btnFs) return;
+                if (isFs) {
+                    btnFs.title = "Thu nhỏ màn hình (Esc hoặc F)";
+                    btnFs.innerHTML = `
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+                        </svg>
+                    `;
+                } else {
+                    btnFs.title = "Toàn màn hình (F)";
+                    btnFs.innerHTML = `
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                        </svg>
+                    `;
+                }
+            }
+
+            async function toggleFullscreen() {
+                const isCurrentlyFs = isFullscreenActive();
+
+                if (isCurrentlyFs) {
+                    // Exit fullscreen
+                    try {
+                        if (document.exitFullscreen) {
+                            await document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) {
+                            await document.webkitExitFullscreen();
+                        } else if (document.mozCancelFullScreen) {
+                            await document.mozCancelFullScreen();
+                        } else if (document.msExitFullscreen) {
+                            await document.msExitFullscreen();
+                        }
+                    } catch (e) {
+                        console.warn('Exit fullscreen error:', e);
+                    }
+
+                    if (video && typeof video.webkitExitFullscreen === 'function') {
+                        try { video.webkitExitFullscreen(); } catch (e) {}
+                    }
+
+                    if (playerBox) playerBox.classList.remove('mobile-fullscreen-active');
+                    document.body.classList.remove('has-fullscreen-player');
+                    updateFsButtonIcon(false);
+
+                    if (screen.orientation && screen.orientation.unlock) {
+                        try { screen.orientation.unlock(); } catch (e) {}
+                    }
+                } else {
+                    // Enter fullscreen
+                    // 1. iOS Safari (iPhone / iPod): does not support Element.requestFullscreen() on arbitrary divs.
+                    // Video element MUST use webkitEnterFullscreen directly.
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                    if (isIOS && video && typeof video.webkitEnterFullscreen === 'function') {
+                        try {
+                            video.webkitEnterFullscreen();
+                            return;
+                        } catch (e) {
+                            console.warn('iOS webkitEnterFullscreen failed, trying fallback:', e);
+                        }
+                    }
+
+                    // 2. Standard HTML5 Fullscreen API on playerBox (wraps video + custom controls)
+                    let reqFn = null;
+                    if (playerBox) {
+                        reqFn = playerBox.requestFullscreen ||
+                                playerBox.webkitRequestFullscreen ||
+                                playerBox.mozRequestFullScreen ||
+                                playerBox.msRequestFullscreen;
+                    }
+
+                    if (reqFn && playerBox) {
+                        try {
+                            const promise = reqFn.call(playerBox);
+                            if (promise && typeof promise.then === 'function') {
+                                await promise;
+                            }
+                            updateFsButtonIcon(true);
+                        } catch (err) {
+                            console.warn('playerBox requestFullscreen failed:', err);
+                            // If playerBox failed on Android / WebKit, try video element directly
+                            if (video) {
+                                try {
+                                    if (video.requestFullscreen) await video.requestFullscreen();
+                                    else if (video.webkitRequestFullscreen) await video.webkitRequestFullscreen();
+                                    else if (typeof video.webkitEnterFullscreen === 'function') video.webkitEnterFullscreen();
+                                    updateFsButtonIcon(true);
+                                    return;
+                                } catch (vErr) {
+                                    console.warn('Video fullscreen also failed:', vErr);
+                                }
+                            }
+
+                            // 3. Fallback CSS pseudo-fullscreen for in-app webviews (Zalo, FB, Messenger)
+                            if (playerBox) playerBox.classList.add('mobile-fullscreen-active');
+                            document.body.classList.add('has-fullscreen-player');
+                            updateFsButtonIcon(true);
+                        }
+                    } else if (video && typeof video.webkitEnterFullscreen === 'function') {
+                        try {
+                            video.webkitEnterFullscreen();
+                        } catch (e) {
+                            if (playerBox) playerBox.classList.add('mobile-fullscreen-active');
+                            document.body.classList.add('has-fullscreen-player');
+                            updateFsButtonIcon(true);
+                        }
+                    } else {
+                        // 3. Fallback CSS pseudo-fullscreen
+                        if (playerBox) playerBox.classList.add('mobile-fullscreen-active');
+                        document.body.classList.add('has-fullscreen-player');
+                        updateFsButtonIcon(true);
+                    }
+
+                    // Attempt orientation lock to landscape on mobile devices
+                    if (screen.orientation && screen.orientation.lock && window.innerWidth < 992) {
+                        try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {}
+                    }
+                }
+            }
+
             if (btnFs) {
-                btnFs.addEventListener('click', () => guardAuth(()=>{
-                    if (!document.fullscreenElement) playerBox.requestFullscreen().catch(()=>{});
-                    else document.exitFullscreen();
-                }));
+                btnFs.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    toggleFullscreen();
+                });
+            }
+
+            // Sync fullscreen change events across all browser engines
+            ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+                document.addEventListener(evt, () => {
+                    const isFs = isFullscreenActive();
+                    if (!isFs && playerBox) {
+                        playerBox.classList.remove('mobile-fullscreen-active');
+                        document.body.classList.remove('has-fullscreen-player');
+                    }
+                    updateFsButtonIcon(isFs);
+                });
+            });
+
+            if (video) {
+                video.addEventListener('webkitbeginfullscreen', () => updateFsButtonIcon(true));
+                video.addEventListener('webkitendfullscreen', () => updateFsButtonIcon(false));
             }
             if (btnTheater) {
                 btnTheater.addEventListener('click', () => {
@@ -1986,5 +2271,129 @@
                 alert('Liên kết: ' + window.location.href);
             }
         });
+
+        // ==========================================
+        // STAR RATING INTERACTION
+        // ==========================================
+        const starContainer = document.getElementById('starRatingContainer');
+        if (starContainer) {
+            const stars = starContainer.querySelectorAll('.star-btn');
+            const feedbackText = document.getElementById('ratingFeedbackText');
+            const avgDisplay = document.getElementById('ratingAvgDisplay');
+            const badgeAvg = document.getElementById('badgeAvgRating');
+            const totalCount = document.getElementById('ratingTotalCount');
+            const badgeCount = document.getElementById('badgeRatingCount');
+            const starLabels = {
+                1: '1 sao - Rất tệ',
+                2: '2 sao - Tệ',
+                3: '3 sao - Bình thường',
+                4: '4 sao - Hay',
+                5: '5 sao - Tuyệt đỉnh!'
+            };
+
+            function highlightStars(rating) {
+                stars.forEach(btn => {
+                    const starVal = parseInt(btn.dataset.star, 10);
+                    const icon = btn.querySelector('i');
+                    if (starVal <= rating) {
+                        btn.classList.add('hovered');
+                        if (icon) {
+                            icon.classList.remove('bi-star');
+                            icon.classList.add('bi-star-fill');
+                        }
+                    } else {
+                        btn.classList.remove('hovered');
+                        if (icon && !btn.classList.contains('active')) {
+                            icon.classList.remove('bi-star-fill');
+                            icon.classList.add('bi-star');
+                        }
+                    }
+                });
+            }
+
+            function resetStars() {
+                const currentRating = parseInt(starContainer.dataset.userRating, 10) || 0;
+                stars.forEach(btn => {
+                    btn.classList.remove('hovered');
+                    const starVal = parseInt(btn.dataset.star, 10);
+                    const icon = btn.querySelector('i');
+                    if (starVal <= currentRating) {
+                        btn.classList.add('active');
+                        if (icon) {
+                            icon.classList.remove('bi-star');
+                            icon.classList.add('bi-star-fill');
+                        }
+                    } else {
+                        btn.classList.remove('active');
+                        if (icon) {
+                            icon.classList.remove('bi-star-fill');
+                            icon.classList.add('bi-star');
+                        }
+                    }
+                });
+                if (currentRating > 0) {
+                    feedbackText.innerHTML = `<span class="text-warning"><i class="bi bi-check-circle-fill me-1"></i>Bạn đã đánh giá ${currentRating} sao</span>`;
+                } else {
+                    feedbackText.textContent = 'Bấm sao để đánh giá phim';
+                }
+            }
+
+            stars.forEach(btn => {
+                btn.addEventListener('mouseenter', () => {
+                    const starVal = parseInt(btn.dataset.star, 10);
+                    highlightStars(starVal);
+                    if (feedbackText) feedbackText.textContent = starLabels[starVal] || `${starVal} sao`;
+                });
+
+                btn.addEventListener('click', async () => {
+                    if (!isLoggedIn) {
+                        guardAuth();
+                        return;
+                    }
+
+                    const ratingVal = parseInt(btn.dataset.star, 10);
+                    const targetMovieId = parseInt(starContainer.dataset.movieId, 10) || movieId;
+
+                    feedbackText.innerHTML = `<span class="text-info"><i class="bi bi-hourglass-split me-1"></i>Đang lưu đánh giá...</span>`;
+                    stars.forEach(s => s.disabled = true);
+
+                    try {
+                        const resp = await fetch('@Url.Action("RateMovie", "Film")', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ movieId: targetMovieId, rating: ratingVal })
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.success) {
+                            throw new Error(data.message || 'Lỗi khi lưu đánh giá.');
+                        }
+
+                        starContainer.dataset.userRating = ratingVal;
+                        if (data.data) {
+                            const newAvg = parseFloat(data.data.averageRating || data.data.AverageRating || 0).toFixed(1);
+                            const newCount = data.data.ratingCount || data.data.RatingCount || 0;
+                            if (avgDisplay) avgDisplay.textContent = newAvg;
+                            if (badgeAvg) badgeAvg.textContent = newAvg;
+                            if (totalCount) totalCount.textContent = newCount;
+                            if (badgeCount) badgeCount.textContent = newCount;
+                        }
+                        resetStars();
+
+                        if (typeof showToast === 'function') {
+                            showToast(`Đã đánh giá thành công ${ratingVal} sao cho phim!`, 'success');
+                        } else {
+                            feedbackText.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Đã đánh giá thành công ${ratingVal} sao!</span>`;
+                        }
+                    } catch (err) {
+                        feedbackText.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>${err.message}</span>`;
+                        resetStars();
+                    } finally {
+                        stars.forEach(s => s.disabled = false);
+                    }
+                });
+            });
+
+            starContainer.addEventListener('mouseleave', resetStars);
+        }
     </script>
 }

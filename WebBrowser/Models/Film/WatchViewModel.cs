@@ -15,5 +15,7 @@ namespace WebBrowser.Models.Film
         public bool IsPremiumContent { get; set; }
         public bool HasActiveSubscription { get; set; }
         public DateTimeOffset? SubscriptionEndAt { get; set; }
+        public CoreLib.Dtos.Rating.MovieRatingDto? RatingInfo { get; set; }
     }
 }
+

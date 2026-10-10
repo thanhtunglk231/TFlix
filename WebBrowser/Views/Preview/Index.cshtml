@@ -49,7 +49,14 @@
 
     var status = !string.IsNullOrWhiteSpace(item?.status) ? item.status : "Đang cập nhật";
 
-    var rating = "8.5";
+    var ratingInfo = Model?.RatingInfo;
+    var avgRating = ratingInfo != null && ratingInfo.AverageRating > 0
+        ? ratingInfo.AverageRating
+        : (decimal)(item != null && item.Rating.HasValue && item.Rating.Value > 0 ? item.Rating.Value : 4.5);
+    var avgRatingText = avgRating.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+    var ratingCount = ratingInfo?.RatingCount ?? 0;
+    var userRatingVal = ratingInfo?.UserRating ?? 0;
+    var rating = avgRatingText;
     var casts = "Đang cập nhật";
 
     var description = !string.IsNullOrWhiteSpace(item?.OverviewText) ? item.OverviewText : "Chưa có nội dung mô tả.";
@@ -106,6 +113,27 @@
         .meta dt {
             color: #cfe7f6;
             width: 120px
+        }
+
+        .star-btn-sm {
+            background: transparent;
+            border: none;
+            padding: 1px 3px;
+            font-size: 1.2rem;
+            color: #475569;
+            cursor: pointer;
+            transition: color 0.18s ease, transform 0.18s ease;
+            outline: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        .star-btn-sm:hover,
+        .star-btn-sm.hovered {
+            color: #fbbf24 !important;
+            transform: scale(1.22);
+        }
+        .star-btn-sm.active {
+            color: #f59e0b;
         }
 
         .meta dd {
@@ -332,8 +360,29 @@
 
                                 <dt class="col-sm-4">Đánh giá</dt>
                                 <dd class="col-sm-8">
-                                    <span class="star"><i class="bi bi-star-fill"></i></span>
-                                    <b id="rating">@rating</b> (điểm)
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="text-warning fw-bold fs-5" id="previewAvgRating">@avgRatingText</span>
+                                        <span class="text-white-50">/ 5 (<span id="previewRatingCount">@ratingCount</span> đánh giá)</span>
+                                        <div class="d-inline-flex align-items-center gap-1 ms-2" id="previewStarRating" data-movie-id="@watchId" data-user-rating="@userRatingVal">
+                                            @for (int s = 1; s <= 5; s++)
+                                            {
+                                                var isFilled = s <= userRatingVal;
+                                                <button type="button" class="star-btn-sm @(isFilled ? "active" : "")" data-star="@s" title="@s sao" aria-label="Đánh giá @s sao">
+                                                    <i class="bi @(isFilled ? "bi-star-fill" : "bi-star")"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="small text-muted mt-1" id="previewRatingFeedback">
+                                        @if (userRatingVal > 0)
+                                        {
+                                            <span class="text-warning"><i class="bi bi-check-circle-fill me-1"></i>Bạn đã đánh giá @userRatingVal sao</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Bấm sao để đánh giá phim</span>
+                                        }
+                                    </div>
                                 </dd>
                             </dl>
 
@@ -840,6 +889,98 @@
                     btnCmt.innerHTML = originalHtml;
                 }
             });
+        }
+
+        // ==========================================
+        // STAR RATING ON PREVIEW PAGE
+        // ==========================================
+        const pStarContainer = document.getElementById('previewStarRating');
+        if (pStarContainer) {
+            const pStars = pStarContainer.querySelectorAll('.star-btn-sm');
+            const pFeedback = document.getElementById('previewRatingFeedback');
+            const pAvg = document.getElementById('previewAvgRating');
+            const pCount = document.getElementById('previewRatingCount');
+            const pLabels = { 1: '1 sao - Rất tệ', 2: '2 sao - Tệ', 3: '3 sao - Bình thường', 4: '4 sao - Hay', 5: '5 sao - Tuyệt đỉnh!' };
+
+            function highlightPStars(val) {
+                pStars.forEach(btn => {
+                    const s = parseInt(btn.dataset.star, 10);
+                    const icon = btn.querySelector('i');
+                    if (s <= val) {
+                        btn.classList.add('hovered');
+                        if (icon) { icon.classList.remove('bi-star'); icon.classList.add('bi-star-fill'); }
+                    } else {
+                        btn.classList.remove('hovered');
+                        if (icon && !btn.classList.contains('active')) { icon.classList.remove('bi-star-fill'); icon.classList.add('bi-star'); }
+                    }
+                });
+            }
+
+            function resetPStars() {
+                const cur = parseInt(pStarContainer.dataset.userRating, 10) || 0;
+                pStars.forEach(btn => {
+                    btn.classList.remove('hovered');
+                    const s = parseInt(btn.dataset.star, 10);
+                    const icon = btn.querySelector('i');
+                    if (s <= cur) {
+                        btn.classList.add('active');
+                        if (icon) { icon.classList.remove('bi-star'); icon.classList.add('bi-star-fill'); }
+                    } else {
+                        btn.classList.remove('active');
+                        if (icon) { icon.classList.remove('bi-star-fill'); icon.classList.add('bi-star'); }
+                    }
+                });
+                if (cur > 0) {
+                    pFeedback.innerHTML = `<span class="text-warning"><i class="bi bi-check-circle-fill me-1"></i>Bạn đã đánh giá ${cur} sao</span>`;
+                } else {
+                    pFeedback.textContent = 'Bấm sao để đánh giá phim';
+                }
+            }
+
+            pStars.forEach(btn => {
+                btn.addEventListener('mouseenter', () => {
+                    const val = parseInt(btn.dataset.star, 10);
+                    highlightPStars(val);
+                    if (pFeedback) pFeedback.textContent = pLabels[val] || `${val} sao`;
+                });
+
+                btn.addEventListener('click', async () => {
+                    if (!isLoggedIn) {
+                        alert('Vui lòng đăng nhập để đánh giá phim.');
+                        window.location.href = '/Auth/Index?returnUrl=' + encodeURIComponent(window.location.pathname + window.location.search);
+                        return;
+                    }
+
+                    const ratingVal = parseInt(btn.dataset.star, 10);
+                    const targetMovieId = parseInt(pStarContainer.dataset.movieId, 10) || @watchId;
+                    pFeedback.innerHTML = `<span class="text-info"><i class="bi bi-hourglass-split me-1"></i>Đang lưu...</span>`;
+
+                    try {
+                        const resp = await fetch('@Url.Action("RateMovie", "Preview")', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ movieId: targetMovieId, rating: ratingVal })
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.success) throw new Error(data.message || 'Lỗi khi lưu.');
+
+                        pStarContainer.dataset.userRating = ratingVal;
+                        if (data.data) {
+                            const newAvg = parseFloat(data.data.averageRating || data.data.AverageRating || 0).toFixed(1);
+                            const newCount = data.data.ratingCount || data.data.RatingCount || 0;
+                            if (pAvg) pAvg.textContent = newAvg;
+                            if (pCount) pCount.textContent = newCount;
+                        }
+                        resetPStars();
+                        pFeedback.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Đã đánh giá ${ratingVal} sao thành công!</span>`;
+                    } catch (err) {
+                        pFeedback.innerHTML = `<span class="text-danger">${err.message}</span>`;
+                        resetPStars();
+                    }
+                });
+            });
+
+            pStarContainer.addEventListener('mouseleave', resetPStars);
         }
     </script>
 }

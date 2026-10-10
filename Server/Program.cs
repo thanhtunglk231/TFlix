@@ -168,6 +168,8 @@ builder.Services.AddScoped<ICHome, CHome>();
 builder.Services.AddScoped<ICNews, CNews>();
 builder.Services.AddScoped<ICComment, CComment>();
 builder.Services.AddScoped<ICFavorite, CFavorite>();
+builder.Services.AddScoped<ICRating, CRating>();
+
 
 // =====================================================
 // SUBSCRIPTION & PAYMENT - PAYOS
