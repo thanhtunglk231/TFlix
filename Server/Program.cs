@@ -50,44 +50,44 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // =====================================================
-// REDIS - UPSTASH CLOUD
+// REDIS - UPSTASH CLOUD HOẶC LOCALHOST FALLBACK
 // =====================================================
 
 var redisConfig = builder.Configuration.GetSection("Redis");
+var redisHost = redisConfig["Host"];
+ConfigurationOptions redisOptions;
 
-var redisHost = redisConfig["Host"]
-    ?? throw new InvalidOperationException(
-        "Redis Host is missing in configuration.");
-
-var redisPassword = redisConfig["Password"]
-    ?? throw new InvalidOperationException(
-        "Redis Password is missing in configuration.");
-
-var redisPort = redisConfig.GetValue<int>("Port", 6379);
-
-var redisOptions = new ConfigurationOptions
+if (!string.IsNullOrWhiteSpace(redisHost))
 {
-    User = redisConfig["Username"] ?? "default",
+    var redisPassword = redisConfig["Password"] ?? "";
+    var redisPort = redisConfig.GetValue<int>("Port", 6379);
 
-    Password = redisPassword,
+    redisOptions = new ConfigurationOptions
+    {
+        User = redisConfig["Username"] ?? "default",
+        Password = string.IsNullOrWhiteSpace(redisPassword) ? null : redisPassword,
+        Ssl = redisConfig.GetValue<bool>("Ssl", true),
+        SslHost = redisHost,
+        AbortOnConnectFail = redisConfig.GetValue<bool>("AbortOnConnectFail", false),
+        ConnectRetry = 5,
+        ConnectTimeout = 15000,
+        SyncTimeout = 15000,
+        KeepAlive = 30
+    };
+    redisOptions.EndPoints.Add(redisHost, redisPort);
+}
+else
+{
+    var redisConnectionString = builder.Configuration["Redis"]
+        ?? builder.Configuration.GetConnectionString("Redis")
+        ?? "localhost:6379";
 
-    Ssl = redisConfig.GetValue<bool>("Ssl", true),
-
-    SslHost = redisHost,
-
-    AbortOnConnectFail = redisConfig.GetValue<bool>(
-        "AbortOnConnectFail", false),
-
-    ConnectRetry = 5,
-
-    ConnectTimeout = 15000,
-
-    SyncTimeout = 15000,
-
-    KeepAlive = 30
-};
-
-redisOptions.EndPoints.Add(redisHost, redisPort);
+    redisOptions = ConfigurationOptions.Parse(redisConnectionString, true);
+    redisOptions.AbortOnConnectFail = false;
+    redisOptions.ConnectRetry = 3;
+    redisOptions.ConnectTimeout = 5000;
+    redisOptions.SyncTimeout = 5000;
+}
 
 builder.Services.AddSingleton(redisOptions);
 builder.Services.AddSingleton<IRedisConnectionProvider, RedisConnectionProvider>();

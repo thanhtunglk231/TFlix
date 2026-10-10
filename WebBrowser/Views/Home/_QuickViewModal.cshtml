@@ -18,14 +18,27 @@
                         <h3 id="quickViewTitle" class="fw-bold mb-1">Tên phim</h3>
                         <div id="modalOriginalTitle" class="text-muted small mb-2 fst-italic">Original Title</div>
 
-                        <div class="d-flex align-items-center flex-wrap gap-2 mb-3 small">
-                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> <span id="modalRating">8.5</span></span>
+                        <div class="d-flex align-items-center flex-wrap gap-2 mb-2 small">
+                            <span class="card-rating-tag" id="modalRatingTag" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span id="modalRating">8.5</span></span>
                             <span>•</span>
                             <span id="modalYear">2024</span>
                             <span>•</span>
                             <span id="modalDuration">120 phút</span>
                             <span>•</span>
                             <span id="modalCountry">Mỹ</span>
+                        </div>
+
+                        <!-- 5-Star Interactive Rating Widget in Modal -->
+                        <div class="d-flex align-items-center gap-2 p-2 mb-3 rounded-3" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+                            <span class="text-white-50 small">Đánh giá sao:</span>
+                            <div class="card-stars-widget" id="modalStarWidget" data-movie-id="">
+                                <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(document.getElementById('modalStarWidget').dataset.movieId, 1, event, this)"><i class="bi bi-star"></i></button>
+                                <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(document.getElementById('modalStarWidget').dataset.movieId, 2, event, this)"><i class="bi bi-star"></i></button>
+                                <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(document.getElementById('modalStarWidget').dataset.movieId, 3, event, this)"><i class="bi bi-star"></i></button>
+                                <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(document.getElementById('modalStarWidget').dataset.movieId, 4, event, this)"><i class="bi bi-star"></i></button>
+                                <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(document.getElementById('modalStarWidget').dataset.movieId, 5, event, this)"><i class="bi bi-star"></i></button>
+                            </div>
+                            <span class="small ms-auto text-warning" id="modalRatingFeedback"></span>
                         </div>
 
                         <div class="mb-3">
