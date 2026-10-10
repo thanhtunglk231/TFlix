@@ -779,7 +779,7 @@
                         <div class="movie-card-original-title">${genres}</div>
                         <div class="movie-card-meta">
                             <span>${year} • ${country}</span>
-                            <span class="card-rating-tag" data-movie-id="${m.movieId || m.id || m.MovieId}" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">${rating}</span></span>
+                            <span class="card-rating-tag" data-movie-id="${id}" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">${rating}</span></span>
                         </div>
                     </div>
                 </div>`;
@@ -790,7 +790,8 @@
 
         function loadMoviesLatest() {
             $.get(urlMoviesLatest, function (res) {
-                const list = res?.data?.table ?? res?.Data?.table ?? res?.table ?? res?.items ?? res?.Items ?? [];
+                const list = res?.data?.table ?? res?.data?.Table ?? res?.Data?.table ?? res?.Data?.Table
+                    ?? res?.table ?? res?.Table ?? res?.items ?? res?.Items ?? [];
                 renderMoviesLatest(Array.isArray(list) ? list : []);
             }).fail(() => {
                 $('#moviesLatestWrap').html(`
