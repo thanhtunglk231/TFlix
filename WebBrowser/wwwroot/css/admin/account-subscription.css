@@ -1,0 +1,14 @@
+.subscription-card { background: #1c1f26; border: 1px solid rgba(255,255,255,.09); }
+.subscription-card .table { color: #fff; min-width: 860px; }
+.subscription-card thead th { color: #9aa0aa; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; border-bottom-color: rgba(255,255,255,.12); }
+.subscription-card td { border-bottom-color: rgba(255,255,255,.07); }
+.subscription-user { max-width: 300px; }
+.subscription-user strong, .subscription-user span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subscription-user span { color: #9aa0aa; font-size: .82rem; }
+.subscription-period { font-variant-numeric: tabular-nums; }
+.subscription-period small { color: #9aa0aa; display: block; }
+.subscription-actions { white-space: nowrap; }
+@media (max-width: 575.98px) {
+    #btnCreateSubscription { width: 100%; }
+    .subscription-card .card-body { padding-left: .75rem; padding-right: .75rem; }
+}

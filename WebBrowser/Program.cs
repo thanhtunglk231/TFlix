@@ -73,6 +73,8 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IAdminAccountService,
                            WebBrowser.Services.Implements.AdminAccountService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.ISubscriptionPlanService,
                            WebBrowser.Services.Implements.SubscriptionPlanService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IAccountSubscriptionService,
+                           WebBrowser.Services.Implements.AccountSubscriptionService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IPaymentService,
                            WebBrowser.Services.Implements.PaymentService>();
 

@@ -176,6 +176,7 @@ builder.Services.AddScoped<ICFavorite, CFavorite>();
 builder.Services.AddScoped<
     ICSubscriptionPlan,
     CSubscriptionPlan>();
+builder.Services.AddScoped<ICAccountSubscription, CAccountSubscription>();
 
 builder.Services.AddScoped<ICPayment, CPayment>();
 

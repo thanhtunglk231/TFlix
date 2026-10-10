@@ -1,0 +1,70 @@
+@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Premium theo tài khoản · Admin";
+}
+<link rel="stylesheet" href="~/css/admin/account-subscription.css" asp-append-version="true" />
+
+<main id="accountSubscriptionPage"
+      data-list-url="@Url.Action("GetAll", "AccountSubscription", new { area = "Admin" })"
+      data-create-url="@Url.Action("Create", "AccountSubscription", new { area = "Admin" })"
+      data-update-url="@Url.Action("Update", "AccountSubscription", new { area = "Admin" })"
+      data-delete-url="@Url.Action("Delete", "AccountSubscription", new { area = "Admin" })">
+    @Html.AntiForgeryToken()
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h3 class="mb-1"><i class="bi bi-person-badge text-info me-2"></i>Premium theo tài khoản</h3>
+            <p class="text-secondary mb-0">Quản lý gói, thời hạn và trạng thái Premium của từng người dùng.</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnCreateSubscription"><i class="bi bi-plus-lg me-1"></i>Gắn gói cho tài khoản</button>
+    </div>
+
+    <section class="card subscription-card">
+        <div class="card-body border-bottom border-secondary border-opacity-25">
+            <div class="row g-2">
+                <div class="col-lg-7"><label class="visually-hidden" for="subscriptionSearch">Tìm kiếm</label><input id="subscriptionSearch" class="form-control" placeholder="Tìm email, tên tài khoản hoặc tên gói..." /></div>
+                <div class="col-sm-6 col-lg-3"><label class="visually-hidden" for="subscriptionStatusFilter">Trạng thái</label><select id="subscriptionStatusFilter" class="form-select"><option value="">Tất cả trạng thái</option><option value="ACTIVE">Đang hoạt động</option><option value="EXPIRED">Hết hạn</option><option value="CANCELLED">Đã hủy</option></select></div>
+                <div class="col-sm-6 col-lg-2"><button type="button" class="btn btn-outline-light w-100" id="btnReloadSubscriptions"><i class="bi bi-arrow-clockwise me-1"></i>Tải lại</button></div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div id="subscriptionLoading" class="text-center py-5"><div class="spinner-border text-info" role="status"><span class="visually-hidden">Đang tải</span></div><div class="text-secondary mt-2">Đang tải dữ liệu...</div></div>
+            <div id="subscriptionError" class="alert alert-danger m-3 d-none" role="alert"></div>
+            <div id="subscriptionEmpty" class="text-center py-5 d-none"><i class="bi bi-inbox fs-1 text-secondary"></i><p class="mt-2 mb-0">Chưa có tài khoản được gắn gói Premium.</p></div>
+            <div class="table-responsive d-none" id="subscriptionTableWrap">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th>Tài khoản</th><th>Gói Premium</th><th>Thời hạn</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+                    <tbody id="subscriptionRows"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="modal fade" id="subscriptionModal" tabindex="-1" aria-labelledby="subscriptionModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="subscriptionModalTitle">Gắn gói Premium</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+        <form id="subscriptionForm"><div class="modal-body">
+            <input type="hidden" id="subscriptionId" />
+            <div class="row g-3">
+                <div class="col-md-7"><label class="form-label" for="subscriptionUser">Tài khoản *</label><select class="form-select" id="subscriptionUser" required></select></div>
+                <div class="col-md-5"><label class="form-label" for="subscriptionPlan">Gói Premium *</label><select class="form-select" id="subscriptionPlan" required></select></div>
+                <div class="col-md-6"><label class="form-label" for="subscriptionStartAt">Bắt đầu *</label><input class="form-control" id="subscriptionStartAt" type="datetime-local" required /></div>
+                <div class="col-md-6"><label class="form-label" for="subscriptionEndAt">Kết thúc *</label><input class="form-control" id="subscriptionEndAt" type="datetime-local" required /></div>
+                <div class="col-md-6"><label class="form-label" for="subscriptionStatus">Trạng thái *</label><select class="form-select" id="subscriptionStatus" required><option value="ACTIVE">Đang hoạt động</option><option value="EXPIRED">Hết hạn</option><option value="CANCELLED">Đã hủy</option></select></div>
+            </div>
+            <div id="subscriptionFormError" class="alert alert-danger mt-3 mb-0 d-none" role="alert"></div>
+        </div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button><button type="submit" class="btn btn-primary" id="btnSaveSubscription"><i class="bi bi-save me-1"></i>Lưu</button></div></form>
+    </div></div>
+</div>
+
+<div class="modal fade" id="deleteSubscriptionModal" tabindex="-1" aria-labelledby="deleteSubscriptionTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="deleteSubscriptionTitle">Xóa đăng ký Premium</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+    <div class="modal-body">Bạn chắc chắn muốn xóa liên kết Premium này? Đăng ký đã phát sinh thanh toán sẽ không thể xóa.</div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button><button type="button" class="btn btn-danger" id="btnConfirmDeleteSubscription">Xóa</button></div>
+</div></div></div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3"><div id="subscriptionToast" class="toast" role="status" aria-live="polite"><div class="d-flex"><div class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Đóng"></button></div></div></div>
+
+@section Scripts {
+    <script src="~/js/admin/account-subscription.js" asp-append-version="true"></script>
+}
