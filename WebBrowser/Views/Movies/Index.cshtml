@@ -347,6 +347,17 @@
                                 <a href="@watchUrl" class="play-btn movie-link-btn" data-url="@watchUrl">
                                     <i class="bi bi-play-fill fs-2"></i>
                                 </a>
+
+                                <div class="card-quick-rating mt-2" onclick="event.stopPropagation();" title="Đánh giá nhanh">
+                                    <span class="quick-rate-label">Đánh giá</span>
+                                    <div class="card-stars-widget" data-movie-id="@mId">
+                                        <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(@mId, 1, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(@mId, 2, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(@mId, 3, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(@mId, 4, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(@mId, 5, event, this)"><i class="bi bi-star"></i></button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -358,7 +369,7 @@
                                     </a>
                                 </h6>
                                 <div class="movie-meta d-flex justify-content-between align-items-center">
-                                    <span class="text-truncate me-1"><i class="bi bi-star-fill text-warning me-1"></i>8.5</span>
+                                    <span class="card-rating-tag text-truncate me-1" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning me-1"></i><span class="rating-val">8.5</span></span>
                                     <span>@(movie.ReleaseDate.HasValue ? movie.ReleaseDate.Value.Year.ToString() : "")</span>
                                 </div>
                             </div>

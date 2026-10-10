@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Lọc phim";
     var apiUrl = Url.Action("FilterApi", "Movies");         // /Movies/FilterApi
     var comingUrl = Url.Action("ComingApi", "Movies");       // /Movies/ComingApi
@@ -210,6 +210,7 @@
                 const $grid = $('#movieGrid').empty();
                 data.items.forEach(m => {
                     const badge = m.badgeText ? `<span class="movie-badge">${m.badgeText}</span>` : '';
+                    const rating = m.avgRating ?? m.rating ?? '8.5';
                     $grid.append(`
                         <div class="col-6 col-md-4 col-lg-3">
                             <a href="${m.detailUrl ?? '#'}" class="text-decoration-none text-light">
@@ -217,8 +218,11 @@
                                     ${badge}
                                     <img src="${m.posterUrl}" alt="${m.title}" loading="lazy">
                                     <div class="card-body p-2">
-                                        <h6 class="mb-1">${m.title}</h6>
-                                        <div class="movie-meta">${m.year ?? ''} ${m.genre ? '• ' + m.genre : ''}</div>
+                                        <h6 class="mb-1 text-truncate">${m.title}</h6>
+                                        <div class="d-flex justify-content-between align-items-center movie-meta">
+                                            <span>${m.year ?? ''} ${m.genre ? '• ' + m.genre : ''}</span>
+                                            <span class="card-rating-tag" data-movie-id="${m.id || m.movieId || m.MovieId}" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">${rating}</span></span>
+                                        </div>
                                     </div>
                                 </div>
                             </a>

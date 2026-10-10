@@ -521,6 +521,17 @@
                                         <polygon points="6 4 20 12 6 20 6 4"></polygon>
                                     </svg>
                                 </a>
+
+                                <div class="card-quick-rating mt-2" onclick="event.stopPropagation();" title="Đánh giá nhanh">
+                                    <span class="quick-rate-label">Đánh giá</span>
+                                    <div class="card-stars-widget" data-movie-id="@series.SeriesId">
+                                        <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(@series.SeriesId, 1, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(@series.SeriesId, 2, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(@series.SeriesId, 3, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(@series.SeriesId, 4, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(@series.SeriesId, 5, event, this)"><i class="bi bi-star"></i></button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -541,11 +552,9 @@
                             </div>
 
                             <div class="series-meta">
-                                <span class="d-flex align-items-center gap-1 text-warning fw-bold">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b">
-                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                                    </svg>
-                                    @(series.AvgRating.HasValue && series.AvgRating.Value > 0 ? series.AvgRating.Value.ToString("0.0") : "8.8")
+                                <span class="d-flex align-items-center gap-1 text-warning fw-bold card-rating-tag" data-movie-id="@series.SeriesId" title="Nhấn để đánh giá sao">
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <span class="rating-val">@(series.AvgRating.HasValue && series.AvgRating.Value > 0 ? series.AvgRating.Value.ToString("0.0") : "8.8")</span>
                                 </span>
                                 <span>
                                     @(series.FirstAirDate.HasValue ? series.FirstAirDate.Value.Year.ToString() : (series.CreatedAt != DateTime.MinValue ? series.CreatedAt.Year.ToString() : "2024"))

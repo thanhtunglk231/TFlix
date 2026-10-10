@@ -112,6 +112,16 @@
                             <div class="btn-play-circle" title="Xem phim ngay">
                                 <i class="bi bi-play-fill"></i>
                             </div>
+                            <div class="card-quick-rating" onclick="event.stopPropagation();" title="Đánh giá nhanh">
+                                <span class="quick-rate-label">Đánh giá</span>
+                                <div class="card-stars-widget" data-movie-id="@movie.MovieId">
+                                    <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 1, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 2, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 3, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 4, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 5, event, this)"><i class="bi bi-star"></i></button>
+                                </div>
+                            </div>
                             <div class="card-quick-actions">
                                 <button type="button"
                                         class="btn-quick-info"
@@ -141,8 +151,8 @@
                                 <span>•</span>
                                 <span class="text-info">@subType</span>
                             </div>
-                            <span class="card-rating-tag">
-                                <i class="bi bi-star-fill"></i> @rating
+                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao">
+                                <i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span>
                             </span>
                         </div>
                     </div>
@@ -254,6 +264,16 @@
                                 <div class="btn-play-circle" title="Xem ngay">
                                     <i class="bi bi-play-fill"></i>
                                 </div>
+                                <div class="card-quick-rating" onclick="event.stopPropagation();" title="Đánh giá nhanh">
+                                    <span class="quick-rate-label">Đánh giá</span>
+                                    <div class="card-stars-widget" data-movie-id="@movie.MovieId">
+                                        <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 1, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 2, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 3, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 4, event, this)"><i class="bi bi-star"></i></button>
+                                        <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 5, event, this)"><i class="bi bi-star"></i></button>
+                                    </div>
+                                </div>
                                 <div class="card-quick-actions">
                                     <button type="button"
                                             class="btn-quick-info"
@@ -268,7 +288,7 @@
                             <div class="movie-card-title">@movie.Title</div>
                             <div class="movie-card-meta">
                                 <span>@year • @country</span>
-                                <span class="card-rating-tag"><i class="bi bi-star-fill"></i> @rating</span>
+                                <span class="card-rating-tag" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
                             </div>
                         </div>
                     </div>
@@ -345,6 +365,16 @@
                             <div class="btn-play-circle" title="Xem ngay">
                                 <i class="bi bi-play-fill"></i>
                             </div>
+                            <div class="card-quick-rating" onclick="event.stopPropagation();" title="Đánh giá nhanh">
+                                <span class="quick-rate-label">Đánh giá</span>
+                                <div class="card-stars-widget" data-movie-id="@movie.MovieId">
+                                    <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 1, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 2, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 3, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 4, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 5, event, this)"><i class="bi bi-star"></i></button>
+                                </div>
+                            </div>
                             <div class="card-quick-actions">
                                 <button type="button"
                                         class="btn-quick-info"
@@ -359,7 +389,7 @@
                         <div class="movie-card-title">@movie.Title</div>
                         <div class="movie-card-meta">
                             <span>@year • @country</span>
-                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> @rating</span>
+                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
                         </div>
                     </div>
                 </div>
@@ -435,6 +465,16 @@
                             <div class="btn-play-circle" title="Xem ngay">
                                 <i class="bi bi-play-fill"></i>
                             </div>
+                            <div class="card-quick-rating" onclick="event.stopPropagation();" title="Đánh giá nhanh">
+                                <span class="quick-rate-label">Đánh giá</span>
+                                <div class="card-stars-widget" data-movie-id="@movie.MovieId">
+                                    <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 1, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 2, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 3, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 4, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(@movie.MovieId, 5, event, this)"><i class="bi bi-star"></i></button>
+                                </div>
+                            </div>
                             <div class="card-quick-actions">
                                 <button type="button"
                                         class="btn-quick-info"
@@ -449,7 +489,7 @@
                         <div class="movie-card-title">@movie.Title</div>
                         <div class="movie-card-meta">
                             <span>@year • @country</span>
-                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> @rating</span>
+                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
                         </div>
                     </div>
                 </div>
@@ -583,6 +623,45 @@
             favBtn.classList.toggle('active', isFav);
             favBtn.onclick = () => window.toggleFavoriteMovie(id, title, favBtn);
 
+            // Initialize 5-star rating in modal
+            const starWidget = document.getElementById('modalStarWidget');
+            const starFeedback = document.getElementById('modalRatingFeedback');
+            const modalRatingTag = document.getElementById('modalRatingTag');
+            if (modalRatingTag) modalRatingTag.dataset.movieId = id;
+            if (starWidget) {
+                starWidget.dataset.movieId = id;
+                const starBtns = starWidget.querySelectorAll('.btn-card-star');
+                starBtns.forEach(btn => {
+                    btn.classList.remove('active', 'hovered');
+                    const icon = btn.querySelector('i');
+                    if (icon) { icon.classList.remove('bi-star-fill'); icon.classList.add('bi-star'); }
+                });
+                if (starFeedback) starFeedback.textContent = '';
+
+                fetch(`/Film/GetRating?movieId=${encodeURIComponent(id)}`)
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res && res.success && res.data) {
+                            const uRating = res.data.userRating || res.data.UserRating || 0;
+                            const avgR = (res.data.averageRating || res.data.AverageRating || 0);
+                            if (avgR > 0) {
+                                document.getElementById('modalRating').textContent = parseFloat(avgR).toFixed(1);
+                            }
+                            if (uRating > 0) {
+                                starBtns.forEach(btn => {
+                                    if (parseInt(btn.dataset.star, 10) <= uRating) {
+                                        btn.classList.add('active');
+                                        const icon = btn.querySelector('i');
+                                        if (icon) { icon.classList.remove('bi-star'); icon.classList.add('bi-star-fill'); }
+                                    }
+                                });
+                                if (starFeedback) starFeedback.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Bạn đã đánh giá ${uRating} sao`;
+                            }
+                        }
+                    })
+                    .catch(() => {});
+            }
+
             const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickViewModal'));
             modal.show();
         }
@@ -674,6 +753,16 @@
                         <img class="movie-poster-img" src="${poster}" alt="Poster ${title}" loading="lazy" onerror="this.src='${fallbackPoster}'" />
                         <div class="card-hover-overlay">
                             <div class="btn-play-circle" title="Xem ngay"><i class="bi bi-play-fill"></i></div>
+                            <div class="card-quick-rating" onclick="event.stopPropagation();" title="Đánh giá nhanh">
+                                <span class="quick-rate-label">Đánh giá</span>
+                                <div class="card-stars-widget" data-movie-id="${id}">
+                                    <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(${id}, 1, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(${id}, 2, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(${id}, 3, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(${id}, 4, event, this)"><i class="bi bi-star"></i></button>
+                                    <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(${id}, 5, event, this)"><i class="bi bi-star"></i></button>
+                                </div>
+                            </div>
                             <div class="card-quick-actions">
                                 <button type="button" class="btn-quick-info" onclick="event.stopPropagation(); openQuickViewFromCard(this.closest('.movie-card-item'))">
                                     <i class="bi bi-info-circle"></i> Xem nhanh
@@ -686,7 +775,7 @@
                         <div class="movie-card-original-title">${genres}</div>
                         <div class="movie-card-meta">
                             <span>${year} • ${country}</span>
-                            <span class="card-rating-tag"><i class="bi bi-star-fill"></i> ${rating}</span>
+                            <span class="card-rating-tag" data-movie-id="${m.movieId || m.id || m.MovieId}" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">${rating}</span></span>
                         </div>
                     </div>
                 </div>`;
