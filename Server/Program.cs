@@ -178,6 +178,7 @@ builder.Services.AddScoped<ICRating, CRating>();
 builder.Services.AddScoped<
     ICSubscriptionPlan,
     CSubscriptionPlan>();
+builder.Services.AddScoped<ICAccountSubscription, CAccountSubscription>();
 
 builder.Services.AddScoped<ICPayment, CPayment>();
 
