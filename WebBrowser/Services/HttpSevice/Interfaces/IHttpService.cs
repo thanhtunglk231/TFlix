@@ -10,6 +10,7 @@ namespace WebBrowser.Services.HttpSevice.Interfaces
         Task<CResponseMessage> DeleteResponseAsync(string url);
         Task<CResponseMessage> DeleteWithBodyResponseAsync(string url, object data);
         Task<T> GetAsync<T>(string url);
+        Task<T> GetWithBearerAsync<T>(string url, string bearerToken);
         Task<DataRow> GetDataRowAsync(string url);
         Task<DataSet> GetDataSetFromResponseAsync(string url);
         Task<DataTable> GetDataTableAsync(string url);
@@ -19,6 +20,7 @@ namespace WebBrowser.Services.HttpSevice.Interfaces
         Task<List<T>> GetTableFromCResponseAsync<T>(string url);
         Task<T> PostAsync<T>(string url, object data);
         Task<T> PostLongRunningAsync<T>(string url, object data);
+        Task<T> PostLongRunningWithBearerAsync<T>(string url, object data, string bearerToken);
         Task<DataRow> PostDataRowAsync(string url, object data);
         Task<DataTable> PostDataTableAsync(string url, object data);
         Task<CResponseMessage> PostResponseAsync(string url, object data);

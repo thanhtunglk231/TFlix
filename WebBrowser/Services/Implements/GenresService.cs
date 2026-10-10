@@ -53,8 +53,8 @@ namespace WebBrowser.Services.Implements
             var url = $"{BASE}/delete";
             Console.WriteLine($"[GenresService] -> delete_Genre ENTER url={url}, id={id}");
 
-            // API delete đang theo style body { id } giống MovieService của bạn
-            var resp = await _httpService.PostAsync<CResponseMessage>(url, new { id });
+            // Backend nhận trực tiếp decimal trong request body.
+            var resp = await _httpService.PostAsync<CResponseMessage>(url, id);
 
             Console.WriteLine("[GenresService] <- delete_Genre EXIT: " + JsonConvert.SerializeObject(resp));
             return resp!;

@@ -327,7 +327,7 @@
                             <i class="bi bi-image me-1"></i> Thêm/Quản lý tài nguyên (EpisodeAsset)
                         </button>
                         <div class="form-text">
-                            Quản lý ảnh/thumb/trailer… gắn với Episode. (Cần có EpisodeId)
+                            Có thể thêm tài nguyên trước, sau đó nhấn Lưu để tạo Episode và tải tài nguyên trong cùng một lần.
                         </div>
                     </div>
                 </form>
@@ -370,7 +370,7 @@
 
                             <div class="col-12 d-flex gap-2">
                                 <button class="btn btn-primary" id="btnAssetSave">
-                                    <i class="bi bi-save me-1"></i> Lưu tài nguyên
+                                    <i class="bi bi-plus-circle me-1"></i> Thêm vào danh sách
                                 </button>
                                 <button class="btn btn-outline-secondary" id="btnAssetReset">
                                     <i class="bi bi-x-circle me-1"></i> Reset form
@@ -457,6 +457,7 @@
           let filtered = [];
           let seasonCache = [];
           let assetCache = [];   // assets of current EpisodeId
+          let pendingAssets = []; // assets queued while creating a new Episode
           let page = 1;
 
           // ======================= Helpers =======================
@@ -489,6 +490,11 @@
           function toInt(s){ const n = Number(s); return Number.isFinite(n)? Math.trunc(n): null; }
           function dateLocalStart(d){ return d ? (d+"T00:00:00") : null; }
           function idv(o,...keys){ for(const k of keys){ if(o?.[k]!==undefined && o?.[k]!==null) return o[k]; } return undefined; }
+          function getEpisodeIdFromResponse(res){
+            return res?.episodeId ?? res?.EpisodeId
+              ?? res?.data?.episodeId ?? res?.data?.EpisodeId
+              ?? res?.Data?.episodeId ?? res?.Data?.EpisodeId ?? null;
+          }
 
                   function isImageUrl(u){ return /\.(png|jpe?g|gif|webp|svg)$/i.test(u||''); }
         function isVideoUrl(u){ return /\.(mp4|webm|ogg|mov|m4v)$/i.test(u||''); }
@@ -708,10 +714,11 @@
             loadSeasonDropdown($('#SeasonId'), null, null);
 
             // Asset panel
+            assetCache = [];
+            pendingAssets = [];
             resetAssetForm();
-            $assetTbody.html(`<tr><td colspan="5" class="text-center text-secondary">
-              Hãy lưu Episode trước để quản lý tài nguyên (chưa có EpisodeId).
-            </td></tr>`);
+            $('#assetPanel').addClass('show');
+            renderAssetRows();
             modal.show();
           }
 
@@ -738,6 +745,7 @@
 
             // Asset panel: bind EpisodeId & load assets by id
             const epId = idv(ep,'episodE_ID','EpisodeId','episodeId');
+            pendingAssets = [];
             $('#Asset_EpisodeId').val(epId || '');
             resetAssetForm();
             reloadAssetsFor(epId);
@@ -745,7 +753,7 @@
             modal.show();
           }
 
-          function save(){
+          async function save(){
             const anti = $('input[name="__RequestVerificationToken"]').val();
             const id = ($('#EpisodeId').val()||'').trim();
             const isEdit = !!id;
@@ -754,16 +762,18 @@
             const seriesId = toIntOrNull($('#SeriesId').val());
             const seasonId = toIntOrNull($('#SeasonId').val());
             const epNo     = toIntOrNull(($('#EpisodeNo').val()||'').trim());
+            const title    = ($('#Title').val()||'').trim();
             if(!seriesId){ showToast("Vui lòng chọn Series.", false); return; }
             if(!seasonId){ showToast("Vui lòng chọn Season.", false); return; }
             if(!epNo){     showToast("Vui lòng nhập Episode No (số).", false); return; }
+            if(!title){    showToast("Vui lòng nhập tiêu đề Episode.", false); return; }
 
             const payload = {
               EpisodeId  : isEdit ? Number(id) : undefined,
               SeriesId   : seriesId,
               SeasonId   : seasonId,
               EpisodeNo  : epNo,
-              Title      : ($('#Title').val()||'').trim() || null,
+              Title      : title,
               Overview   : ($('#Overview').val()||'').trim() || null,
               AirDate    : dateLocalStart($('#AirDate').val()),
               DurationMin: toIntOrNull(($('#DurationMin').val()||'').trim()),
@@ -771,38 +781,68 @@
               IsPremium  : $('#IsPremium').is(':checked')
             };
 
+            // Khi tạo mới, tệp đang chọn cũng được lưu cùng Episode bằng nút Lưu chính.
+            const selectedAssetFile = $('#Asset_File')[0]?.files?.[0] || null;
+            if(!isEdit && selectedAssetFile){
+              pendingAssets.push({
+                key: `${Date.now()}-${Math.random()}`,
+                file: selectedAssetFile,
+                assetType: ($('#Asset_Type').val()||'THUMB').trim(),
+                sortOrder: toInt($('#Asset_Sort').val()) ?? 0
+              });
+              $('#Asset_File').val('');
+              renderAssetRows();
+            }
+
             showLoading();
+            $('#btnSave').prop('disabled', true);
             const req = { method:"POST", url, payload };
             console.debug("[DEBUG] save Episode req:", req);
             dbgReq(req);
 
-            $.ajax({
-              url, type:"POST",
-              contentType:"application/json; charset=utf-8",
-              headers: anti ? { "RequestVerificationToken": anti } : {},
-              data: JSON.stringify(payload),
-              success(res){
-                console.debug("[DEBUG] save Episode res:", res);
-                dbgRes(res);
+            try {
+              const res = await $.ajax({
+                url, type:"POST",
+                contentType:"application/json; charset=utf-8",
+                headers: anti ? { "RequestVerificationToken": anti } : {},
+                data: JSON.stringify(payload)
+              });
+              console.debug("[DEBUG] save Episode res:", res);
+              dbgRes(res);
 
-                const ok = res && (res.success === true || res.code === "200");
-                if(ok){
-                  showToast(isEdit?"Đã cập nhật":"Đã thêm mới", true);
-                  modal.hide();
-                  reloadAll();
-                } else {
-                  showToast(res?.message || "Thao tác thất bại.", false);
-                }
-              },
-              error(xhr){
-                console.error("[DEBUG] save Episode error:", xhr);
-                dbgRes({ error: xhr?.responseJSON || xhr?.responseText || xhr?.statusText });
+              const ok = res && (res.success === true || res.Success === true || res.code === "200");
+              if(!ok){
+                showToast(res?.message || "Thao tác thất bại.", false);
+                return;
+              }
 
-                const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
-                showToast(text, false);
-              },
-              complete(){ hideLoading(); }
-            });
+              const episodeId = isEdit ? Number(id) : getEpisodeIdFromResponse(res);
+              if(!episodeId){
+                showToast("Đã lưu Episode nhưng server chưa trả về EpisodeId.", false, 6000);
+                reloadAll();
+                return;
+              }
+
+              $('#EpisodeId').val(episodeId);
+              $('#Asset_EpisodeId').val(episodeId);
+              const assetResult = await savePendingAssets(episodeId);
+              if(assetResult.failed > 0){
+                showToast(`Đã lưu Episode #${episodeId}, nhưng ${assetResult.failed} tài nguyên chưa upload được. Kiểm tra cấu hình/kết nối Supabase rồi thử lại.`, false, 7000);
+                renderAssetRows();
+              } else {
+                showToast(isEdit ? "Đã cập nhật Episode" : `Đã tạo Episode #${episodeId} cùng tài nguyên.`, true);
+                modal.hide();
+              }
+              reloadAll();
+            } catch(xhr) {
+              console.error("[DEBUG] save Episode error:", xhr);
+              dbgRes({ error: xhr?.responseJSON || xhr?.responseText || xhr?.statusText });
+              const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
+              showToast(text, false);
+            } finally {
+              $('#btnSave').prop('disabled', false);
+              hideLoading();
+            }
           }
 
           function removeItem(id){
@@ -858,9 +898,7 @@
 
           function reloadAssetsFor(epId){
             if(!epId){
-              $assetTbody.html(`<tr><td colspan="5" class="text-center text-secondary">
-                Hãy lưu Episode trước để quản lý tài nguyên (chưa có EpisodeId).
-              </td></tr>`);
+              renderAssetRows();
               return;
             }
             const req = { method:"GET", url: urls.asset.getById(epId) };
@@ -884,7 +922,7 @@
           }
 
                 function renderAssetRows(){
-          const rows = (assetCache || []).map(a => {
+          const savedRows = (assetCache || []).map(a => {
             const id  = a?.asseT_ID ?? a?.AssetId;
             const typ = a?.asseT_TYPE ?? a?.AssetType ?? '';
             const url = (a?.url ?? a?.Url ?? '').trim();
@@ -939,20 +977,40 @@
           </td>
         </tr>`;
           }).join('');
-          $assetTbody.html(rows || `<tr><td colspan="5" class="text-center text-secondary">Không có tài nguyên</td></tr>`);
+          const queuedRows = pendingAssets.map(a => `<tr class="table-warning">
+            <td><span class="badge text-bg-warning">Chờ lưu</span></td>
+            <td>${a.assetType}</td>
+            <td>${a.file.name}</td>
+            <td>${a.sortOrder}</td>
+            <td class="text-end"><button class="btn btn-sm btn-outline-danger btn-pending-asset-del" data-key="${a.key}" title="Bỏ khỏi danh sách"><i class="bi bi-trash"></i></button></td>
+          </tr>`).join('');
+          const rows = savedRows + queuedRows;
+          $assetTbody.html(rows || `<tr><td colspan="5" class="text-center text-secondary">Chưa có tài nguyên. Chọn tệp và nhấn “Thêm vào danh sách”.</td></tr>`);
         }
 
 
           // multipart add/update (upload file đúng chuẩn)
           function saveAsset(){
             const epId = toInt($('#Asset_EpisodeId').val());
-            if(!epId){ showToast("Thiếu EpisodeId (hãy lưu Episode trước).", false); return; }
-
             const assetId  = toInt($('#Asset_Id').val()); // null/undefined => add
             const file     = $('#Asset_File')[0]?.files?.[0] || null;
             const type     = ($('#Asset_Type').val()||'').trim();
             const sort     = toInt($('#Asset_Sort').val()) ?? 0;
             const oldUrl   = ($('#Asset_Url').val()||'').trim();
+
+            if(!epId){
+              if(!file){ showToast("Vui lòng chọn tệp tài nguyên.", false); return; }
+              pendingAssets.push({
+                key: `${Date.now()}-${Math.random()}`,
+                file,
+                assetType: type,
+                sortOrder: sort
+              });
+              resetAssetForm();
+              renderAssetRows();
+              showToast("Đã thêm tài nguyên vào danh sách chờ. Nhấn Lưu để hoàn tất.", true);
+              return;
+            }
 
             const fd = new FormData();
             if (file) fd.append('file', file);               // key 'file'
@@ -1001,6 +1059,34 @@
               const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
               showToast(text, false);
             }).always(hideLoading);
+          }
+
+          function uploadPendingAsset(episodeId, asset){
+            const fd = new FormData();
+            fd.append('file', asset.file);
+            fd.append('EpisodeId', String(episodeId));
+            fd.append('AssetType', asset.assetType);
+            fd.append('SortOrder', String(asset.sortOrder));
+            return $.ajax({ url: urls.asset.add, type:'POST', data:fd, processData:false, contentType:false });
+          }
+
+          async function savePendingAssets(episodeId){
+            let failed = 0;
+            const remaining = [];
+            for(const asset of pendingAssets){
+              try {
+                const result = await uploadPendingAsset(episodeId, asset);
+                if(!(result?.success === true || result?.Success === true || result?.code === '200')){
+                  failed++;
+                  remaining.push(asset);
+                }
+              } catch {
+                failed++;
+                remaining.push(asset);
+              }
+            }
+            pendingAssets = remaining;
+            return { failed };
           }
 
           function deleteAsset(id){
@@ -1098,6 +1184,11 @@
             });
           });
           $assetTbody.on('click', '.btn-asset-del', function(){ deleteAsset($(this).data('id')); });
+          $assetTbody.on('click', '.btn-pending-asset-del', function(){
+            const key = String($(this).data('key'));
+            pendingAssets = pendingAssets.filter(x => String(x.key) !== key);
+            renderAssetRows();
+          });
                   // click thumbnail hoặc nút phóng to
         $assetTbody.on('click', '.asset-open, .btn-asset-view', function(){
           const url = $(this).data('url');

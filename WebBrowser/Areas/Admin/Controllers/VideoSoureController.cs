@@ -3,6 +3,7 @@ using CoreLib.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
+using System.Collections.Concurrent;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
@@ -12,14 +13,53 @@ namespace WebBrowser.Areas.Admin.Controllers
     {
         private const long MaxVideoUploadBytes = 1024L * 1024 * 1024;
         private readonly IVideoSoureService _videoSoureService;
+        private readonly ILogger<VideoSoureController> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private static readonly ConcurrentDictionary<Guid, BrowserHlsCompletionJob> BrowserHlsCompletionJobs = new();
 
-        public VideoSoureController(IVideoSoureService videoSoureService)
+        public VideoSoureController(IVideoSoureService videoSoureService, ILogger<VideoSoureController> logger, IServiceScopeFactory scopeFactory)
         {
             _videoSoureService = videoSoureService;
+            _logger = logger;
+            _scopeFactory = scopeFactory;
+        }
+
+        private sealed class BrowserHlsCompletionJob
+        {
+            public long? AdminUserId { get; init; }
+            public string Status { get; set; } = "PROCESSING";
+            public CResponseMessage? Result { get; set; }
+            public DateTime CreatedAtUtc { get; init; } = DateTime.UtcNow;
         }
         public IActionResult Index()
         {
             return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ClientLog([FromBody] VideoSourceClientLogDto? dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Event))
+                return BadRequest(new { success = false, message = "Nội dung log không hợp lệ." });
+
+            _logger.LogError(
+                "[Admin/VideoSoure/Client] {Event} | Detail={Detail} | Page={PageUrl} | UserAgent={UserAgent} | AdminUserId={AdminUserId}",
+                dto.Event[..Math.Min(dto.Event.Length, 200)],
+                dto.Detail?[..Math.Min(dto.Detail.Length, 4000)],
+                dto.PageUrl?[..Math.Min(dto.PageUrl.Length, 1000)],
+                dto.UserAgent?[..Math.Min(dto.UserAgent.Length, 1000)],
+                GetCurrentAdminUserId());
+
+            return Ok(new { success = true });
+        }
+
+        public sealed class VideoSourceClientLogDto
+        {
+            public string Event { get; set; } = string.Empty;
+            public string? Detail { get; set; }
+            public string? PageUrl { get; set; }
+            public string? UserAgent { get; set; }
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -78,6 +118,159 @@ namespace WebBrowser.Areas.Admin.Controllers
                 sourceId,
                 oldStreamUrl);
             return Ok(result);
+        }
+
+        [HttpPut]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(10L * 1024 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024 * 1024)]
+        public async Task<IActionResult> UploadBrowserHlsChunk(
+            Guid uploadId,
+            Guid fileId,
+            int chunkIndex,
+            [FromForm] string fileName,
+            [FromForm] long fileSize,
+            [FromForm] int totalChunks,
+            [FromForm] string checksum,
+            [FromForm(Name = "Chunk")] IFormFile? chunk)
+        {
+            if (uploadId == Guid.Empty || fileId == Guid.Empty || chunkIndex < 0 || chunk == null)
+                return BadRequest(new { success = false, message = "Thông tin HLS chunk không hợp lệ." });
+
+            var result = await _videoSoureService.UploadBrowserHlsChunkAsync(
+                uploadId, fileId, fileName, fileSize, chunkIndex, totalChunks, checksum, chunk);
+            return result.Success ? Ok(result) : StatusCode(500, result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetBrowserHlsUploadStatus(Guid uploadId)
+        {
+            if (uploadId == Guid.Empty)
+                return BadRequest(new { success = false, message = "UploadId không hợp lệ." });
+            return Ok(await _videoSoureService.GetBrowserHlsUploadStatusAsync(uploadId));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CompleteBrowserHlsUpload(Guid uploadId, [FromBody] CompleteBrowserHlsUploadDto request)
+        {
+            if (uploadId == Guid.Empty || request == null)
+                return BadRequest(new { success = false, message = "Thông tin hoàn tất HLS không hợp lệ." });
+
+            var adminUserId = GetCurrentAdminUserId();
+            var adminToken = HttpContext.Session.GetString("AdminJWToken");
+            if (string.IsNullOrWhiteSpace(adminToken))
+                return Unauthorized(new CResponseMessage { Success = false, code = "401", message = "Phiên đăng nhập quản trị đã hết hạn." });
+            var job = new BrowserHlsCompletionJob { AdminUserId = adminUserId };
+            if (!BrowserHlsCompletionJobs.TryAdd(uploadId, job))
+                return Accepted(BrowserHlsCompletionJobs[uploadId].Result ?? new CResponseMessage
+                {
+                    Success = true,
+                    code = "202",
+                    message = "HLS đang được hoàn tất trên server."
+                });
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var service = scope.ServiceProvider.GetRequiredService<IVideoSoureService>();
+                    try
+                    {
+                        job.Result = await service.CompleteBrowserHlsUploadAsync(uploadId, request, adminToken);
+                    }
+                    catch (Exception exception)
+                    {
+                        _logger.LogWarning(exception, "HLS completion response was interrupted for {UploadId}; switching to status polling", uploadId);
+                    }
+                    if (job.Result == null)
+                        job.Result = await ResolveEmptyCompletionResponseAsync(service, uploadId, adminToken);
+                    job.Status = job.Result.Success ? "COMPLETED" : "FAILED";
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogError(exception, "Background HLS completion failed for {UploadId}", uploadId);
+                    job.Result = new CResponseMessage { Success = false, code = "500", message = "Lỗi hoàn tất HLS: " + exception.Message };
+                    job.Status = "FAILED";
+                }
+            });
+
+            return Accepted(new CResponseMessage
+            {
+                Success = true,
+                code = "202",
+                message = "Server đang ghép và lưu HLS."
+            });
+        }
+
+        private static async Task<CResponseMessage> ResolveEmptyCompletionResponseAsync(IVideoSoureService service, Guid uploadId, string bearerToken)
+        {
+            for (var attempt = 0; attempt < 360; attempt++)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                BrowserHlsUploadStatusDto? status;
+                try
+                {
+                    status = await service.GetBrowserHlsUploadStatusAsync(uploadId, bearerToken);
+                }
+                catch
+                {
+                    continue;
+                }
+                if (status == null)
+                    continue;
+                if (!status.Exists)
+                    return new CResponseMessage
+                    {
+                        Success = true,
+                        code = "200",
+                        message = "Đã hoàn tất và lưu nguồn HLS."
+                    };
+                if (!status.IsCompleting)
+                    return new CResponseMessage
+                    {
+                        Success = false,
+                        code = "500",
+                        message = "Server dừng hoàn tất HLS nhưng không trả về kết quả. Dữ liệu tạm được giữ lại để thử lại."
+                    };
+            }
+
+            return new CResponseMessage
+            {
+                Success = false,
+                code = "504",
+                message = "Quá thời gian chờ Server hoàn tất HLS. Dữ liệu tạm được giữ lại."
+            };
+        }
+
+        [HttpGet]
+        public IActionResult GetBrowserHlsCompletionStatus(Guid uploadId)
+        {
+            if (!BrowserHlsCompletionJobs.TryGetValue(uploadId, out var job) || job.AdminUserId != GetCurrentAdminUserId())
+                return NotFound(new CResponseMessage { Success = false, code = "404", message = "Không tìm thấy tác vụ hoàn tất HLS." });
+            if (job.Status == "PROCESSING")
+                return Accepted(new CResponseMessage { Success = true, code = "202", message = "Server đang ghép và lưu HLS." });
+
+            BrowserHlsCompletionJobs.TryRemove(uploadId, out _);
+            return job.Result?.Success == true ? Ok(job.Result) : StatusCode(500, job.Result);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelBrowserHlsUpload(Guid uploadId)
+        {
+            if (uploadId == Guid.Empty)
+                return BadRequest(new { success = false, message = "UploadId không hợp lệ." });
+            if (BrowserHlsCompletionJobs.TryGetValue(uploadId, out var job) && job.Status == "PROCESSING")
+                return Conflict(new CResponseMessage { Success = false, code = "409", message = "Server đang hoàn tất HLS nên không thể hủy lúc này." });
+            var result = await _videoSoureService.CancelBrowserHlsUploadAsync(uploadId);
+            return result?.Success == true ? Ok(result) : StatusCode(500, result ?? new CResponseMessage
+            {
+                Success = false,
+                code = "500",
+                message = "Không nhận được phản hồi khi hủy HLS."
+            });
         }
 
         [HttpPost]

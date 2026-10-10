@@ -20,6 +20,12 @@ namespace WebBrowser.Services.Interfaces
         Task<Mp4UploadStatusDto> GetMp4UploadStatusAsync(Guid uploadId, string fileFingerprint);
         Task<CResponseMessage> CompleteMp4UploadAsync(Guid uploadId, CompleteMp4VideoUploadDto request);
         Task<CResponseMessage> CancelMp4UploadAsync(Guid uploadId);
+        Task<CResponseMessage> UploadBrowserHlsChunkAsync(Guid uploadId, Guid fileId, string fileName, long fileSize, int chunkIndex, int totalChunks, string checksum, IFormFile chunk);
+        Task<BrowserHlsUploadStatusDto> GetBrowserHlsUploadStatusAsync(Guid uploadId);
+        Task<BrowserHlsUploadStatusDto> GetBrowserHlsUploadStatusAsync(Guid uploadId, string bearerToken);
+        Task<CResponseMessage> CompleteBrowserHlsUploadAsync(Guid uploadId, CompleteBrowserHlsUploadDto request);
+        Task<CResponseMessage> CompleteBrowserHlsUploadAsync(Guid uploadId, CompleteBrowserHlsUploadDto request, string bearerToken);
+        Task<CResponseMessage> CancelBrowserHlsUploadAsync(Guid uploadId);
         Task<ApiResponse<SourceTableWrapper>> get_all();
         Task<CResponseMessage> uppdate_VideoSoure(decimal sourceId, IFormFile file, [FromBody] UpdateVideoSourceInputDto meta);
         Task<CResponseMessage> Delete_video_source(decimal sourceId);

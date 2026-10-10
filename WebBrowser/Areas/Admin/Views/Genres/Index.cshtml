@@ -298,7 +298,7 @@
               data: JSON.stringify(payload)
             })
             .done(res=>{
-              const ok = res && (res.success===true || res.code==='200');
+              const ok = res && (res.success===true || res.Success===true || String(res.code??res.Code)==='200');
               if(ok){ showToast(isEdit ? 'Đã cập nhật' : 'Đã thêm mới', true); modal.hide(); reloadAll(); }
               else { showToast(res?.message || 'Thao tác thất bại.', false); }
             })
@@ -312,7 +312,7 @@
             // Controller Admin/Genres/Delete nhận id qua query (GET), giống Movie view
             $.ajax({ url: urls.delete, type:'GET', data:{ id } })
             .done(res=>{
-              const ok = res && (res.success===true || res.code==='200');
+              const ok = res && (res.success===true || res.Success===true || String(res.code??res.Code)==='200');
               if(ok){ showToast('Đã xóa', true); reloadAll(); }
               else  { showToast(res?.message || 'Xóa thất bại.', false); }
             })

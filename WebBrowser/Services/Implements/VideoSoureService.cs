@@ -161,6 +161,36 @@ namespace WebBrowser.Services.Implements
             return _httpService.PostAsync<CResponseMessage>(url, new { });
         }
 
+        public async Task<CResponseMessage> UploadBrowserHlsChunkAsync(Guid uploadId, Guid fileId, string fileName, long fileSize, int chunkIndex, int totalChunks, string checksum, IFormFile chunk)
+        {
+            var url = $"/api/VideoSources/hls-uploads/{uploadId}/files/{fileId}/chunks/{chunkIndex}";
+            using var form = new MultipartFormDataContent();
+            var content = new StreamContent(chunk.OpenReadStream());
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            form.Add(content, "Chunk", chunk.FileName);
+            form.Add(new StringContent(fileName), "fileName");
+            form.Add(new StringContent(fileSize.ToString()), "fileSize");
+            form.Add(new StringContent(totalChunks.ToString()), "totalChunks");
+            form.Add(new StringContent(checksum), "checksum");
+            return await _httpService.PutMultipartAsync<CResponseMessage>(url, form)
+                ?? new CResponseMessage { Success = false, code = "500", message = "Không nhận được phản hồi khi tải HLS chunk." };
+        }
+
+        public Task<BrowserHlsUploadStatusDto> GetBrowserHlsUploadStatusAsync(Guid uploadId)
+            => _httpService.GetAsync<BrowserHlsUploadStatusDto>($"/api/VideoSources/hls-uploads/{uploadId}/status");
+
+        public Task<BrowserHlsUploadStatusDto> GetBrowserHlsUploadStatusAsync(Guid uploadId, string bearerToken)
+            => _httpService.GetWithBearerAsync<BrowserHlsUploadStatusDto>($"/api/VideoSources/hls-uploads/{uploadId}/status", bearerToken);
+
+        public Task<CResponseMessage> CompleteBrowserHlsUploadAsync(Guid uploadId, CompleteBrowserHlsUploadDto request)
+            => _httpService.PostLongRunningAsync<CResponseMessage>($"/api/VideoSources/hls-uploads/{uploadId}/complete", request);
+
+        public Task<CResponseMessage> CompleteBrowserHlsUploadAsync(Guid uploadId, CompleteBrowserHlsUploadDto request, string bearerToken)
+            => _httpService.PostLongRunningWithBearerAsync<CResponseMessage>($"/api/VideoSources/hls-uploads/{uploadId}/complete", request, bearerToken);
+
+        public Task<CResponseMessage> CancelBrowserHlsUploadAsync(Guid uploadId)
+            => _httpService.PostAsync<CResponseMessage>($"/api/VideoSources/hls-uploads/{uploadId}/cancel", new { });
+
 
 
 

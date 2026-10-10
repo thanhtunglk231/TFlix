@@ -8,6 +8,8 @@ using Microsoft.Extensions.Configuration;
 using Server.Forms;
 using Server.Services;
 using System.Collections.Concurrent;
+using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Server.Controllers
@@ -21,6 +23,9 @@ namespace Server.Controllers
         private const int MaxVideoChunkCount = 100000;
         private const int MaxParallelSegmentUploads = 4;
         private static readonly string UploadRoot = Path.Combine(Path.GetTempPath(), "TFlix", "Mp4Uploads");
+        private static readonly string BrowserHlsUploadRoot = Path.Combine(Path.GetTempPath(), "TFlix", "BrowserHlsUploads");
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> BrowserHlsChunkLocks = new();
+        private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> BrowserHlsCompletionLocks = new();
         private readonly ISupabaseService _supabase;
         private readonly ICloudflareR2Service _cloudflareR2;
         private readonly ICVideoSoure _videoSourceService;
@@ -52,6 +57,248 @@ namespace Server.Controllers
         // =========================================================
         //  HLS: Playlist + Segments
         // =========================================================
+
+        [Authorize]
+        [HttpPut("hls-uploads/{uploadId:guid}/files/{fileId:guid}/chunks/{chunkIndex:int}")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(10L * 1024 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024 * 1024)]
+        public async Task<IActionResult> UploadBrowserHlsChunk(
+            Guid uploadId,
+            Guid fileId,
+            int chunkIndex,
+            [FromForm(Name = "Chunk")] IFormFile? chunk,
+            [FromForm] string fileName,
+            [FromForm] long fileSize,
+            [FromForm] int totalChunks,
+            [FromForm] string checksum,
+            CancellationToken cancellationToken)
+        {
+            CleanupExpiredBrowserHlsUploads();
+
+            if (chunk == null || chunk.Length == 0 || chunk.Length > MaxVideoChunkBytes)
+                return BadRequest(new { success = false, message = "HLS chunk rỗng hoặc vượt quá 8 MiB." });
+            if (fileSize <= 0 || totalChunks < 1 || totalChunks > MaxVideoChunkCount || chunkIndex < 0 || chunkIndex >= totalChunks)
+                return BadRequest(new { success = false, message = "Metadata HLS chunk không hợp lệ." });
+            if (checksum.Length != 64 || checksum.Any(character => !Uri.IsHexDigit(character)))
+                return BadRequest(new { success = false, message = "SHA-256 checksum không hợp lệ." });
+
+            var safeFileName = Path.GetFileName(fileName);
+            var extension = Path.GetExtension(safeFileName);
+            if (safeFileName != fileName || (extension != ".ts" && extension != ".m3u8"))
+                return BadRequest(new { success = false, message = "Chỉ chấp nhận file .ts và .m3u8 không chứa đường dẫn." });
+
+            var sessionDirectory = GetBrowserHlsUploadDirectory(uploadId);
+            var fileDirectory = Path.Combine(sessionDirectory, fileId.ToString("N"));
+            Directory.CreateDirectory(fileDirectory);
+            var lockKey = $"{uploadId:N}:{fileId:N}";
+            var gate = BrowserHlsChunkLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(cancellationToken);
+            try
+            {
+                var ownerPath = Path.Combine(sessionDirectory, "owner.txt");
+                var owner = GetUploadOwner();
+                if (System.IO.File.Exists(ownerPath))
+                {
+                    if (!string.Equals(await System.IO.File.ReadAllTextAsync(ownerPath, cancellationToken), owner, StringComparison.Ordinal))
+                        return Forbid();
+                }
+                else
+                {
+                    await System.IO.File.WriteAllTextAsync(ownerPath, owner, cancellationToken);
+                }
+
+                var manifestPath = Path.Combine(fileDirectory, "manifest.json");
+                var metadata = new BrowserHlsUploadFileDto
+                {
+                    FileId = fileId,
+                    FileName = safeFileName,
+                    FileSize = fileSize,
+                    TotalChunks = totalChunks
+                };
+                if (System.IO.File.Exists(manifestPath))
+                {
+                    var saved = System.Text.Json.JsonSerializer.Deserialize<BrowserHlsUploadFileDto>(
+                        await System.IO.File.ReadAllTextAsync(manifestPath, cancellationToken));
+                    if (saved == null || saved.FileName != metadata.FileName || saved.FileSize != fileSize || saved.TotalChunks != totalChunks)
+                        return Conflict(new { success = false, message = "Metadata file không khớp với phiên upload." });
+                }
+                else
+                {
+                    await System.IO.File.WriteAllTextAsync(
+                        manifestPath,
+                        System.Text.Json.JsonSerializer.Serialize(metadata),
+                        cancellationToken);
+                }
+
+                var chunkPath = Path.Combine(fileDirectory, $"chunk_{chunkIndex:D8}.part");
+                if (System.IO.File.Exists(chunkPath) && await ComputeSha256Async(chunkPath, cancellationToken) == checksum.ToLowerInvariant())
+                    return Ok(new { success = true, code = "200", message = "Chunk đã tồn tại.", chunkIndex });
+
+                var temporaryPath = chunkPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                await using (var output = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
+                    await chunk.CopyToAsync(output, cancellationToken);
+
+                var actualChecksum = await ComputeSha256Async(temporaryPath, cancellationToken);
+                if (!string.Equals(actualChecksum, checksum, StringComparison.OrdinalIgnoreCase))
+                {
+                    System.IO.File.Delete(temporaryPath);
+                    return BadRequest(new { success = false, message = "Checksum HLS chunk không khớp." });
+                }
+                System.IO.File.Move(temporaryPath, chunkPath, true);
+                return Ok(new { success = true, code = "200", message = "Đã nhận HLS chunk.", chunkIndex });
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        [Authorize]
+        [HttpGet("hls-uploads/{uploadId:guid}/status")]
+        public async Task<IActionResult> GetBrowserHlsUploadStatus(Guid uploadId, CancellationToken cancellationToken)
+        {
+            var sessionDirectory = GetBrowserHlsUploadDirectory(uploadId);
+            if (!Directory.Exists(sessionDirectory))
+                return Ok(new BrowserHlsUploadStatusDto { UploadId = uploadId, Exists = false });
+            if (!await IsBrowserHlsUploadOwnerAsync(sessionDirectory, cancellationToken))
+                return Forbid();
+
+            var status = new BrowserHlsUploadStatusDto
+            {
+                UploadId = uploadId,
+                Exists = true,
+                IsCompleting = BrowserHlsCompletionLocks.TryGetValue(uploadId, out var completionGate)
+                    && completionGate.CurrentCount == 0
+            };
+            foreach (var directory in Directory.EnumerateDirectories(sessionDirectory))
+            {
+                if (!Guid.TryParseExact(Path.GetFileName(directory), "N", out var fileId))
+                    continue;
+                status.UploadedChunks[fileId] = Directory.EnumerateFiles(directory, "chunk_*.part")
+                    .Select(Path.GetFileNameWithoutExtension)
+                    .Select(name => int.TryParse(name?["chunk_".Length..], out var index) ? index : -1)
+                    .Where(index => index >= 0)
+                    .OrderBy(index => index)
+                    .ToList();
+            }
+            return Ok(status);
+        }
+
+        [Authorize]
+        [HttpPost("hls-uploads/{uploadId:guid}/complete")]
+        public async Task<IActionResult> CompleteBrowserHlsUpload(Guid uploadId, [FromBody] CompleteBrowserHlsUploadDto request, CancellationToken cancellationToken)
+        {
+            var sessionDirectory = GetBrowserHlsUploadDirectory(uploadId);
+            if (!Directory.Exists(sessionDirectory))
+                return NotFound(new { success = false, message = "Không tìm thấy phiên upload HLS." });
+            if (!await IsBrowserHlsUploadOwnerAsync(sessionDirectory, cancellationToken))
+                return Forbid();
+            if (request.Files == null || request.Files.Count == 0 || request.Files.Count > MaxVideoChunkCount || request.PlaylistFileId == Guid.Empty)
+                return BadRequest(new { success = false, message = "Danh sách file HLS không hợp lệ." });
+            if (request.Files.Any(file => file.FileId == Guid.Empty)
+                || request.Files.Select(file => file.FileId).Distinct().Count() != request.Files.Count
+                || request.Files.Select(file => file.FileName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != request.Files.Count)
+                return BadRequest(new { success = false, message = "FileId hoặc tên file HLS bị trùng/không hợp lệ." });
+
+            var completionGate = BrowserHlsCompletionLocks.GetOrAdd(uploadId, _ => new SemaphoreSlim(1, 1));
+            if (!await completionGate.WaitAsync(0, cancellationToken))
+                return Conflict(new { success = false, message = "Phiên HLS đang được hoàn tất." });
+
+            var streams = new List<FileStream>();
+            var completedSuccessfully = false;
+            try
+            {
+                IFormFile? playlist = null;
+                var segments = new List<IFormFile>();
+                foreach (var file in request.Files)
+                {
+                    var safeName = Path.GetFileName(file.FileName);
+                    var extension = Path.GetExtension(safeName);
+                    if (safeName != file.FileName || (extension != ".ts" && extension != ".m3u8"))
+                        return BadRequest(new { success = false, message = $"Tên file HLS không hợp lệ: {file.FileName}" });
+
+                    var fileDirectory = Path.Combine(sessionDirectory, file.FileId.ToString("N"));
+                    var completedPath = Path.Combine(fileDirectory, "completed.bin");
+                    await AssembleBrowserHlsFileAsync(fileDirectory, completedPath, file, cancellationToken);
+                    var stream = new FileStream(completedPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+                    streams.Add(stream);
+                    var formFile = new FormFile(stream, 0, stream.Length, "File", safeName)
+                    {
+                        Headers = new HeaderDictionary(),
+                        ContentType = extension == ".m3u8" ? "application/vnd.apple.mpegurl" : "video/mp2t"
+                    };
+                    if (file.FileId == request.PlaylistFileId)
+                        playlist = formFile;
+                    else
+                        segments.Add(formFile);
+                }
+                if (playlist == null || segments.Count == 0)
+                    return BadRequest(new { success = false, message = "Thiếu playlist hoặc HLS segment." });
+
+                var form = new AddHlsVideoSourceForm
+                {
+                    Playlist = playlist,
+                    Segments = segments,
+                    SourceId = request.SourceId,
+                    OldStreamUrl = request.OldStreamUrl,
+                    MovieId = request.MovieId,
+                    EpisodeId = request.EpisodeId,
+                    Provider = request.Provider,
+                    ServerName = request.ServerName,
+                    Quality = request.Quality,
+                    DrmType = request.DrmType,
+                    DrmLicenseUrl = request.DrmLicenseUrl,
+                    IsPrimary = request.IsPrimary,
+                    Status = request.Status
+                };
+                var result = await UploadHlsAndCreate(form);
+                completedSuccessfully = result is OkObjectResult;
+                return result;
+            }
+            catch (InvalidDataException exception)
+            {
+                return BadRequest(new { success = false, message = exception.Message });
+            }
+            finally
+            {
+                foreach (var stream in streams)
+                    await stream.DisposeAsync();
+                if (completedSuccessfully && Directory.Exists(sessionDirectory))
+                    Directory.Delete(sessionDirectory, true);
+                if (completedSuccessfully)
+                    RemoveBrowserHlsUploadLocks(uploadId);
+                completionGate.Release();
+                if (completedSuccessfully)
+                    BrowserHlsCompletionLocks.TryRemove(uploadId, out _);
+            }
+        }
+
+        [Authorize]
+        [HttpPost("hls-uploads/{uploadId:guid}/cancel")]
+        public async Task<IActionResult> CancelBrowserHlsUpload(Guid uploadId, CancellationToken cancellationToken)
+        {
+            var directory = GetBrowserHlsUploadDirectory(uploadId);
+            if (Directory.Exists(directory))
+            {
+                if (!await IsBrowserHlsUploadOwnerAsync(directory, cancellationToken))
+                    return Forbid();
+                if (BrowserHlsCompletionLocks.TryGetValue(uploadId, out var completionGate) && completionGate.CurrentCount == 0)
+                    return Conflict(new { success = false, message = "Server đang hoàn tất HLS nên không thể hủy." });
+                try
+                {
+                    Directory.Delete(directory, true);
+                }
+                catch (IOException)
+                {
+                    return Conflict(new { success = false, message = "File HLS đang được xử lý nên chưa thể hủy." });
+                }
+            }
+            RemoveBrowserHlsUploadLocks(uploadId);
+            BrowserHlsCompletionLocks.TryRemove(uploadId, out _);
+            return Ok(new { success = true, code = "200", message = "Đã hủy upload HLS." });
+        }
+
         [HttpPost("add-hls")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(MaxVideoUploadBytes)]
@@ -906,6 +1153,97 @@ namespace Server.Controllers
         private static string GetUploadDirectory(Guid uploadId)
         {
             return Path.Combine(UploadRoot, uploadId.ToString("N"));
+        }
+
+        private static string GetBrowserHlsUploadDirectory(Guid uploadId)
+            => Path.Combine(BrowserHlsUploadRoot, uploadId.ToString("N"));
+
+        private static void CleanupExpiredBrowserHlsUploads()
+        {
+            if (!Directory.Exists(BrowserHlsUploadRoot))
+                return;
+
+            var expiration = DateTime.UtcNow.AddHours(-24);
+            foreach (var directory in Directory.EnumerateDirectories(BrowserHlsUploadRoot))
+            {
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(directory) >= expiration)
+                        continue;
+                    Directory.Delete(directory, true);
+                    if (Guid.TryParseExact(Path.GetFileName(directory), "N", out var uploadId))
+                        RemoveBrowserHlsUploadLocks(uploadId);
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
+
+        private static void RemoveBrowserHlsUploadLocks(Guid uploadId)
+        {
+            var prefix = $"{uploadId:N}:";
+            foreach (var key in BrowserHlsChunkLocks.Keys.Where(key => key.StartsWith(prefix, StringComparison.Ordinal)))
+                BrowserHlsChunkLocks.TryRemove(key, out _);
+        }
+
+        private string GetUploadOwner()
+            => User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue(ClaimTypes.Email)
+                ?? User.Identity?.Name
+                ?? throw new UnauthorizedAccessException("Không xác định được người upload.");
+
+        private async Task<bool> IsBrowserHlsUploadOwnerAsync(string sessionDirectory, CancellationToken cancellationToken)
+        {
+            var ownerPath = Path.Combine(sessionDirectory, "owner.txt");
+            return System.IO.File.Exists(ownerPath)
+                && string.Equals(
+                    await System.IO.File.ReadAllTextAsync(ownerPath, cancellationToken),
+                    GetUploadOwner(),
+                    StringComparison.Ordinal);
+        }
+
+        private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
+        {
+            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+            var hash = await SHA256.HashDataAsync(stream, cancellationToken);
+            return Convert.ToHexString(hash).ToLowerInvariant();
+        }
+
+        private static async Task AssembleBrowserHlsFileAsync(
+            string fileDirectory,
+            string completedPath,
+            BrowserHlsUploadFileDto expected,
+            CancellationToken cancellationToken)
+        {
+            if (expected.TotalChunks < 1 || expected.TotalChunks > MaxVideoChunkCount || expected.FileSize <= 0)
+                throw new InvalidDataException($"Metadata file {expected.FileName} không hợp lệ.");
+
+            var manifestPath = Path.Combine(fileDirectory, "manifest.json");
+            if (!System.IO.File.Exists(manifestPath))
+                throw new InvalidDataException($"Thiếu metadata file {expected.FileName}.");
+            var saved = System.Text.Json.JsonSerializer.Deserialize<BrowserHlsUploadFileDto>(
+                await System.IO.File.ReadAllTextAsync(manifestPath, cancellationToken));
+            if (saved == null || saved.FileName != expected.FileName || saved.FileSize != expected.FileSize || saved.TotalChunks != expected.TotalChunks)
+                throw new InvalidDataException($"Metadata file {expected.FileName} không khớp.");
+
+            var temporaryPath = completedPath + ".assembling";
+            await using (var output = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            {
+                for (var index = 0; index < expected.TotalChunks; index++)
+                {
+                    var chunkPath = Path.Combine(fileDirectory, $"chunk_{index:D8}.part");
+                    if (!System.IO.File.Exists(chunkPath))
+                        throw new InvalidDataException($"File {expected.FileName} thiếu chunk {index + 1}/{expected.TotalChunks}.");
+                    await using var input = new FileStream(chunkPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+                    await input.CopyToAsync(output, cancellationToken);
+                }
+            }
+            if (new FileInfo(temporaryPath).Length != expected.FileSize)
+            {
+                System.IO.File.Delete(temporaryPath);
+                throw new InvalidDataException($"Kích thước file {expected.FileName} không khớp.");
+            }
+            System.IO.File.Move(temporaryPath, completedPath, true);
         }
 
         private async Task CleanupUploadArtifactsAsync(Guid uploadId, CancellationToken cancellationToken)

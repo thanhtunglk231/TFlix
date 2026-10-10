@@ -143,6 +143,17 @@
                 }
             }
 
+            public async Task<T> GetWithBearerAsync<T>(string url, string bearerToken)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+                using var response = await _client.SendAsync(request);
+                var json = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                    throw new HttpRequestException($"Lỗi API: {response.StatusCode}");
+                return JsonConvert.DeserializeObject<T>(json)!;
+            }
+
             public async Task<T> PostAsync<T>(string url, object data)
             {
                 try
@@ -216,6 +227,18 @@
 
                     return default!;
                 }
+            }
+
+            public async Task<T> PostLongRunningWithBearerAsync<T>(string url, object data, string bearerToken)
+            {
+                using var content = CreateJsonContent(data);
+                using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+                using var response = await _longRunningClient.SendAsync(request);
+                var json = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                    throw new HttpRequestException($"Lỗi API: {response.StatusCode}");
+                return JsonConvert.DeserializeObject<T>(json)!;
             }
 
             public async Task<string> GetRawJsonAsync(string url)
