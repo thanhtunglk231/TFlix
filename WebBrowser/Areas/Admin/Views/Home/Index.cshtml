@@ -20,8 +20,8 @@
                 </p>
             </div>
             <div class="col-lg-4 text-lg-end">
-                <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
-                    <a asp-area="Admin" asp-controller="Movie" asp-action="Index" class="btn-tflix-primary d-inline-flex align-items-center gap-2">
+                <div class="d-flex flex-wrap gap-2 justify-content-lg-end w-100 w-lg-auto">
+                    <a asp-area="Admin" asp-controller="Movie" asp-action="Index" class="btn-tflix-primary flex-grow-1 flex-lg-grow-0 justify-content-center d-inline-flex align-items-center gap-2">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
                             <line x1="12" y1="8" x2="12" y2="16"></line>
@@ -29,7 +29,7 @@
                         </svg>
                         Thêm phim mới
                     </a>
-                    <a href="/" target="_blank" class="btn-tflix-glass d-inline-flex align-items-center gap-2">
+                    <a href="/" target="_blank" class="btn-tflix-glass flex-grow-1 flex-lg-grow-0 justify-content-center d-inline-flex align-items-center gap-2">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                             <polyline points="15 3 21 3 21 9"></polyline>
@@ -44,14 +44,14 @@
 </div>
 
 <!-- 4 Key Metric Stat Cards -->
-<div class="row g-3 mb-4">
+<div class="row g-2 g-md-3 mb-4">
     <!-- Stat 1: Total Movies -->
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card h-100 p-3">
+    <div class="col-6 col-xl-3">
+        <div class="card h-100 p-2.5 p-md-3">
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small fw-bold text-uppercase">Kho phim lẻ</span>
-                <div class="stat-icon-wrapper" style="background: rgba(22, 131, 255, 0.15); color: #60a5fa; border: 1px solid rgba(22, 131, 255, 0.3);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <span class="text-muted small fw-bold text-uppercase text-truncate me-1" style="font-size: 0.74rem;">Kho phim lẻ</span>
+                <div class="stat-icon-wrapper" style="background: rgba(22, 131, 255, 0.15); color: #60a5fa; border: 1px solid rgba(22, 131, 255, 0.3); width: 36px; height: 36px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="2" width="20" height="20" rx="2.5"></rect>
                         <line x1="7" y1="2" x2="7" y2="22"></line>
                         <line x1="17" y1="2" x2="17" y2="22"></line>
@@ -63,71 +63,71 @@
                     </svg>
                 </div>
             </div>
-            <div class="d-flex align-items-baseline gap-2">
+            <div class="d-flex align-items-baseline gap-2 flex-wrap">
                 <h2 class="fw-bold mb-0" id="totalMoviesCount">--</h2>
-                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.72rem;">+12% mới</span>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.68rem;">+12% mới</span>
             </div>
-            <div class="text-muted small mt-2">Phim đã công chiếu & xuất bản</div>
+            <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;">Phim đã xuất bản</div>
         </div>
     </div>
 
     <!-- Stat 2: Total Series -->
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card h-100 p-3">
+    <div class="col-6 col-xl-3">
+        <div class="card h-100 p-2.5 p-md-3">
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small fw-bold text-uppercase">Phim bộ (Series)</span>
-                <div class="stat-icon-wrapper" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <span class="text-muted small fw-bold text-uppercase text-truncate me-1" style="font-size: 0.74rem;">Phim bộ</span>
+                <div class="stat-icon-wrapper" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); width: 36px; height: 36px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="7" width="20" height="15" rx="2"></rect>
                         <polyline points="17 2 12 7 7 2"></polyline>
                         <circle cx="17" cy="14" r="1" fill="currentColor"></circle>
                     </svg>
                 </div>
             </div>
-            <div class="d-flex align-items-baseline gap-2">
+            <div class="d-flex align-items-baseline gap-2 flex-wrap">
                 <h2 class="fw-bold mb-0">28</h2>
-                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 0.72rem;">54 Mùa</span>
+                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 0.68rem;">54 Mùa</span>
             </div>
-            <div class="text-muted small mt-2">Bao gồm 320+ tập phim</div>
+            <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;">320+ tập phim</div>
         </div>
     </div>
 
     <!-- Stat 3: Total Streams -->
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card h-100 p-3">
+    <div class="col-6 col-xl-3">
+        <div class="card h-100 p-2.5 p-md-3">
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small fw-bold text-uppercase">Lượt xem trực tuyến</span>
-                <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <span class="text-muted small fw-bold text-uppercase text-truncate me-1" style="font-size: 0.74rem;">Lượt xem</span>
+                <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); width: 36px; height: 36px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                         <circle cx="12" cy="12" r="3"></circle>
                     </svg>
                 </div>
             </div>
-            <div class="d-flex align-items-baseline gap-2">
+            <div class="d-flex align-items-baseline gap-2 flex-wrap">
                 <h2 class="fw-bold mb-0">48.5K</h2>
-                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.72rem;">+24% tuần này</span>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.68rem;">+24%</span>
             </div>
-            <div class="text-muted small mt-2">HLS / Cloudflare Stream</div>
+            <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;">HLS Streams</div>
         </div>
     </div>
 
     <!-- Stat 4: VIP Users -->
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card h-100 p-3">
+    <div class="col-6 col-xl-3">
+        <div class="card h-100 p-2.5 p-md-3">
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small fw-bold text-uppercase">Thành viên VIP</span>
-                <div class="stat-icon-wrapper" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <span class="text-muted small fw-bold text-uppercase text-truncate me-1" style="font-size: 0.74rem;">Thành viên VIP</span>
+                <div class="stat-icon-wrapper" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); width: 36px; height: 36px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                     </svg>
                 </div>
             </div>
-            <div class="d-flex align-items-baseline gap-2">
+            <div class="d-flex align-items-baseline gap-2 flex-wrap">
                 <h2 class="fw-bold mb-0">1,240</h2>
-                <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 0.72rem;">Đang hoạt động</span>
+                <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 0.68rem;">Hoạt động</span>
             </div>
-            <div class="text-muted small mt-2">Tỷ lệ gia hạn: 88.5%</div>
+            <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;">Gia hạn: 88.5%</div>
         </div>
     </div>
 </div>

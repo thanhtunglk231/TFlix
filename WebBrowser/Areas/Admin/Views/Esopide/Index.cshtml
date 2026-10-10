@@ -1,4 +1,4 @@
-﻿@{
+@{
     Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Quản lý Episode · Admin";
 
@@ -206,20 +206,20 @@
 <div class="card">
     <div class="card-body">
         <div class="row g-2 mb-3">
-            <div class="col-md-3">
+            <div class="col-12 col-md-3">
                 <input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề...">
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <select id="slSeriesFilter" class="form-select">
                     <option value="">Lọc theo Series</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <select id="slSeasonFilter" class="form-select">
                     <option value="">Lọc theo Season</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-12 col-md-3 d-flex gap-2">
                 <input id="txtEpNoFilter" class="form-control" placeholder="Lọc theo EpisodeNo...">
                 <select id="pageSize" class="form-select" style="max-width:140px">
                     <option value="10">10/trang</option>
