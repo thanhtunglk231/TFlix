@@ -18,6 +18,7 @@ namespace WebBrowser.Controllers
         private readonly IEpisode _episodeService;
         private readonly ICommentService _commentService;
         private readonly IRatingService _ratingService;
+        private readonly ISeriesService _seriesService;
 
         public PreviewController(
             IPreviewService previewService,
@@ -25,7 +26,8 @@ namespace WebBrowser.Controllers
             IGenresService genresService,
             IEpisode episodeService,
             ICommentService commentService,
-            IRatingService ratingService)
+            IRatingService ratingService,
+            ISeriesService seriesService)
         {
             _previewService = previewService;
             _movieService = movieService;
@@ -33,6 +35,7 @@ namespace WebBrowser.Controllers
             _episodeService = episodeService;
             _commentService = commentService;
             _ratingService = ratingService;
+            _seriesService = seriesService;
         }
 
         private bool IsUserAuthenticated()
@@ -76,9 +79,10 @@ namespace WebBrowser.Controllers
 
             var movie = resp.Data.Table[0];
 
-            // 1. Fetch catalog movies for sidebar (Upcoming & Trending)
+            // 1. Fetch catalog movies for sidebar (Upcoming & Trending) and single movies
             List<MovieItem> upcomingMovies = new();
             List<MovieItem> trendingMovies = new();
+            List<MovieItem> singleMovies = new();
             try
             {
                 var moviesResp = await _movieService.get_all();
@@ -87,11 +91,27 @@ namespace WebBrowser.Controllers
                     var allMovies = moviesResp.Data.Table;
                     upcomingMovies = allMovies.Where(x => x.MovieId != id).Take(4).ToList();
                     trendingMovies = allMovies.Where(x => x.MovieId != id).Take(5).ToList();
+                    singleMovies = allMovies.Where(x => x.MovieId != id).Take(6).ToList();
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("[Preview.Details] Error loading sidebar movies: " + ex.Message);
+            }
+
+            // 1b. Fetch series movies
+            List<WebBrowser.Models.Series.SerieDto> seriesMovies = new();
+            try
+            {
+                var seriesResp = await _seriesService.get_all();
+                if (seriesResp?.Data?.Table != null)
+                {
+                    seriesMovies = seriesResp.Data.Table.Take(6).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[Preview.Details] Error loading series movies: " + ex.Message);
             }
 
             // 2. Fetch genres for sidebar Hot Tags
@@ -154,7 +174,9 @@ namespace WebBrowser.Controllers
                 TrendingMovies = trendingMovies,
                 HotTags = hotTags,
                 Episodes = episodes,
-                RatingInfo = ratingInfo
+                RatingInfo = ratingInfo,
+                SeriesMovies = seriesMovies,
+                SingleMovies = singleMovies
             };
 
             return View("Index", vm);
