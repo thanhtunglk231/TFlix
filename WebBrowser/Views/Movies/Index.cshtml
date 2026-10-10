@@ -369,7 +369,7 @@
                                     </a>
                                 </h6>
                                 <div class="movie-meta d-flex justify-content-between align-items-center">
-                                    <span class="card-rating-tag text-truncate me-1" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning me-1"></i><span class="rating-val">8.5</span></span>
+                                    <span class="card-rating-tag text-truncate me-1" data-movie-id="@movie.MovieId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning me-1"></i><span class="rating-val">8.5</span></span>
                                     <span>@(movie.ReleaseDate.HasValue ? movie.ReleaseDate.Value.Year.ToString() : "")</span>
                                 </div>
                             </div>
@@ -470,6 +470,10 @@
         }
 
         $(document).on('click', '.movie-card, .movie-link-btn', function (e) {
+            // Không chuyển trang nếu bấm vào bất kỳ phần tử đánh giá sao hoặc nút hành động nào
+            if ($(e.target).closest('.card-rating-tag, .card-quick-rating, .card-stars-widget, .tflix-rating-popover, .btn-card-star, .popover-star-btn, .btn-card-fav, .btn-quick-info').length) {
+                return;
+            }
             e.preventDefault();
             e.stopPropagation();
             

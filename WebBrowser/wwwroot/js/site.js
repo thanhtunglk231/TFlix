@@ -340,19 +340,36 @@ window.closeRatingPopover = function () {
     }
 };
 
-// Lắng nghe sự kiện click trên toàn trang: Bấm vào .card-rating-tag thì mở popup
+// Chặn tuyệt đối chuyển trang khi nhấp vào bất kỳ phần tử đánh giá sao nào (Giai đoạn Capturing)
 document.addEventListener('click', function (e) {
     const ratingTag = e.target.closest('.card-rating-tag');
     if (ratingTag) {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         window.openRatingPopover(ratingTag);
         return;
     }
 
-    // Bấm ra ngoài popover thì tự đóng
+    const starBtn = e.target.closest('.btn-card-star, .popover-star-btn');
+    if (starBtn) {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+    }
+
+    const isRatingWidget = e.target.closest('.tflix-rating-popover, .card-quick-rating, .card-stars-widget, .rating-stars-interactive');
+    if (isRatingWidget) {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+    }
+}, true); // useCapture = true: Thực thi trước mọi thẻ cha và trước bất kỳ onclick/href nào!
+
+// Đóng popover khi nhấp ra ngoài (Bubbling phase)
+document.addEventListener('click', function (e) {
     const popover = document.getElementById('tflix-rating-popover');
-    if (popover && popover.style.display !== 'none' && !popover.contains(e.target)) {
+    if (popover && popover.style.display !== 'none' && !popover.contains(e.target) && !e.target.closest('.card-rating-tag')) {
         window.closeRatingPopover();
     }
 });

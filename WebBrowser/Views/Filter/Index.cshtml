@@ -221,7 +221,7 @@
                                         <h6 class="mb-1 text-truncate">${m.title}</h6>
                                         <div class="d-flex justify-content-between align-items-center movie-meta">
                                             <span>${m.year ?? ''} ${m.genre ? '• ' + m.genre : ''}</span>
-                                            <span class="card-rating-tag" data-movie-id="${m.id || m.movieId || m.MovieId}" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">${rating}</span></span>
+                                            <span class="card-rating-tag" data-movie-id="${m.id || m.movieId || m.MovieId}" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">${rating}</span></span>
                                         </div>
                                     </div>
                                 </div>

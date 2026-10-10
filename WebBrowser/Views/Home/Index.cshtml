@@ -82,7 +82,7 @@
                      data-quality="@quality"
                      data-duration="@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "115 phút")"
                      data-premium="@(movie.IsPremium ? "Y" : "N")"
-                     onclick="handleMovieCardClick(this)">
+                     onclick="handleMovieCardClick(this, event)">
                     
                     <div class="movie-poster-wrap">
                         <div class="card-badge-top-left">
@@ -151,7 +151,7 @@
                                 <span>•</span>
                                 <span class="text-info">@subType</span>
                             </div>
-                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao">
+                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao">
                                 <i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span>
                             </span>
                         </div>
@@ -238,7 +238,7 @@
                          data-quality="@quality"
                          data-duration="@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "125 phút")"
                          data-premium="@(movie.IsPremium ? "Y" : "N")"
-                         onclick="handleMovieCardClick(this)">
+                         onclick="handleMovieCardClick(this, event)">
                         
                         <div class="movie-poster-wrap">
                             <div class="card-badge-top-left">
@@ -288,7 +288,7 @@
                             <div class="movie-card-title">@movie.Title</div>
                             <div class="movie-card-meta">
                                 <span>@year • @country</span>
-                                <span class="card-rating-tag" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
+                                <span class="card-rating-tag" data-movie-id="@movie.MovieId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
                             </div>
                         </div>
                     </div>
@@ -335,7 +335,7 @@
                      data-quality="@quality"
                      data-duration="@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "130 phút")"
                      data-premium="@(movie.IsPremium ? "Y" : "N")"
-                     onclick="handleMovieCardClick(this)">
+                     onclick="handleMovieCardClick(this, event)">
                     
                     <div class="movie-poster-wrap">
                         <div class="card-badge-top-left">
@@ -389,7 +389,7 @@
                         <div class="movie-card-title">@movie.Title</div>
                         <div class="movie-card-meta">
                             <span>@year • @country</span>
-                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
+                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
                         </div>
                     </div>
                 </div>
@@ -435,7 +435,7 @@
                      data-quality="@quality"
                      data-duration="@(movie.DurationMin.HasValue ? $"{movie.DurationMin} phút" : "110 phút")"
                      data-premium="@(movie.IsPremium ? "Y" : "N")"
-                     onclick="handleMovieCardClick(this)">
+                     onclick="handleMovieCardClick(this, event)">
                     
                     <div class="movie-poster-wrap">
                         <div class="card-badge-top-left">
@@ -489,7 +489,7 @@
                         <div class="movie-card-title">@movie.Title</div>
                         <div class="movie-card-meta">
                             <span>@year • @country</span>
-                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
+                            <span class="card-rating-tag" data-movie-id="@movie.MovieId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">@rating</span></span>
                         </div>
                     </div>
                 </div>
@@ -566,7 +566,11 @@
         }
 
         // Movie Card Click -> Navigate to Watch / Details
-        function handleMovieCardClick(el) {
+        function handleMovieCardClick(el, event) {
+            const evt = event || window.event;
+            if (evt && evt.target && evt.target.closest('.card-rating-tag, .card-quick-rating, .card-stars-widget, .tflix-rating-popover, .btn-card-star, .popover-star-btn, .btn-card-fav, .btn-quick-info')) {
+                return;
+            }
             const id = el.dataset.id;
             if (!id) return;
             if (!isLoggedIn) {
@@ -738,7 +742,7 @@
                      data-quality="${quality}"
                      data-duration="120 phút"
                      data-premium="${isPremium ? 'Y' : 'N'}"
-                     onclick="handleMovieCardClick(this)">
+                     onclick="handleMovieCardClick(this, event)">
                     
                     <div class="movie-poster-wrap">
                         <div class="card-badge-top-left">
@@ -775,7 +779,7 @@
                         <div class="movie-card-original-title">${genres}</div>
                         <div class="movie-card-meta">
                             <span>${year} • ${country}</span>
-                            <span class="card-rating-tag" data-movie-id="${m.movieId || m.id || m.MovieId}" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">${rating}</span></span>
+                            <span class="card-rating-tag" data-movie-id="${m.movieId || m.id || m.MovieId}" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span class="rating-val">${rating}</span></span>
                         </div>
                     </div>
                 </div>`;

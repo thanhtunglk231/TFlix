@@ -525,7 +525,7 @@
                             </div>
 
                             <div class="single-meta">
-                                <span class="d-flex align-items-center gap-1 text-warning fw-bold card-rating-tag" data-movie-id="@mId" title="Nhấn để đánh giá sao">
+                                <span class="d-flex align-items-center gap-1 text-warning fw-bold card-rating-tag" data-movie-id="@mId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao">
                                     <i class="bi bi-star-fill text-warning"></i>
                                     <span class="rating-val">8.5</span>
                                 </span>
@@ -598,6 +598,10 @@
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
 
         $(document).on('click', '.single-card, .single-link-btn', function (e) {
+            // Không chuyển trang nếu bấm vào bất kỳ phần tử đánh giá sao hoặc nút hành động nào
+            if ($(e.target).closest('.card-rating-tag, .card-quick-rating, .card-stars-widget, .tflix-rating-popover, .btn-card-star, .popover-star-btn, .btn-card-fav, .btn-quick-info').length) {
+                return;
+            }
             e.preventDefault();
             e.stopPropagation();
 
