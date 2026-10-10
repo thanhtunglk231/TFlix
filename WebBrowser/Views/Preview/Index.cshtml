@@ -285,18 +285,235 @@
                 transform: translateY(0);
             }
         }
+
+        /* Quick Exploration Bar */
+        .preview-quick-nav {
+            background: rgba(18, 22, 26, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 0.75rem 1rem;
+            backdrop-filter: blur(12px);
+        }
+        .preview-nav-pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #dbe6ee;
+            font-size: 0.84rem;
+            font-weight: 500;
+            padding: 0.4rem 0.85rem;
+            border-radius: 20px;
+            text-decoration: none;
+            transition: all 0.22s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .preview-nav-pill:hover {
+            background: rgba(39, 211, 195, 0.15);
+            border-color: var(--brand);
+            color: #fff;
+            transform: translateY(-2px);
+        }
+        .preview-nav-pill.active {
+            background: var(--brand);
+            color: #081119;
+            border-color: var(--brand);
+            font-weight: 700;
+        }
+
+        /* Movie Section Styles in Preview */
+        .preview-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 2.5rem 0 1.2rem;
+            padding-bottom: 0.7rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+        .preview-section-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .preview-section-title i {
+            color: var(--brand);
+        }
+
+        /* Catalog Card */
+        .preview-catalog-card {
+            background: #12161a;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: all 0.28s ease;
+            position: relative;
+        }
+        .preview-catalog-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(39, 211, 195, 0.45);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5), 0 0 15px rgba(39, 211, 195, 0.15);
+        }
+        .preview-card-poster {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 2/3;
+            overflow: hidden;
+            background: #090c0e;
+        }
+        .preview-card-poster img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+        .preview-catalog-card:hover .preview-card-poster img {
+            transform: scale(1.08);
+        }
+        .preview-card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(10, 14, 23, 0.9) 0%, rgba(10, 14, 23, 0.2) 60%, rgba(0,0,0,0.4) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .preview-catalog-card:hover .preview-card-overlay {
+            opacity: 1;
+        }
+        .preview-play-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--brand), var(--brand2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #050b14;
+            box-shadow: 0 8px 20px rgba(39, 211, 195, 0.5);
+            transform: scale(0.9);
+            transition: all 0.25s ease;
+        }
+        .preview-catalog-card:hover .preview-play-icon {
+            transform: scale(1);
+        }
+        .preview-card-body {
+            padding: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            justify-content: space-between;
+        }
+        .preview-card-title {
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.92rem;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: color 0.2s ease;
+        }
+        .preview-catalog-card:hover .preview-card-title {
+            color: var(--brand);
+        }
+        .preview-card-sub {
+            font-size: 0.78rem;
+            color: #8da2b5;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 6px;
+        }
+        .preview-card-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: #8da2b5;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .preview-badge-vip {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.68rem;
+            padding: 3px 6px;
+            border-radius: 5px;
+        }
+        .preview-badge-free {
+            background: rgba(16, 185, 129, 0.85);
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.68rem;
+            padding: 3px 6px;
+            border-radius: 5px;
+        }
+        .preview-badge-quality {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e2e8f0;
+            font-size: 0.68rem;
+            padding: 3px 6px;
+            border-radius: 5px;
+        }
+
+        /* Filter Banner */
+        .preview-filter-banner {
+            background: linear-gradient(135deg, rgba(39, 211, 195, 0.1), rgba(0, 132, 255, 0.06));
+            border: 1px solid rgba(39, 211, 195, 0.25);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 2.2rem;
+            position: relative;
+            overflow: hidden;
+        }
     </style>
 }
 
 <div class="wrap py-3">
     <div class="container">
 
-        <!-- Breadcrumb -->
-        <nav class="crumb small mb-3">
-            <a asp-controller="Home" asp-action="Index">TFLIX</a> /
-            <a href="#">@genres</a> /
-            <span class="text-secondary" id="bcTitle">@title</span>
-        </nav>
+        <!-- Top Navigation / Breadcrumb & Quick Pages Bar -->
+        <div class="preview-quick-nav d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <!-- Breadcrumb -->
+            <nav class="crumb small mb-0 d-flex align-items-center gap-1.5 flex-wrap">
+                <a asp-controller="Home" asp-action="Index" class="d-inline-flex align-items-center gap-1 text-white-50"><i class="bi bi-house-door-fill text-info"></i>Trang chủ</a>
+                <span class="text-secondary">/</span>
+                <a asp-controller="Movies" asp-action="Index" class="text-white-50">Kho phim</a>
+                <span class="text-secondary">/</span>
+                <span class="text-info fw-semibold" id="bcTitle">@title</span>
+            </nav>
+
+            <!-- Quick Navigation Pills to other pages -->
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a asp-controller="Movies" asp-action="Index" class="preview-nav-pill">
+                    <i class="bi bi-collection-play text-info"></i>
+                    <span>Tất cả phim</span>
+                </a>
+                <a asp-controller="Series" asp-action="Index" class="preview-nav-pill">
+                    <i class="bi bi-tv text-warning"></i>
+                    <span>Phim bộ</span>
+                </a>
+                <a asp-controller="Single" asp-action="Index" class="preview-nav-pill">
+                    <i class="bi bi-film text-danger"></i>
+                    <span>Phim lẻ</span>
+                </a>
+                <a asp-controller="Filter" asp-action="Index" class="preview-nav-pill active">
+                    <i class="bi bi-funnel-fill text-white"></i>
+                    <span>Lọc phim nâng cao</span>
+                </a>
+            </div>
+        </div>
 
         <div class="row g-4">
             <!-- LEFT -->
@@ -617,6 +834,192 @@
             </div>
         </div>
 
+        <!-- 1. BỘ LỌC PHIM NHANH (QUICK FILTER BANNER) -->
+        <div class="preview-filter-banner">
+            <div class="row align-items-center g-3">
+                <div class="col-12 col-lg-7">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge" style="background: rgba(39, 211, 195, 0.2); color: var(--brand); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px;">BỘ LỌC THÔNG MINH</span>
+                        <span class="text-white-50 small">• Tìm kiếm phim theo gu của bạn</span>
+                    </div>
+                    <h3 class="h5 text-white fw-bold mb-2">Bạn đang tìm kiếm phim hấp dẫn tiếp theo?</h3>
+                    <p class="text-secondary small mb-3 mb-lg-0" style="max-width: 620px;">
+                        Khám phá hàng ngàn tựa phim bom tấn với bộ lọc nâng cao theo năm phát hành, quốc gia, thể loại và chất lượng 4K HDR siêu nét.
+                    </p>
+                </div>
+                <div class="col-12 col-lg-5 text-lg-end">
+                    <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                        <a asp-controller="Filter" asp-action="Index" class="btn btn-grad px-3.5 py-2 rounded-pill fw-bold d-inline-flex align-items-center gap-2 text-dark shadow-sm">
+                            <i class="bi bi-funnel-fill"></i>
+                            <span>Mở bộ lọc toàn diện</span>
+                        </a>
+                        <a asp-controller="Movies" asp-action="Index" class="btn btn-outline-light px-3.5 py-2 rounded-pill fw-medium d-inline-flex align-items-center gap-1.5" style="border-color: rgba(255,255,255,0.2);">
+                            <i class="bi bi-grid-3x3-gap-fill text-info"></i>
+                            <span>Tất cả phim</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Category Tags -->
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top border-secondary border-opacity-25">
+                <span class="text-white-50 small me-1"><i class="bi bi-lightning-charge-fill text-warning me-1"></i>Lọc nhanh:</span>
+                <a href="/Filter?type=series" class="badge rounded-pill text-decoration-none px-3 py-1.5" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1);"><i class="bi bi-tv text-warning me-1"></i>Phim bộ hot</a>
+                <a href="/Filter?type=single" class="badge rounded-pill text-decoration-none px-3 py-1.5" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1);"><i class="bi bi-film text-danger me-1"></i>Phim lẻ chiếu rạp</a>
+                <a href="/Filter?countryCode=VN" class="badge rounded-pill text-decoration-none px-3 py-1.5" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1);"><i class="bi bi-geo-alt-fill text-success me-1"></i>Phim Việt Nam</a>
+                <a href="/Filter?countryCode=KR" class="badge rounded-pill text-decoration-none px-3 py-1.5" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1);"><i class="bi bi-geo-alt-fill text-info me-1"></i>Hàn Quốc</a>
+                <a href="/Filter?countryCode=US" class="badge rounded-pill text-decoration-none px-3 py-1.5" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1);"><i class="bi bi-geo-alt-fill text-primary me-1"></i>Hollywood</a>
+                <a href="/Filter?sortBy=rating" class="badge rounded-pill text-decoration-none px-3 py-1.5" style="background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1);"><i class="bi bi-star-fill text-warning me-1"></i>Đánh giá cao nhất</a>
+            </div>
+        </div>
+
+        <!-- 2. SECTION PHIM BỘ ĐẶC SẮC (SERIES MOVIES) -->
+        @if (Model?.SeriesMovies != null && Model.SeriesMovies.Any())
+        {
+            <div class="preview-section-header">
+                <div class="preview-section-title">
+                    <i class="bi bi-tv"></i>
+                    <span>Phim Bộ Đang Thịnh Hành</span>
+                </div>
+                <a asp-controller="Series" asp-action="Index" class="btn btn-sm btn-outline-secondary text-light rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1.5" style="border-color: rgba(255,255,255,0.15); font-size: 0.85rem;">
+                    <span>Xem tất cả phim bộ</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+
+            <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-3 g-md-3.5 mb-4">
+                @foreach (var sItem in Model.SeriesMovies)
+                {
+                    var sPoster = !string.IsNullOrWhiteSpace(sItem.PosterUrl) ? sItem.PosterUrl : "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
+                    var sUrl = Url.Action("Details", "Preview", new { id = sItem.SeriesId, kind = "SERIES" }) ?? $"/Preview/Details?id={sItem.SeriesId}&kind=SERIES";
+                    var sWatch = Url.Action("Watch", "Film", new { id = sItem.SeriesId, kind = "SERIES" }) ?? $"/Film/Watch?id={sItem.SeriesId}&kind=SERIES";
+                    var isVip = string.Equals(sItem.IsPremium, "Y", StringComparison.OrdinalIgnoreCase);
+                    var sRating = sItem.AvgRating.HasValue && sItem.AvgRating.Value > 0 ? sItem.AvgRating.Value.ToString("0.0") : "8.5";
+
+                    <div class="col">
+                        <div class="preview-catalog-card" data-id="@sItem.SeriesId" data-url="@sUrl">
+                            <div class="preview-card-poster">
+                                <img src="@sPoster" alt="@sItem.Title" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop';" />
+                                
+                                <!-- Top Badges -->
+                                <div class="position-absolute top-0 start-0 p-2 w-100 d-flex justify-content-between align-items-center" style="z-index: 2;">
+                                    @if (isVip)
+                                    {
+                                        <span class="preview-badge-vip">VIP</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="preview-badge-free">Miễn phí</span>
+                                    }
+                                    <span class="preview-badge-quality">@(sItem.EpisodeCount > 0 ? $"{sItem.EpisodeCount} Tập" : "HD")</span>
+                                </div>
+
+                                <!-- Hover Overlay Play -->
+                                <div class="preview-card-overlay">
+                                    <a href="@sWatch" class="preview-play-icon text-decoration-none btnWatch" title="Xem phim ngay">
+                                        <i class="bi bi-play-fill fs-4"></i>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="preview-card-body">
+                                <div>
+                                    <h4 class="preview-card-title" title="@sItem.Title">
+                                        <a href="@sUrl" class="text-white text-decoration-none">@sItem.Title</a>
+                                    </h4>
+                                    <div class="preview-card-sub" title="@sItem.Genres">
+                                        @(string.IsNullOrWhiteSpace(sItem.Genres) ? "Phim Bộ" : sItem.Genres)
+                                    </div>
+                                </div>
+
+                                <div class="preview-card-meta">
+                                    <!-- Thẻ đánh giá sao click mở popup 1-5 sao không chuyển trang -->
+                                    <span class="d-flex align-items-center gap-1 text-warning fw-bold card-rating-tag" data-movie-id="@sItem.SeriesId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao">
+                                        <i class="bi bi-star-fill text-warning"></i>
+                                        <span class="rating-val">@sRating</span>
+                                    </span>
+                                    <span>@(sItem.FirstAirDate?.Year.ToString() ?? "2025")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- 3. SECTION PHIM LẺ ĐẶC SẮC (SINGLE MOVIES) -->
+        @if (Model?.SingleMovies != null && Model.SingleMovies.Any())
+        {
+            <div class="preview-section-header">
+                <div class="preview-section-title">
+                    <i class="bi bi-film"></i>
+                    <span>Phim Lẻ Chiếu Rạp Chọn Lọc</span>
+                </div>
+                <a asp-controller="Single" asp-action="Index" class="btn btn-sm btn-outline-secondary text-light rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1.5" style="border-color: rgba(255,255,255,0.15); font-size: 0.85rem;">
+                    <span>Xem tất cả phim lẻ</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+
+            <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-3 g-md-3.5 mb-4">
+                @foreach (var mItem in Model.SingleMovies)
+                {
+                    var mPoster = !string.IsNullOrWhiteSpace(mItem.PosterUrl) ? mItem.PosterUrl : "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
+                    var mUrl = Url.Action("Details", "Preview", new { id = mItem.MovieId, kind = "movie" }) ?? $"/Preview/Details?id={mItem.MovieId}&kind=movie";
+                    var mWatch = Url.Action("Watch", "Film", new { id = mItem.MovieId, kind = "movie" }) ?? $"/Film/Watch?id={mItem.MovieId}&kind=movie";
+                    var mRating = mItem.AvgRating.HasValue && mItem.AvgRating.Value > 0 ? mItem.AvgRating.Value.ToString("0.0") : "8.5";
+
+                    <div class="col">
+                        <div class="preview-catalog-card" data-id="@mItem.MovieId" data-url="@mUrl">
+                            <div class="preview-card-poster">
+                                <img src="@mPoster" alt="@mItem.Title" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop';" />
+                                
+                                <!-- Top Badges -->
+                                <div class="position-absolute top-0 start-0 p-2 w-100 d-flex justify-content-between align-items-center" style="z-index: 2;">
+                                    @if (mItem.IsPremium)
+                                    {
+                                        <span class="preview-badge-vip">VIP</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="preview-badge-free">Miễn phí</span>
+                                    }
+                                    <span class="preview-badge-quality">@(mItem.DurationMin.HasValue ? $"{mItem.DurationMin}p" : "HD")</span>
+                                </div>
+
+                                <!-- Hover Overlay Play -->
+                                <div class="preview-card-overlay">
+                                    <a href="@mWatch" class="preview-play-icon text-decoration-none btnWatch" title="Xem phim ngay">
+                                        <i class="bi bi-play-fill fs-4"></i>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="preview-card-body">
+                                <div>
+                                    <h4 class="preview-card-title" title="@mItem.Title">
+                                        <a href="@mUrl" class="text-white text-decoration-none">@mItem.Title</a>
+                                    </h4>
+                                    <div class="preview-card-sub" title="@mItem.Genres">
+                                        @(string.IsNullOrWhiteSpace(mItem.Genres) ? "Phim Lẻ" : mItem.Genres)
+                                    </div>
+                                </div>
+
+                                <div class="preview-card-meta">
+                                    <!-- Thẻ đánh giá sao click mở popup 1-5 sao không chuyển trang -->
+                                    <span class="d-flex align-items-center gap-1 text-warning fw-bold card-rating-tag" data-movie-id="@mItem.MovieId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao">
+                                        <i class="bi bi-star-fill text-warning"></i>
+                                        <span class="rating-val">@mRating</span>
+                                    </span>
+                                    <span>@(mItem.ReleaseDate?.Year.ToString() ?? "2025")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
     </div>
 </div>
 
@@ -671,6 +1074,17 @@
                 e.preventDefault();
                 e.stopPropagation();
                 showLoginModal();
+            }
+        });
+
+        // Click trên thẻ phim gợi ý để chuyển đến trang chi tiết (loại trừ click sao, link, nút xem)
+        $(document).on('click', '.preview-catalog-card', function (e) {
+            if ($(e.target).closest('.card-rating-tag, .card-quick-rating, .tflix-rating-popover, .btnWatch, a').length) {
+                return;
+            }
+            const targetUrl = $(this).data('url');
+            if (targetUrl) {
+                window.location.href = targetUrl;
             }
         });
 
