@@ -84,7 +84,10 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.ICommentService,
                            WebBrowser.Services.Implements.CommentService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IFavoriteService,
                            WebBrowser.Services.Implements.FavoriteService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.IRatingService,
+                           WebBrowser.Services.Implements.RatingService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IChatService,
+
                            WebBrowser.Services.Implements.ChatService>();
 builder.Services.AddSignalR();
 var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

@@ -18,6 +18,7 @@ namespace WebBrowser.Controllers
         private readonly IVideoSoureService _videoSourceService;
         private readonly ISeriesService _seriesService;
         private readonly ICommentService _commentService;
+        private readonly IRatingService _ratingService;
         private readonly ILogger<FilmController> _logger;
         private readonly IPaymentService _paymentService;
 
@@ -27,6 +28,7 @@ namespace WebBrowser.Controllers
             IVideoSoureService videoSourceService,
             ISeriesService seriesService,
             ICommentService commentService,
+            IRatingService ratingService,
             ILogger<FilmController> logger,
             IPaymentService paymentService)
         {
@@ -35,6 +37,7 @@ namespace WebBrowser.Controllers
             _videoSourceService = videoSourceService;
             _seriesService = seriesService;
             _commentService = commentService;
+            _ratingService = ratingService;
             _logger = logger;
             _paymentService = paymentService;
         }
@@ -244,6 +247,23 @@ namespace WebBrowser.Controllers
                 sources = [];
             }
 
+            CoreLib.Dtos.Rating.MovieRatingDto? ratingInfo = null;
+            try
+            {
+                long? currentUserId = null;
+                var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+                if (!string.IsNullOrEmpty(currentUserJson))
+                {
+                    var u = JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson);
+                    if (u?.userId > 0) currentUserId = u.userId;
+                }
+                ratingInfo = await _ratingService.GetMovieRatingAsync(id, currentUserId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy thông tin đánh giá phim {MovieId}", id);
+            }
+
             return View("Index", new WatchViewModel
             {
                 ContentId = id,
@@ -254,7 +274,8 @@ namespace WebBrowser.Controllers
                 EpisodeLoadError = episodeLoadError,
                 IsPremiumContent = isPremiumContent,
                 HasActiveSubscription = hasActiveSubscription,
-                SubscriptionEndAt = subscriptionEndAt
+                SubscriptionEndAt = subscriptionEndAt,
+                RatingInfo = ratingInfo
             });
         }
 
@@ -549,5 +570,60 @@ namespace WebBrowser.Controllers
                 return StatusCode(StatusCodes.Status502BadGateway, "Lỗi kết nối tới máy chủ lưu trữ video.");
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRating([FromQuery] long movieId)
+        {
+            if (movieId <= 0) return BadRequest(new { success = false, message = "ID phim không hợp lệ." });
+            long? currentUserId = null;
+            var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+            if (!string.IsNullOrEmpty(currentUserJson))
+            {
+                try
+                {
+                    var u = JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson);
+                    if (u?.userId > 0) currentUserId = u.userId;
+                }
+                catch { }
+            }
+
+            var result = await _ratingService.GetMovieRatingAsync(movieId, currentUserId);
+            return Json(new { success = true, data = result });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RateMovie([FromBody] SetRatingClientRequest model)
+        {
+            if (model == null || model.MovieId <= 0 || model.Rating < 1 || model.Rating > 5)
+            {
+                return BadRequest(new { success = false, message = "Số sao đánh giá phải từ 1 đến 5 sao." });
+            }
+
+            long currentUserId = 0;
+            var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+            if (!string.IsNullOrEmpty(currentUserJson))
+            {
+                try
+                {
+                    var u = JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson);
+                    if (u?.userId > 0) currentUserId = u.userId;
+                }
+                catch { }
+            }
+
+            if (currentUserId <= 0)
+            {
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập để đánh giá phim." });
+            }
+
+            var result = await _ratingService.SetMovieRatingAsync(currentUserId, model.MovieId, model.Rating);
+            return Json(new { success = true, message = "Đã lưu đánh giá thành công!", data = result });
+        }
+    }
+
+    public class SetRatingClientRequest
+    {
+        public long MovieId { get; set; }
+        public int Rating { get; set; }
     }
 }
