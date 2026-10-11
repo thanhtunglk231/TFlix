@@ -7,9 +7,9 @@
     ViewData["Title"] = (Model.Content.OriginalTitle ?? Model.Content.title ?? "Xem phim") + " · TFlix Streaming";
 
     // Lấy token đăng nhập & user
-    var token = Context.Session.GetString("JWToken");
+    var token = Context.Session.GetString("JWToken") ?? Context.Session.GetString("AdminJWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
-    var currentUserJson = Context.Session.GetString("CurrentUser");
+    var currentUserJson = Context.Session.GetString("CurrentUser") ?? Context.Session.GetString("AdminCurrentUser");
     WebBrowser.Models.AuthModels.UserInfo? currentUser = null;
     if (!string.IsNullOrEmpty(currentUserJson))
     {
@@ -2312,7 +2312,12 @@
             }
 
             function resetStars() {
-                const currentRating = parseInt(starContainer.dataset.userRating, 10) || 0;
+                let currentRating = parseInt(starContainer.dataset.userRating, 10) || 0;
+                if (currentRating <= 0 && typeof getUserRating === 'function') {
+                    const tid = parseInt(starContainer.dataset.movieId, 10) || movieId;
+                    currentRating = getUserRating(tid);
+                    if (currentRating > 0) starContainer.dataset.userRating = currentRating;
+                }
                 stars.forEach(btn => {
                     btn.classList.remove('hovered');
                     const starVal = parseInt(btn.dataset.star, 10);
@@ -2369,6 +2374,9 @@
                         }
 
                         starContainer.dataset.userRating = ratingVal;
+                        if (typeof saveUserRating === 'function') {
+                            saveUserRating(targetMovieId, ratingVal);
+                        }
                         if (data.data) {
                             const newAvg = parseFloat(data.data.averageRating || data.data.AverageRating || 0).toFixed(1);
                             const newCount = data.data.ratingCount || data.data.RatingCount || 0;

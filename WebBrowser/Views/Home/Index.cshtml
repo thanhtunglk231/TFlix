@@ -727,7 +727,8 @@
                 const country = x.countryCode ?? x.country_code ?? x.CountryCode ?? 'VN';
                 const isPremium = (x.isPremium === 'Y' || x.is_premium === 'Y' || x.IsPremium === true);
                 const quality = isPremium ? '4K VIP' : 'FULL HD';
-                const rating = '8.6';
+                const rawAvg = x.avgRating ?? x.avg_rating ?? x.AvgRating ?? x.avG_RATING;
+                const rating = (rawAvg !== null && rawAvg !== undefined && Number(rawAvg) > 0) ? Number(rawAvg).toFixed(1) : '8.6';
 
                 return `
                 <div class="movie-card-item"
@@ -786,6 +787,9 @@
             }).join(''));
 
             syncFavoriteButtons();
+            if (window.syncAllCardRatingWidgets) {
+                window.syncAllCardRatingWidgets();
+            }
         }
 
         function loadMoviesLatest() {

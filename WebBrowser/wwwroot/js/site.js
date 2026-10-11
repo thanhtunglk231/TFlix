@@ -20,9 +20,106 @@ window.showTFlixToast = function (message, iconClass = 'bi-check-circle-fill tex
     }, 3200);
 };
 
+function triggerLoginModalIfAvailable() {
+    if (typeof showLoginModal === 'function') {
+        showLoginModal();
+    } else {
+        const modalEl = document.getElementById('loginRequiredModal');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+    }
+}
+
 // =========================================================================
 // RATING HELPER & DISPLAY SYNCHRONIZER
 // =========================================================================
+function saveUserRating(movieId, ratingVal) {
+    if (!movieId || !ratingVal) return;
+    try {
+        const key = 'tflix_user_ratings';
+        const ratings = JSON.parse(localStorage.getItem(key) || '{}');
+        ratings[String(movieId)] = parseInt(ratingVal, 10);
+        localStorage.setItem(key, JSON.stringify(ratings));
+    } catch (e) {}
+}
+
+function getUserRating(movieId) {
+    if (!movieId) return 0;
+    try {
+        const key = 'tflix_user_ratings';
+        const ratings = JSON.parse(localStorage.getItem(key) || '{}');
+        return parseInt(ratings[String(movieId)], 10) || 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function applyStarsToWidget(widget, ratingVal) {
+    if (!widget) return;
+    const allStars = widget.querySelectorAll('.btn-card-star, .star-btn, .star-btn-sm');
+    allStars.forEach(btn => {
+        const s = parseInt(btn.dataset.star, 10);
+        const icon = btn.querySelector('i');
+        if (s <= ratingVal) {
+            btn.classList.add('active');
+            if (icon) {
+                icon.classList.remove('bi-star');
+                icon.classList.add('bi-star-fill');
+            }
+        } else {
+            btn.classList.remove('active');
+            if (icon) {
+                icon.classList.remove('bi-star-fill');
+                icon.classList.add('bi-star');
+            }
+        }
+    });
+}
+
+window.syncAllCardRatingWidgets = function () {
+    // 1. Đồng bộ các widget sao trên card phim ở trang chủ và danh sách
+    document.querySelectorAll('.card-stars-widget[data-movie-id], [data-movie-id] .card-stars-widget').forEach(widget => {
+        const movieId = widget.dataset.movieId || getMovieIdFromElement(widget);
+        const uRating = getUserRating(movieId);
+        if (uRating > 0) {
+            applyStarsToWidget(widget, uRating);
+        }
+    });
+
+    // 2. Đồng bộ widget sao trên trang xem phim Film/Watch nếu chưa có server data
+    const watchWidget = document.getElementById('starRatingContainer');
+    if (watchWidget) {
+        const movieId = watchWidget.dataset.movieId || getMovieIdFromElement(watchWidget);
+        const currentServerRating = parseInt(watchWidget.dataset.userRating, 10) || 0;
+        const uRating = currentServerRating > 0 ? currentServerRating : getUserRating(movieId);
+        if (uRating > 0) {
+            watchWidget.dataset.userRating = uRating;
+            applyStarsToWidget(watchWidget, uRating);
+            const feedbackText = document.getElementById('ratingFeedbackText');
+            if (feedbackText) {
+                feedbackText.innerHTML = `<span class="text-warning"><i class="bi bi-check-circle-fill me-1"></i>Bạn đã đánh giá ${uRating} sao</span>`;
+            }
+        }
+    }
+
+    // 3. Đồng bộ widget sao trên trang chi tiết Preview
+    const previewWidget = document.getElementById('previewStarRating');
+    if (previewWidget) {
+        const movieId = previewWidget.dataset.movieId || getMovieIdFromElement(previewWidget);
+        const currentServerRating = parseInt(previewWidget.dataset.userRating, 10) || 0;
+        const uRating = currentServerRating > 0 ? currentServerRating : getUserRating(movieId);
+        if (uRating > 0) {
+            previewWidget.dataset.userRating = uRating;
+            applyStarsToWidget(previewWidget, uRating);
+            const pFeedback = document.getElementById('previewRatingFeedback');
+            if (pFeedback) {
+                pFeedback.innerHTML = `<span class="text-warning"><i class="bi bi-check-circle-fill me-1"></i>Bạn đã đánh giá ${uRating} sao</span>`;
+            }
+        }
+    }
+};
+
 function getMovieIdFromElement(el) {
     if (!el) return null;
     if (el.dataset && el.dataset.movieId) return el.dataset.movieId;
@@ -194,6 +291,7 @@ function getRatingPopover() {
                         hintEl.innerHTML = `<span class="text-danger small"><i class="bi bi-lock-fill me-1"></i>Cần <a href="/Auth" class="text-warning text-decoration-underline">đăng nhập</a></span>`;
                         window.showTFlixToast('Vui lòng đăng nhập để đánh giá phim!', 'bi-person-lock text-warning');
                         starBtns.forEach(b => b.disabled = false);
+                        triggerLoginModalIfAvailable();
                         return;
                     }
 
@@ -202,11 +300,13 @@ function getRatingPopover() {
                         const newAvg = parseFloat(res.data?.averageRating || res.data?.AverageRating || 0);
                         const newAvgText = newAvg > 0 ? newAvg.toFixed(1) : starVal.toFixed(1);
 
+                        saveUserRating(movieId, starVal);
                         popover.dataset.currentRating = starVal;
                         hintEl.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Đã đánh giá ${starVal}★!</span>`;
                         window.showTFlixToast(`Đã đánh giá ${starVal} sao thành công!`, 'bi-star-fill text-warning');
 
                         updateRatingDisplays(movieId, newAvgText);
+                        window.syncAllCardRatingWidgets();
 
                         setTimeout(() => {
                             closeRatingPopover();
@@ -273,19 +373,30 @@ window.openRatingPopover = function (ratingTag) {
     });
 
     const hintEl = popover.querySelector('.rating-popover-hint');
-    hintEl.textContent = 'Chọn từ 1 đến 5 sao';
-    hintEl.classList.remove('hint-highlight');
+    const cachedRating = getUserRating(movieId);
+    if (cachedRating > 0) {
+        popover.dataset.currentRating = cachedRating;
+        hintEl.textContent = `Bạn đã đánh giá ${cachedRating} sao`;
+        highlightPopoverStars(cachedRating);
+    } else {
+        hintEl.textContent = 'Chọn từ 1 đến 5 sao';
+        hintEl.classList.remove('hint-highlight');
+    }
 
-    // Thử tải trước điểm đã đánh giá của người dùng
+    // Thử tải trước điểm đã đánh giá của người dùng từ server
     fetch(`/Film/GetRating?movieId=${movieId}`)
         .then(r => r.json())
         .then(res => {
             if (res && res.success && res.data) {
                 const uRating = parseInt(res.data.userRating || res.data.UserRating || 0, 10);
-                if (uRating > 0 && popover.dataset.movieId == movieId) {
-                    popover.dataset.currentRating = uRating;
-                    hintEl.textContent = `Bạn đã đánh giá ${uRating} sao`;
-                    highlightPopoverStars(uRating);
+                if (uRating > 0) {
+                    saveUserRating(movieId, uRating);
+                    if (popover.dataset.movieId == movieId) {
+                        popover.dataset.currentRating = uRating;
+                        hintEl.textContent = `Bạn đã đánh giá ${uRating} sao`;
+                        highlightPopoverStars(uRating);
+                    }
+                    window.syncAllCardRatingWidgets();
                 }
             }
         })
@@ -340,8 +451,14 @@ window.closeRatingPopover = function () {
     }
 };
 
-// Chặn tuyệt đối chuyển trang khi nhấp vào bất kỳ phần tử đánh giá sao nào (Giai đoạn Capturing)
+// Chặn chuyển trang khi tương tác với các widget đánh giá sao, nhưng không chặn các nút sao hoạt động
 document.addEventListener('click', function (e) {
+    // 1. Nếu click bên trong floating popover đánh giá, để popover và các nút sao của nó xử lý bình thường!
+    if (e.target.closest('#tflix-rating-popover, .tflix-rating-popover')) {
+        return;
+    }
+
+    // 2. Nhấp vào thẻ badge đánh giá sao (.card-rating-tag) trên card phim -> mở Popover 5 sao
     const ratingTag = e.target.closest('.card-rating-tag');
     if (ratingTag) {
         e.preventDefault();
@@ -351,20 +468,27 @@ document.addEventListener('click', function (e) {
         return;
     }
 
-    const starBtn = e.target.closest('.btn-card-star, .popover-star-btn');
+    // 3. Nhấp vào nút sao nhanh trên card phim (.btn-card-star)
+    const starBtn = e.target.closest('.btn-card-star');
     if (starBtn) {
+        e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+        const starVal = parseInt(starBtn.dataset.star, 10);
+        const movieId = getMovieIdFromElement(starBtn);
+        if (movieId && starVal) {
+            window.rateMovieFromCard(movieId, starVal, e, starBtn);
+        }
         return;
     }
 
-    const isRatingWidget = e.target.closest('.tflix-rating-popover, .card-quick-rating, .card-stars-widget, .rating-stars-interactive');
+    // 4. Nhấp vào container của rating widget trên card phim -> chặn click lan truyền làm chuyển trang
+    const isRatingWidget = e.target.closest('.card-quick-rating, .card-stars-widget, .rating-stars-interactive');
     if (isRatingWidget) {
         e.stopPropagation();
-        e.stopImmediatePropagation();
         return;
     }
-}, true); // useCapture = true: Thực thi trước mọi thẻ cha và trước bất kỳ onclick/href nào!
+}, true); // useCapture = true: Bắt trước thẻ card cha để ngăn chuyển trang ngoài ý muốn
 
 // Đóng popover khi nhấp ra ngoài (Bubbling phase)
 document.addEventListener('click', function (e) {
@@ -437,6 +561,7 @@ window.rateMovieFromCard = async function (movieId, ratingVal, event, starBtn) {
 
         if (response.status === 401) {
             window.showTFlixToast('Vui lòng đăng nhập để đánh giá phim!', 'bi-person-lock text-warning');
+            triggerLoginModalIfAvailable();
             return;
         }
 
@@ -444,9 +569,11 @@ window.rateMovieFromCard = async function (movieId, ratingVal, event, starBtn) {
         if (data && data.success) {
             const newAvg = parseFloat(data.data?.averageRating || data.data?.AverageRating || 0);
             const newAvgText = newAvg > 0 ? newAvg.toFixed(1) : ratingVal.toFixed(1);
+            saveUserRating(movieId, ratingVal);
             window.showTFlixToast(`Đã đánh giá ${ratingVal} sao thành công!`, 'bi-star-fill text-warning');
 
             updateRatingDisplays(movieId, newAvgText);
+            window.syncAllCardRatingWidgets();
         } else {
             window.showTFlixToast(data.message || 'Không thể lưu đánh giá.', 'bi-exclamation-triangle text-danger');
         }
@@ -507,3 +634,17 @@ document.addEventListener('mouseout', function (e) {
         }
     });
 });
+
+// Tự động khôi phục số sao đã đánh giá của người dùng khi tải trang xong
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.syncAllCardRatingWidgets) {
+            window.syncAllCardRatingWidgets();
+        }
+    });
+} else {
+    if (window.syncAllCardRatingWidgets) {
+        window.syncAllCardRatingWidgets();
+    }
+}
+

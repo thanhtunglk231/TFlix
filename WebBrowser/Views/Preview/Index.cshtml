@@ -6,9 +6,9 @@
     ViewData["Title"] = "Preview · Trang phim";
 
     // Trạng thái đăng nhập (ví dụ đọc từ Session)
-    var token = Context.Session.GetString("JWToken");
+    var token = Context.Session.GetString("JWToken") ?? Context.Session.GetString("AdminJWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token);
-    var currentUserJson = Context.Session.GetString("CurrentUser");
+    var currentUserJson = Context.Session.GetString("CurrentUser") ?? Context.Session.GetString("AdminCurrentUser");
     WebBrowser.Models.AuthModels.UserInfo? currentUser = null;
     if (!string.IsNullOrEmpty(currentUserJson))
     {
@@ -1331,7 +1331,12 @@
             }
 
             function resetPStars() {
-                const cur = parseInt(pStarContainer.dataset.userRating, 10) || 0;
+                let cur = parseInt(pStarContainer.dataset.userRating, 10) || 0;
+                if (cur <= 0 && typeof getUserRating === 'function') {
+                    const tid = parseInt(pStarContainer.dataset.movieId, 10) || @watchId;
+                    cur = getUserRating(tid);
+                    if (cur > 0) pStarContainer.dataset.userRating = cur;
+                }
                 pStars.forEach(btn => {
                     btn.classList.remove('hovered');
                     const s = parseInt(btn.dataset.star, 10);
@@ -1379,6 +1384,9 @@
                         if (!resp.ok || !data.success) throw new Error(data.message || 'Lỗi khi lưu.');
 
                         pStarContainer.dataset.userRating = ratingVal;
+                        if (typeof saveUserRating === 'function') {
+                            saveUserRating(targetMovieId, ratingVal);
+                        }
                         if (data.data) {
                             const newAvg = parseFloat(data.data.averageRating || data.data.AverageRating || 0).toFixed(1);
                             const newCount = data.data.ratingCount || data.data.RatingCount || 0;

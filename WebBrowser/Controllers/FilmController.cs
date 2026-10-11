@@ -251,7 +251,7 @@ namespace WebBrowser.Controllers
             try
             {
                 long? currentUserId = null;
-                var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+                var currentUserJson = HttpContext.Session.GetString("CurrentUser") ?? HttpContext.Session.GetString("AdminCurrentUser");
                 if (!string.IsNullOrEmpty(currentUserJson))
                 {
                     var u = JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(currentUserJson);
@@ -576,7 +576,7 @@ namespace WebBrowser.Controllers
         {
             if (movieId <= 0) return BadRequest(new { success = false, message = "ID phim không hợp lệ." });
             long? currentUserId = null;
-            var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+            var currentUserJson = HttpContext.Session.GetString("CurrentUser") ?? HttpContext.Session.GetString("AdminCurrentUser");
             if (!string.IsNullOrEmpty(currentUserJson))
             {
                 try
@@ -600,7 +600,7 @@ namespace WebBrowser.Controllers
             }
 
             long currentUserId = 0;
-            var currentUserJson = HttpContext.Session.GetString("CurrentUser");
+            var currentUserJson = HttpContext.Session.GetString("CurrentUser") ?? HttpContext.Session.GetString("AdminCurrentUser");
             if (!string.IsNullOrEmpty(currentUserJson))
             {
                 try
