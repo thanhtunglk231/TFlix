@@ -99,9 +99,16 @@ namespace Server.Services
             RemoveExpiredEntries();
         }
 
+        private DateTimeOffset _lastCleanupAt = DateTimeOffset.UtcNow;
+
         private void RemoveExpiredEntries()
         {
-            var expiredBefore = DateTimeOffset.UtcNow - EntryLifetime;
+            var now = DateTimeOffset.UtcNow;
+            if (now - _lastCleanupAt < TimeSpan.FromMinutes(1))
+                return;
+
+            _lastCleanupAt = now;
+            var expiredBefore = now - EntryLifetime;
             foreach (var entry in _entries)
             {
                 if (entry.Value.UpdatedAt < expiredBefore)

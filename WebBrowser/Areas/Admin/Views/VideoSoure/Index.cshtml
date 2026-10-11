@@ -1254,6 +1254,7 @@
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(completePayload),
+                timeout: 0,
                 headers: antiForgeryToken ? { 'RequestVerificationToken': antiForgeryToken } : {}
               });
 
@@ -1263,7 +1264,8 @@
               }
 
               localStorage.removeItem(sessionKey);
-              showUploadProgress('Hoàn tất', `Đã upload ${result.segmentsCount ?? result.SegmentsCount ?? 0} HLS segments`, 100);
+              const segmentsCount = result.segmentsCount ?? result.SegmentsCount ?? result.data?.segmentsCount ?? result.Data?.segmentsCount ?? result.data?.SegmentsCount ?? result.Data?.SegmentsCount ?? 0;
+              showUploadProgress('Hoàn tất', `Đã upload ${segmentsCount} HLS segments`, 100);
               const successMessage = sourceId
                 ? 'Đã thay nguồn bằng HLS mới và lưu thành công.'
                 : 'Đã upload MP4, chuyển đổi HLS và lưu nguồn video thành công.';
@@ -1468,13 +1470,12 @@
               });
 
             } else {
-              // UPDATE existing source as HLS
+              // UPDATE existing source
               const fileObj = document.getElementById('File').files?.[0] || null;
               const inputMode = $('input[name="InputMode"]:checked').val();
               const oldStreamUrl = ($('#OldStreamUrl').val() || '').trim();
 
-              if (inputMode === 'file'){
-                if (!fileObj){ showToast('Vui lòng chọn file MP4 mới.', false); return; }
+              if (inputMode === 'file' && fileObj){
                 uploadMp4AsHls(fileObj, payload, anti, Number(id), oldStreamUrl);
                 return;
               }
@@ -1490,7 +1491,38 @@
                 return;
               }
 
-              showToast('Chọn MP4 hoặc bộ playlist và segments HLS để thay nguồn.', false);
+              // Update metadata / StreamUrl
+              showLoading();
+              const updateData = new FormData();
+              if (fileObj) updateData.append('File', fileObj);
+              Object.entries(payload).forEach(([k,v])=>{
+                if (v !== null && v !== undefined && v !== '') updateData.append(`meta.${k}`, String(v));
+              });
+              updateData.append('sourceId', id);
+              if (oldStreamUrl) updateData.append('meta.OldStreamUrl', oldStreamUrl);
+
+              $.ajax({
+                url: urls.update,
+                type: 'POST',
+                data: updateData,
+                processData: false,
+                contentType: false,
+                headers: anti ? { "RequestVerificationToken": anti } : {},
+                success(res){
+                  const ok = res && (res.success===true || res.code==="200" || res.Success===true);
+                  if (ok){
+                    loadAll();
+                    closeSourceAndShowUploadResult(true, 'Cập nhật thành công', 'Nguồn video đã được cập nhật thành công.');
+                  } else {
+                    const message = res?.message || res?.Message || "Cập nhật thất bại.";
+                    showToast(message, false);
+                  }
+                },
+                error(xhr){
+                  showToast(xhr?.responseJSON?.message || xhr?.responseText || "Lỗi khi cập nhật.", false);
+                },
+                complete(){ hideLoading(); }
+              });
             }
           }
 
