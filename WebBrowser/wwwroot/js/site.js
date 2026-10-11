@@ -77,6 +77,10 @@ function applyStarsToWidget(widget, ratingVal) {
     });
 }
 
+window.saveUserRating = saveUserRating;
+window.getUserRating = getUserRating;
+window.applyStarsToWidget = applyStarsToWidget;
+
 window.syncAllCardRatingWidgets = function () {
     // 1. Đồng bộ các widget sao trên card phim ở trang chủ và danh sách
     document.querySelectorAll('.card-stars-widget[data-movie-id], [data-movie-id] .card-stars-widget').forEach(widget => {
@@ -458,6 +462,11 @@ document.addEventListener('click', function (e) {
         return;
     }
 
+    // Không chặn các nút sao tương tác chuyên biệt trên trang Xem phim (Film/Watch) hoặc trang Preview Details
+    if (e.target.closest('#starRatingContainer, #previewStarRating, .star-btn, .star-btn-sm')) {
+        return;
+    }
+
     // 2. Nhấp vào thẻ badge đánh giá sao (.card-rating-tag) trên card phim -> mở Popover 5 sao
     const ratingTag = e.target.closest('.card-rating-tag');
     if (ratingTag) {
@@ -483,8 +492,8 @@ document.addEventListener('click', function (e) {
     }
 
     // 4. Nhấp vào container của rating widget trên card phim -> chặn click lan truyền làm chuyển trang
-    const isRatingWidget = e.target.closest('.card-quick-rating, .card-stars-widget, .rating-stars-interactive');
-    if (isRatingWidget) {
+    const isRatingWidget = e.target.closest('.card-quick-rating, .card-stars-widget');
+    if (isRatingWidget && e.target.closest('.movie-card-item, .film-card, .preview-catalog-card, .slist-item, .item, a')) {
         e.stopPropagation();
         return;
     }

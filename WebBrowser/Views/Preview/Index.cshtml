@@ -763,7 +763,10 @@
             <div class="col-12 col-lg-4">
                 <!-- PHIM SẮP CHIẾU / GỢI Ý -->
                 <div class="panel mb-3">
-                    <div class="panel-h">PHIM SẮP CHIẾU</div>
+                    <div class="panel-h d-flex justify-content-between align-items-center">
+                        <span>PHIM SẮP CHIẾU</span>
+                        <span class="badge bg-primary bg-opacity-25 text-info" style="font-size: 0.72rem; font-weight: 500;">Sắp ra mắt</span>
+                    </div>
                     <div class="panel-b slist">
                         @if (Model?.UpcomingMovies != null && Model.UpcomingMovies.Any())
                         {
@@ -771,15 +774,32 @@
                             {
                                 var mPoster = !string.IsNullOrEmpty(mItem.PosterUrl) ? mItem.PosterUrl : "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
                                 var mYear = mItem.ReleaseDate?.Year;
-                                var mRating = mItem.AvgRating.HasValue ? mItem.AvgRating.Value.ToString("0.0") : "8.5";
-                                <a class="item text-decoration-none text-light" href="@Url.Action("Details", "Preview", new { id = mItem.MovieId, kind = "movie" })">
-                                    <img class="thumb" src="@mPoster" alt="@mItem.Title" />
-                                    <div>
-                                        <div class="fw-semibold text-truncate" style="max-width: 180px;">@mItem.Title</div>
-                                        <div class="small label">@(mYear.HasValue ? mYear.Value.ToString() : "2025")</div>
-                                        <div class="small"><span class="star"><i class="bi bi-star-fill"></i></span> @mRating</div>
+                                var mRating = mItem.AvgRating.HasValue && mItem.AvgRating.Value > 0 ? mItem.AvgRating.Value.ToString("0.0") : "8.5";
+                                <div class="item slist-item d-flex gap-2 p-2 rounded-3" data-movie-id="@mItem.MovieId">
+                                    <a href="@Url.Action("Details", "Preview", new { id = mItem.MovieId, kind = "movie" })" class="text-decoration-none flex-shrink-0" title="@mItem.Title">
+                                        <img class="thumb" src="@mPoster" alt="@mItem.Title" />
+                                    </a>
+                                    <div class="flex-grow-1 min-w-0 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <a href="@Url.Action("Details", "Preview", new { id = mItem.MovieId, kind = "movie" })" class="fw-semibold text-light text-decoration-none text-truncate d-block" style="max-width: 200px;" title="@mItem.Title">
+                                                @mItem.Title
+                                            </a>
+                                            <div class="small label text-muted">@(mYear.HasValue ? mYear.Value.ToString() : "2025")</div>
+                                        </div>
+                                        <div class="d-flex align-items-center justify-content-between gap-1 mt-1">
+                                            <span class="card-rating-tag" data-movie-id="@mItem.MovieId" onclick="event.preventDefault(); event.stopPropagation();" title="Nhấn để đánh giá sao">
+                                                <i class="bi bi-star-fill text-warning me-1"></i><span class="rating-val">@mRating</span>
+                                            </span>
+                                            <div class="card-stars-widget" data-movie-id="@mItem.MovieId">
+                                                <button type="button" class="btn-card-star" data-star="1" title="1 sao" onclick="window.rateMovieFromCard(@mItem.MovieId, 1, event, this)"><i class="bi bi-star"></i></button>
+                                                <button type="button" class="btn-card-star" data-star="2" title="2 sao" onclick="window.rateMovieFromCard(@mItem.MovieId, 2, event, this)"><i class="bi bi-star"></i></button>
+                                                <button type="button" class="btn-card-star" data-star="3" title="3 sao" onclick="window.rateMovieFromCard(@mItem.MovieId, 3, event, this)"><i class="bi bi-star"></i></button>
+                                                <button type="button" class="btn-card-star" data-star="4" title="4 sao" onclick="window.rateMovieFromCard(@mItem.MovieId, 4, event, this)"><i class="bi bi-star"></i></button>
+                                                <button type="button" class="btn-card-star" data-star="5" title="5 sao" onclick="window.rateMovieFromCard(@mItem.MovieId, 5, event, this)"><i class="bi bi-star"></i></button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </a>
+                                </div>
                             }
                         }
                         else
@@ -1356,6 +1376,9 @@
                 }
             }
 
+            // Đồng bộ trạng thái sao ban đầu ngay khi tải trang
+            resetPStars();
+
             pStars.forEach(btn => {
                 btn.addEventListener('mouseenter', () => {
                     const val = parseInt(btn.dataset.star, 10);
@@ -1394,6 +1417,15 @@
                             if (pCount) pCount.textContent = newCount;
                         }
                         resetPStars();
+
+                        if (typeof window.syncAllCardRatingWidgets === 'function') {
+                            window.syncAllCardRatingWidgets();
+                        }
+
+                        if (typeof window.showTFlixToast === 'function') {
+                            window.showTFlixToast(`Đã đánh giá ${ratingVal} sao thành công!`, 'bi-star-fill text-warning');
+                        }
+
                         pFeedback.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Đã đánh giá ${ratingVal} sao thành công!</span>`;
                     } catch (err) {
                         pFeedback.innerHTML = `<span class="text-danger">${err.message}</span>`;

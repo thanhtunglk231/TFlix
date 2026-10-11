@@ -40,7 +40,7 @@ namespace WebBrowser.Controllers
 
         private bool IsUserAuthenticated()
         {
-            var token = HttpContext.Session.GetString("JWToken");
+            var token = HttpContext.Session.GetString("JWToken") ?? HttpContext.Session.GetString("AdminJWToken");
             return !string.IsNullOrEmpty(token) || (User != null && User.Identity != null && User.Identity.IsAuthenticated);
         }
 

@@ -2343,6 +2343,9 @@
                 }
             }
 
+            // Đồng bộ trạng thái sao ban đầu ngay khi tải trang
+            resetStars();
+
             stars.forEach(btn => {
                 btn.addEventListener('mouseenter', () => {
                     const starVal = parseInt(btn.dataset.star, 10);
@@ -2387,7 +2390,13 @@
                         }
                         resetStars();
 
-                        if (typeof showToast === 'function') {
+                        if (typeof window.syncAllCardRatingWidgets === 'function') {
+                            window.syncAllCardRatingWidgets();
+                        }
+
+                        if (typeof window.showTFlixToast === 'function') {
+                            window.showTFlixToast(`Đã đánh giá thành công ${ratingVal} sao cho phim!`, 'bi-star-fill text-warning');
+                        } else if (typeof showToast === 'function') {
                             showToast(`Đã đánh giá thành công ${ratingVal} sao cho phim!`, 'success');
                         } else {
                             feedbackText.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Đã đánh giá thành công ${ratingVal} sao!</span>`;
