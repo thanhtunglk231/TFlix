@@ -554,6 +554,18 @@ namespace Server.Controllers
             [FromQuery] string fileFingerprint,
             CancellationToken cancellationToken)
         {
+            if (_uploadProgress.TryGetProgress(uploadId, out var trackedProgress)
+                && trackedProgress.Stage is "assembling" or "packaging" or "uploading-segments" or "saving" or "complete" or "failed")
+            {
+                return Ok(new Mp4UploadStatusDto
+                {
+                    UploadId = uploadId,
+                    ResumeAvailable = trackedProgress.Stage != "complete",
+                    TotalChunks = trackedProgress.TotalSegments > 0 ? trackedProgress.TotalSegments : 1,
+                    Progress = trackedProgress
+                });
+            }
+
             var uploadDirectory = GetUploadDirectory(uploadId);
             var manifestPath = Path.Combine(uploadDirectory, "chunk-count.txt");
             var fingerprintPath = Path.Combine(uploadDirectory, "file-fingerprint.txt");
@@ -562,7 +574,8 @@ namespace Server.Controllers
                 return Ok(new Mp4UploadStatusDto
                 {
                     UploadId = uploadId,
-                    ResumeAvailable = false
+                    ResumeAvailable = false,
+                    Progress = trackedProgress
                 });
             }
 
@@ -581,7 +594,7 @@ namespace Server.Controllers
                 .OrderBy(index => index)
                 .ToList();
 
-            var progress = _uploadProgress.TryGetProgress(uploadId, out var trackedProgress)
+            var progress = _uploadProgress.TryGetProgress(uploadId, out trackedProgress)
                 ? trackedProgress
                 : new VideoUploadProgressDto(
                     "receiving-chunks",
@@ -893,7 +906,13 @@ namespace Server.Controllers
                     sourceResponse.Success,
                     playlistUrl = uploadedPlaylist.Url,
                     SourceId = sourceId,
-                    SegmentsCount = segmentMap.Count
+                    SegmentsCount = segmentMap.Count,
+                    Data = new
+                    {
+                        playlistUrl = uploadedPlaylist.Url,
+                        SourceId = sourceId,
+                        SegmentsCount = segmentMap.Count
+                    }
                 });
             }
             catch (Exception ex)
@@ -1092,25 +1111,31 @@ namespace Server.Controllers
             [FromForm] ReplaceVideoSourceForm form)
         {
             if (sourceId <= 0) return BadRequest("sourceId không hợp lệ.");
-            if (form.File == null || form.File.Length == 0) return BadRequest("File rỗng.");
+            var hasFile = form.File != null && form.File.Length > 0;
+            if (!hasFile && string.IsNullOrWhiteSpace(form.StreamUrl))
+                return BadRequest("Cần chọn file video mới hoặc nhập Stream URL.");
 
             // folder mới cho file mới
             var ownerId = (decimal?)(form.MovieId) ?? (decimal?)(form.EpisodeId) ?? sourceId;
-            var folder = $"videos/{ownerId}/{Guid.NewGuid():N}/";
-            var objectPath = $"{folder}{form.File.FileName}";
+            StoredVideoObject? uploadedFile = null;
+            if (hasFile)
+            {
+                var folder = $"videos/{ownerId}/{Guid.NewGuid():N}/";
+                var objectPath = $"{folder}{form.File!.FileName}";
 
-            var uploadedFile = await UploadVideoObjectAsync(form.File, objectPath);
-            if (uploadedFile == null)
-                return StatusCode(500, new { success = false, message = "Upload video lên Cloudflare và Supabase đều thất bại." });
+                uploadedFile = await UploadVideoObjectAsync(form.File!, objectPath);
+                if (uploadedFile == null)
+                    return StatusCode(500, new { success = false, message = "Upload video lên Cloudflare và Supabase đều thất bại." });
+            }
 
             var dto = new UpdateVideoSourceDto
             {
                 SourceId = sourceId,
                 MovieId = form.MovieId,
                 EpisodeId = form.EpisodeId,
-                Provider = GetStorageProviderName(new[] { uploadedFile }),
+                Provider = uploadedFile == null ? (form.Provider ?? string.Empty) : GetStorageProviderName(new[] { uploadedFile }),
                 ServerName = form.ServerName,
-                StreamUrl = uploadedFile.Url,
+                StreamUrl = uploadedFile?.Url ?? (form.StreamUrl ?? string.Empty).Trim(),
                 Quality = form.Quality,
                 Format = form.Format,
                 DrmType = form.DrmType,
@@ -1126,28 +1151,31 @@ namespace Server.Controllers
                 return StatusCode(500, resp.message);
             }
 
-            var oldPartsResponse = await _videoSourceService.Replace_video_source_parts(
-                sourceId,
-                Array.Empty<AddVideoSourcePartDto>());
-            if (!oldPartsResponse.Success)
+            if (uploadedFile != null)
             {
-                _logger.LogError(
-                    "Updated video source {SourceId}, but could not clear old HLS parts: {Message}",
+                var oldPartsResponse = await _videoSourceService.Replace_video_source_parts(
                     sourceId,
-                    oldPartsResponse.message);
-                return StatusCode(StatusCodes.Status500InternalServerError, new
+                    Array.Empty<AddVideoSourcePartDto>());
+                if (!oldPartsResponse.Success)
                 {
-                    success = false,
-                    message = "Nguồn đã cập nhật nhưng không xóa được danh sách HLS cũ: " + oldPartsResponse.message
-                });
+                    _logger.LogError(
+                        "Updated video source {SourceId}, but could not clear old HLS parts: {Message}",
+                        sourceId,
+                        oldPartsResponse.message);
+                    return StatusCode(StatusCodes.Status500InternalServerError, new
+                    {
+                        success = false,
+                        message = "Nguồn đã cập nhật nhưng không xóa được danh sách HLS cũ: " + oldPartsResponse.message
+                    });
+                }
+
+                await DeleteReplacedStorageObjectsAsync(
+                    form.OldStreamUrl,
+                    oldPartsResponse.Data as IEnumerable<string> ?? Enumerable.Empty<string>(),
+                    new[] { uploadedFile });
             }
 
-            await DeleteReplacedStorageObjectsAsync(
-                form.OldStreamUrl,
-                oldPartsResponse.Data as IEnumerable<string> ?? Enumerable.Empty<string>(),
-                new[] { uploadedFile });
-
-            return Ok(new { resp.code, resp.message, resp.Success, newUrl = uploadedFile.Url });
+            return Ok(new { resp.code, resp.message, resp.Success, newUrl = uploadedFile?.Url ?? dto.StreamUrl });
         }
 
         private static string GetUploadDirectory(Guid uploadId)
@@ -1509,12 +1537,13 @@ namespace Server.Controllers
 
     public class ReplaceVideoSourceForm
     {
-        public IFormFile File { get; set; } = default!;
+        public IFormFile? File { get; set; }
 
         public decimal? MovieId { get; set; }
         public decimal? EpisodeId { get; set; }
         public string? Provider { get; set; }
         public string? ServerName { get; set; }
+        public string? StreamUrl { get; set; }
         public string? Quality { get; set; }
         public string? Format { get; set; }
         public string? DrmType { get; set; }

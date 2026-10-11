@@ -1,4 +1,4 @@
-﻿@{
+@{
     Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Quản lý Movie · Admin";
 
@@ -144,10 +144,10 @@
 <div class="card">
     <div class="card-body">
         <div class="row g-2 mb-3">
-            <div class="col-md-4">
+            <div class="col-12 col-md-4">
                 <input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề...">
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <select id="slStatus" class="form-select">
                     <option value="">Trạng thái (Tất cả)</option>
                     <option value="PUBLISHED">PUBLISHED</option>
@@ -156,14 +156,14 @@
                     <option value="RELEASED">RELEASED</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <select id="slPremium" class="form-select">
                     <option value="">Premium (Tất cả)</option>
                     <option value="Y">Có</option>
                     <option value="N">Không</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-12 col-md-2">
                 <select id="pageSize" class="form-select">
                     <option value="10">10 / trang</option>
                     <option value="20" selected>20 / trang</option>

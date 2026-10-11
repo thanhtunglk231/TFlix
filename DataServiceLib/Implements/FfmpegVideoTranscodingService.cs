@@ -61,9 +61,9 @@ namespace DataServiceLib.Implements
 
                 var standardErrorTask = process.StandardError.ReadToEndAsync(cancellationToken);
                 var progressTask = ReadProgressAsync(process.StandardOutput, duration, progress, cancellationToken);
-                await process.WaitForExitAsync(cancellationToken);
+
+                await Task.WhenAll(standardErrorTask, progressTask, process.WaitForExitAsync(cancellationToken));
                 var standardError = await standardErrorTask;
-                await progressTask;
 
                 if (process.ExitCode != 0)
                     throw new InvalidOperationException($"FFmpeg kết thúc với mã {process.ExitCode}: {standardError.Trim()}");
@@ -79,6 +79,10 @@ namespace DataServiceLib.Implements
             }
             catch (Exception ex)
             {
+                if (!process.HasExited)
+                {
+                    try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                }
                 _logger.LogError(ex, "MP4-to-HLS packaging failed");
                 throw;
             }
@@ -128,6 +132,7 @@ namespace DataServiceLib.Implements
             IProgress<double>? progress,
             CancellationToken cancellationToken)
         {
+            var lastReportedPercent = -1;
             while (!reader.EndOfStream)
             {
                 var line = await reader.ReadLineAsync(cancellationToken);
@@ -145,7 +150,12 @@ namespace DataServiceLib.Implements
                 if (long.TryParse(line["out_time_us=".Length..], out var microseconds))
                 {
                     var percent = microseconds / (duration.Value.TotalSeconds * 1_000_000d) * 100d;
-                    progress?.Report(Math.Clamp(percent, 0, 99));
+                    var clamped = (int)Math.Clamp(Math.Floor(percent), 0, 99);
+                    if (clamped > lastReportedPercent)
+                    {
+                        lastReportedPercent = clamped;
+                        progress?.Report(clamped);
+                    }
                 }
             }
         }

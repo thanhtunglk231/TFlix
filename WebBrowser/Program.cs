@@ -113,14 +113,34 @@ var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticat
 
 GoogleAuthDebugLogger.SetLogDirectory(Path.Combine(builder.Environment.ContentRootPath, "Logs"));
 
+// Thử đọc fallback từ Server/appsettings.json nếu WebBrowser chưa cấu hình
+var serverAppsettingsPath = Path.Combine(builder.Environment.ContentRootPath, "..", "Server", "appsettings.json");
+IConfigurationRoot? serverConfigFallback = null;
+if (File.Exists(serverAppsettingsPath))
+{
+    try
+    {
+        serverConfigFallback = new ConfigurationBuilder().AddJsonFile(serverAppsettingsPath, optional: true).Build();
+    }
+    catch { }
+}
+
 var googleClientId = builder.Configuration["Authentication:Google:ClientId"]
     ?? builder.Configuration["Google:ClientId"]
+    ?? serverConfigFallback?["Authentication:Google:ClientId"]
+    ?? serverConfigFallback?["Google:ClientId"]
     ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID");
+
 var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]
     ?? builder.Configuration["Google:ClientSecret"]
+    ?? serverConfigFallback?["Authentication:Google:ClientSecret"]
+    ?? serverConfigFallback?["Google:ClientSecret"]
     ?? Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET");
+
 var googleCallbackPath = builder.Configuration["Authentication:Google:CallbackPath"]
     ?? builder.Configuration["Google:CallbackPath"]
+    ?? serverConfigFallback?["Authentication:Google:CallbackPath"]
+    ?? serverConfigFallback?["Google:CallbackPath"]
     ?? Environment.GetEnvironmentVariable("GOOGLE_CALLBACK_PATH")
     ?? "/signin-google";
 
@@ -133,8 +153,8 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var startupLog = new System.Text.StringBuilder();
 startupLog.AppendLine("=== WEBBROWSER STARTUP: KIỂM TRA CẤU HÌNH GOOGLE AUTHENTICATION ===");
-startupLog.AppendLine($"- Authentication:Google:ClientId trong appsettings: {(string.IsNullOrWhiteSpace(builder.Configuration["Authentication:Google:ClientId"]) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.Mask(builder.Configuration["Authentication:Google:ClientId"]))}");
-startupLog.AppendLine($"- Authentication:Google:ClientSecret trong appsettings: {(string.IsNullOrWhiteSpace(builder.Configuration["Authentication:Google:ClientSecret"]) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.MaskSecret(builder.Configuration["Authentication:Google:ClientSecret"]))}");
+startupLog.AppendLine($"- Authentication:Google:ClientId: {(string.IsNullOrWhiteSpace(googleClientId) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.Mask(googleClientId))}");
+startupLog.AppendLine($"- Authentication:Google:ClientSecret: {(string.IsNullOrWhiteSpace(googleClientSecret) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.MaskSecret(googleClientSecret))}");
 startupLog.AppendLine($"- Biến môi trường GOOGLE_CLIENT_ID: {(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID")) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.Mask(Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID")))}");
 startupLog.AppendLine($"- Biến môi trường GOOGLE_CLIENT_SECRET: {(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET")) ? "❌ [TRỐNG]" : "✅ " + GoogleAuthDebugLogger.MaskSecret(Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET")))}");
 startupLog.AppendLine($"- CallbackPath: {googleCallbackPath}");
@@ -148,9 +168,14 @@ else
     if (string.IsNullOrWhiteSpace(googleClientId)) missingFields.Add("ClientId");
     if (string.IsNullOrWhiteSpace(googleClientSecret)) missingFields.Add("ClientSecret");
     startupLog.AppendLine($"-> KẾT QUẢ: ❌ THIẾU ({string.Join(", ", missingFields)}). Google Authentication KHÔNG được đăng ký!");
-    startupLog.AppendLine("-> HƯỚNG DẪN KHẮC PHỤC:");
-    startupLog.AppendLine("   Thêm vào WebBrowser/appsettings.json trên server:");
-    startupLog.AppendLine("   \"Authentication\": { \"Google\": { \"ClientId\": \"...\", \"ClientSecret\": \"...\", \"CallbackPath\": \"/signin-google\" } }");
+    startupLog.AppendLine("-> NGUYÊN NHÂN & HƯỚNG DẪN KHẮC PHỤC:");
+    if (!string.IsNullOrWhiteSpace(googleClientId) && string.IsNullOrWhiteSpace(googleClientSecret))
+    {
+        startupLog.AppendLine("   Đã tìm thấy ClientId nhưng THIẾU ClientSecret (bắt buộc cho OAuth2 Web Application flow)!");
+        startupLog.AppendLine("   Vui lòng lấy ClientSecret tương ứng với ClientId từ Google Cloud Console (APIs & Services > Credentials).");
+    }
+    startupLog.AppendLine("   Thêm vào WebBrowser/appsettings.json (hoặc Server/appsettings.json):");
+    startupLog.AppendLine("   \"Authentication\": { \"Google\": { \"ClientId\": \"" + (googleClientId ?? "...") + "\", \"ClientSecret\": \"...\", \"CallbackPath\": \"/signin-google\" } }");
     startupLog.AppendLine("   Hoặc set biến môi trường GOOGLE_CLIENT_ID và GOOGLE_CLIENT_SECRET.");
 }
 GoogleAuthDebugLogger.Log("STARTUP_INIT", startupLog.ToString());

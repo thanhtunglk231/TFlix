@@ -215,14 +215,16 @@
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Long-running HTTP POST {Url} failed", url);
-                    if (typeof(T) == typeof(CResponseMessage))
+                    if (typeof(CResponseMessage).IsAssignableFrom(typeof(T)))
                     {
-                        return (T)(object)new CResponseMessage
+                        var fallback = Activator.CreateInstance<T>();
+                        if (fallback is CResponseMessage msg)
                         {
-                            Success = false,
-                            code = "500",
-                            message = "Lỗi xử lý upload video: " + ex.Message
-                        };
+                            msg.Success = false;
+                            msg.code = "500";
+                            msg.message = "Lỗi xử lý upload video: " + ex.Message;
+                        }
+                        return fallback;
                     }
 
                     return default!;

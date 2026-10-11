@@ -370,7 +370,9 @@
             color: #ffffff;
         }
 
-        /* Responsive Mobile Drawer */
+        /* ========================================================
+           ADMIN MOBILE RESPONSIVE ENHANCEMENTS (< 992px, < 768px, < 576px)
+           ======================================================== */
         @@media (max-width: 991.98px) {
             .app-main {
                 grid-template-columns: 0 1fr;
@@ -379,11 +381,11 @@
             .sidebar {
                 position: fixed;
                 inset: 0 auto 0 0;
-                width: var(--sidebar-width);
+                width: min(var(--sidebar-width), 85vw);
                 z-index: 1050;
                 transform: translateX(-100%);
                 transition: transform .28s cubic-bezier(0.16, 1, 0.3, 1);
-                box-shadow: 0 0 30px rgba(0, 0, 0, 0.75);
+                box-shadow: 0 0 35px rgba(0, 0, 0, 0.85);
             }
 
             .sidebar.show {
@@ -392,6 +394,137 @@
 
             body.sidebar-open {
                 overflow: hidden;
+            }
+        }
+
+        @@media (max-width: 767.98px) {
+            .content {
+                padding: 0.85rem 0.65rem;
+            }
+
+            .admin-topbar {
+                padding: 0.55rem 0.75rem;
+            }
+
+            /* Ngăn Safari iOS và Chrome mobile auto-zoom khi focus */
+            .form-control, .form-select {
+                font-size: 16px !important;
+            }
+
+            /* Tối ưu bảng dữ liệu trên điện thoại */
+            .table-responsive {
+                -webkit-overflow-scrolling: touch;
+                border-radius: 10px;
+                margin-bottom: 0.5rem;
+            }
+
+            .table thead th {
+                font-size: 0.76rem;
+                padding: 0.65rem 0.65rem;
+                white-space: nowrap;
+            }
+
+            .table tbody td {
+                font-size: 0.82rem;
+                padding: 0.65rem 0.65rem;
+                white-space: nowrap;
+            }
+
+            /* Cho phép cuộn ngang các nút thao tác mà không bị cắt */
+            .table td .btn-group,
+            .table td .d-flex {
+                flex-wrap: nowrap;
+            }
+
+            /* Nav-tabs cuộn ngang mượt mà trên mobile */
+            .nav-tabs {
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 3px;
+                border-bottom: 1px solid var(--border-subtle);
+            }
+
+            .nav-tabs .nav-link {
+                white-space: nowrap !important;
+                font-size: 0.84rem;
+                padding: 0.5rem 0.85rem;
+            }
+
+            /* Metric cards dashboard */
+            .card h2 {
+                font-size: 1.55rem;
+            }
+        }
+
+        @@media (max-width: 575.98px) {
+            .content {
+                padding: 0.75rem 0.45rem;
+            }
+
+            /* Header trang trên điện thoại */
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-2.mb-3,
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-3.mb-4 {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.65rem !important;
+            }
+
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-2.mb-3 h4,
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-3.mb-4 h3 {
+                font-size: 1.25rem;
+            }
+
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-2.mb-3 .d-flex.gap-2,
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-3.mb-4 .d-flex.gap-2 {
+                width: 100%;
+            }
+
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-2.mb-3 .d-flex.gap-2 .btn,
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-3.mb-4 .d-flex.gap-2 .btn {
+                flex: 1;
+                display: inline-flex;
+                justify-content: center;
+                align-items: center;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.85rem;
+            }
+
+            /* Modal trên điện thoại */
+            .modal-dialog {
+                margin: 0.35rem;
+            }
+
+            .modal-content {
+                border-radius: 12px;
+            }
+
+            .modal-header {
+                padding: 0.75rem 1rem;
+            }
+
+            .modal-body {
+                padding: 0.85rem 0.75rem;
+            }
+
+            .modal-footer {
+                padding: 0.65rem 0.75rem;
+                display: flex;
+            }
+
+            .modal-footer .btn {
+                flex: 1;
+                justify-content: center;
+            }
+
+            /* Hero Banner Dashboard */
+            .card.mb-4.border-0.overflow-hidden .display-6 {
+                font-size: 1.45rem !important;
+            }
+
+            .card.mb-4.border-0.overflow-hidden .card-body {
+                padding: 1.2rem !important;
             }
         }
     </style>

@@ -311,7 +311,7 @@ namespace WebBrowser.Areas.Admin.Controllers
                 return BadRequest(new { success = false, message = "Thông tin hoàn tất upload không hợp lệ." });
 
             var result = await _videoSoureService.CompleteMp4UploadAsync(uploadId, request);
-            return result.Success ? Ok(result) : StatusCode(500, result);
+            return result != null && result.Success ? Ok(result) : StatusCode(500, result ?? new CompleteMp4UploadResultDto { Success = false, code = "500", message = "Không nhận được phản hồi từ hệ thống." });
         }
 
         [HttpPost]
@@ -342,7 +342,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         [RequestSizeLimit(MaxVideoUploadBytes)]
         [RequestFormLimits(MultipartBodyLengthLimit = MaxVideoUploadBytes)]
-        public async Task<IActionResult> Update(decimal sourceId, IFormFile file, [FromForm] UpdateVideoSourceInputDto meta)
+        public async Task<IActionResult> Update(decimal sourceId, IFormFile? file, [FromForm] UpdateVideoSourceInputDto meta)
         {
             var result = await _videoSoureService.uppdate_VideoSoure(sourceId, file, meta);
             return Ok(result);

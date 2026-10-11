@@ -147,11 +147,11 @@ namespace WebBrowser.Services.Implements
                 return _httpService.GetAsync<Mp4UploadStatusDto>(url);
             }
 
-        public Task<CResponseMessage> CompleteMp4UploadAsync(Guid uploadId, CompleteMp4VideoUploadDto request)
+        public Task<CompleteMp4UploadResultDto> CompleteMp4UploadAsync(Guid uploadId, CompleteMp4VideoUploadDto request)
         {
             var url = $"/api/VideoSources/mp4-uploads/{uploadId}/complete";
             _logger.LogInformation("Finalizing chunked MP4 upload {UploadId} as HLS", uploadId);
-            return _httpService.PostLongRunningAsync<CResponseMessage>(url, request);
+            return _httpService.PostLongRunningAsync<CompleteMp4UploadResultDto>(url, request);
         }
 
         public Task<CResponseMessage> CancelMp4UploadAsync(Guid uploadId)
@@ -194,7 +194,7 @@ namespace WebBrowser.Services.Implements
 
 
 
-        public async Task<CResponseMessage> uppdate_VideoSoure(decimal sourceId, IFormFile file, UpdateVideoSourceInputDto meta)
+        public async Task<CResponseMessage> uppdate_VideoSoure(decimal sourceId, IFormFile? file, UpdateVideoSourceInputDto meta)
         {
             var url = $"/api/VideoSources/{sourceId}/replace-file";
             _logger.LogInformation("Replacing video source file for source {SourceId}", sourceId);
