@@ -8,6 +8,7 @@ using DataServiceLib.Implements.Admin.Movies;
 using DataServiceLib.Implements.Admin.Series;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Server.Services;
@@ -16,6 +17,21 @@ using System.Diagnostics;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Persist and encrypt Data Protection keys so authentication cookies remain
+// valid when IIS recycles the application process.
+var dataProtectionKeysPath = Path.Combine(
+    builder.Environment.ContentRootPath,
+    "App_Data",
+    "DataProtectionKeys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+var dataProtectionBuilder = builder.Services
+    .AddDataProtection()
+    .SetApplicationName("TFlix.Server")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+
+if (OperatingSystem.IsWindows())
+    dataProtectionBuilder.ProtectKeysWithDpapi(protectToLocalMachine: true);
 
 // =====================================================
 // FILE LOGGER

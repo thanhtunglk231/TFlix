@@ -11,12 +11,23 @@ namespace Server.Controllers
     public class EpisodeAssetController : ControllerBase
     {
         private readonly ISupabaseService _supabase;
+        private readonly ICloudflareR2Service _cloudflareR2;
         private readonly ICEpisodeAssets _episodeAssetService;
+        private readonly ILogger<EpisodeAssetController> _logger;
+        private readonly string _cloudflarePublicBaseUrl;
 
-        public EpisodeAssetController(ISupabaseService supabase, ICEpisodeAssets episodeAssetService)
+        public EpisodeAssetController(
+            ISupabaseService supabase,
+            ICloudflareR2Service cloudflareR2,
+            ICEpisodeAssets episodeAssetService,
+            IConfiguration configuration,
+            ILogger<EpisodeAssetController> logger)
         {
             _supabase = supabase;
+            _cloudflareR2 = cloudflareR2;
             _episodeAssetService = episodeAssetService;
+            _logger = logger;
+            _cloudflarePublicBaseUrl = (configuration["CloudflareR2:PublicBaseUrl"] ?? string.Empty).TrimEnd('/');
         }
 
 
@@ -36,10 +47,9 @@ namespace Server.Controllers
             if (form.EpisodeId <= 0 || string.IsNullOrWhiteSpace(form.AssetType))
                 return BadRequest(new { code = "400", message = "Thiếu EpisodeId/AssetType." });
 
-            // Upload Supabase
-            var publicUrl = await _supabase.UploadFileAsync(form.File);
+            var publicUrl = await UploadFileAsync(form.File, form.EpisodeId);
             if (string.IsNullOrWhiteSpace(publicUrl))
-                return StatusCode(500, new { code = "500", message = "Upload Supabase thất bại." });
+                return StatusCode(503, new { code = "503", message = "Không thể upload tài nguyên tập phim lên hệ thống lưu trữ." });
 
             // Lưu DB (URL)
             var dto = new AddEpisodeAsset
@@ -53,7 +63,7 @@ namespace Server.Controllers
             var resp = await _episodeAssetService.Add(dto);
             if (!resp.Success)
             {
-                _ = _supabase.DeleteFileAsync(publicUrl); // rollback file
+                _ = DeleteFileAsync(publicUrl); // rollback file
                 return StatusCode(500, new { code = resp.code, message = resp.message });
             }
 
@@ -82,9 +92,9 @@ namespace Server.Controllers
                 return BadRequest(new { code = "400", message = "Thiếu EpisodeId/AssetType." });
 
             // Upload file mới
-            var newUrl = await _supabase.UploadFileAsync(form.File);
+            var newUrl = await UploadFileAsync(form.File, form.EpisodeId);
             if (string.IsNullOrWhiteSpace(newUrl))
-                return StatusCode(500, new { code = "500", message = "Upload Supabase thất bại." });
+                return StatusCode(503, new { code = "503", message = "Không thể upload tài nguyên tập phim lên hệ thống lưu trữ." });
 
             // Update DB theo SP sp_episode_asset_update
             var dto = new UpdateEpisodeAsset
@@ -99,13 +109,13 @@ namespace Server.Controllers
             var resp = await _episodeAssetService.Update_episode(dto);
             if (!resp.Success)
             {
-                _ = _supabase.DeleteFileAsync(newUrl); // rollback file
+                _ = DeleteFileAsync(newUrl); // rollback file
                 return StatusCode(500, new { code = resp.code, message = resp.message });
             }
 
             // Xoá file cũ nếu có gửi kèm
             if (!string.IsNullOrWhiteSpace(form.OldUrl))
-                _ = _supabase.DeleteFileAsync(form.OldUrl);
+                _ = DeleteFileAsync(form.OldUrl);
 
             return Ok(new { resp.code, resp.message, resp.Success, newUrl });
         }
@@ -122,9 +132,36 @@ namespace Server.Controllers
                 return StatusCode(500, new { code = resp.code, message = resp.message });
 
             if (!string.IsNullOrWhiteSpace(url))
-                _ = _supabase.DeleteFileAsync(url); // best-effort
+                _ = DeleteFileAsync(url); // best-effort
 
             return Ok(new { resp.code, resp.message, resp.Success });
+        }
+
+        private async Task<string?> UploadFileAsync(IFormFile file, int episodeId)
+        {
+            var supabaseUrl = await _supabase.UploadFileAsync(file);
+            if (!string.IsNullOrWhiteSpace(supabaseUrl))
+                return supabaseUrl;
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var objectPath = $"episodes/{episodeId}/assets/{Guid.NewGuid():N}{extension}";
+            _logger.LogWarning(
+                "Supabase upload failed for episode {EpisodeId}; falling back to Cloudflare R2 at {ObjectPath}",
+                episodeId,
+                objectPath);
+
+            return await _cloudflareR2.UploadFileAsync(file, objectPath);
+        }
+
+        private Task<bool> DeleteFileAsync(string pathOrUrl)
+        {
+            if (!string.IsNullOrWhiteSpace(_cloudflarePublicBaseUrl)
+                && pathOrUrl.StartsWith(_cloudflarePublicBaseUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                return _cloudflareR2.DeleteFileAsync(pathOrUrl);
+            }
+
+            return _supabase.DeleteFileAsync(pathOrUrl);
         }
     }
 

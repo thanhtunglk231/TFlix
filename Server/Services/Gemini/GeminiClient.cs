@@ -66,8 +66,7 @@ namespace Server.Services.Gemini
                     ? "https://generativelanguage.googleapis.com/v1beta"
                     : _options.BaseUrl.TrimEnd('/');
 
-                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-2.5-flash" : _options.Model;
-                var endpoint = $"{baseUrl}/models/{model}:generateContent?key={_apiKey}";
+                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.8-flash" : _options.Model;
 
                 // Xây dựng payload contents
                 var contents = new List<object>();
@@ -116,22 +115,40 @@ namespace Server.Services.Gemini
                     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                 });
 
-                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                {
-                    Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
-                };
-
-                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                var response = await SendRequestAsync(baseUrl, model, jsonPayload, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var statusCode = (int)response.StatusCode;
                     var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                    _logger.LogError("Gemini API call failed with StatusCode {StatusCode}: {ErrorBody}", statusCode, errorBody);
-                    return null;
+                    if (statusCode == StatusCodes.Status404NotFound
+                        && errorBody.Contains("no longer available", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(model, "gemini-3.8-flash", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogWarning(
+                            "Configured Gemini model {Model} is unavailable; retrying with gemini-3.8-flash.",
+                            model);
+                        response.Dispose();
+                        model = "gemini-3.8-flash";
+                        response = await SendRequestAsync(baseUrl, model, jsonPayload, cancellationToken);
+                    }
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        statusCode = (int)response.StatusCode;
+                        errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                        _logger.LogError(
+                            "Gemini API call failed for model {Model} with StatusCode {StatusCode}: {ErrorBody}",
+                            model,
+                            statusCode,
+                            errorBody);
+                        response.Dispose();
+                        return null;
+                    }
                 }
 
                 var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+                response.Dispose();
                 using var doc = JsonDocument.Parse(responseString);
 
                 if (doc.RootElement.TryGetProperty("candidates", out var candidates) &&
@@ -160,6 +177,22 @@ namespace Server.Services.Gemini
                 _logger.LogError(ex, "Unexpected exception during Gemini API call.");
                 return null;
             }
+        }
+
+        private async Task<HttpResponseMessage> SendRequestAsync(
+            string baseUrl,
+            string model,
+            string jsonPayload,
+            CancellationToken cancellationToken)
+        {
+            var endpoint = $"{baseUrl}/models/{model}:generateContent";
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            {
+                Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
+            };
+            request.Headers.TryAddWithoutValidation("x-goog-api-key", _apiKey);
+
+            return await _httpClient.SendAsync(request, cancellationToken);
         }
     }
 }
