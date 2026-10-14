@@ -945,6 +945,35 @@ namespace Server.Controllers
         [HttpPost("mp4-uploads/{uploadId:guid}/cancel")]
         public async Task<IActionResult> CancelMp4Upload(Guid uploadId, CancellationToken cancellationToken)
         {
+            if (_uploadProgress.TryGetProgress(uploadId, out var progress))
+            {
+                var stage = progress.Stage?.Trim().ToLowerInvariant();
+                if (stage == "complete")
+                {
+                    _logger.LogInformation("Ignored cancel request for completed MP4 upload {UploadId}", uploadId);
+                    return Ok(new
+                    {
+                        success = true,
+                        alreadyCompleted = true,
+                        message = "Phiên upload đã hoàn tất nên tài nguyên HLS được giữ lại."
+                    });
+                }
+
+                if (stage is "assembling" or "packaging" or "uploading-segments" or "saving")
+                {
+                    _logger.LogWarning(
+                        "Rejected cancel request for MP4 upload {UploadId} while stage is {Stage}",
+                        uploadId,
+                        stage);
+                    return StatusCode(StatusCodes.Status409Conflict, new
+                    {
+                        success = false,
+                        processing = true,
+                        message = "Server đang xử lý HLS. Không thể hủy và xóa tài nguyên trong giai đoạn này."
+                    });
+                }
+            }
+
             await CleanupUploadArtifactsAsync(uploadId, cancellationToken);
             return Ok(new { success = true });
         }

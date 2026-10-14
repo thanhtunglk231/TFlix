@@ -200,6 +200,35 @@
     </section>
 
     <!-- 5. SECTION: TOP 5 PHIM HÔM NAY (Numbered 1..5 Netflix Style) -->
+    <section class="tflix-section" id="series-latest-section">
+        <div class="section-header">
+            <div class="section-title-wrap">
+                <div class="section-icon-badge" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); color: #34d399;">
+                    <i class="bi bi-collection-play-fill"></i>
+                </div>
+                <h2 class="section-title">Phim bộ mới nhất</h2>
+            </div>
+            <div class="section-divider-line d-none d-md-block"></div>
+            <a class="btn-view-all" asp-controller="Series" asp-action="Index">
+                <span>Xem tất cả</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="movie-grid" id="seriesLatestWrap" aria-live="polite" aria-busy="true">
+            @for (int i = 0; i < 5; i++)
+            {
+                <div class="skeleton-card">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
     <section class="tflix-section" id="top5Section">
         <div class="section-header">
             <div class="section-title-wrap">
@@ -539,6 +568,7 @@
     <script>
         const isLoggedIn = @isLoggedIn.ToString().ToLower();
         const urlMoviesLatest = '@Url.Action("MoviesLatest", "Home")';
+        const urlSeriesLatest = '@Url.Action("SeriesLatest", "Home")';
         const fallbackPoster = '@fallbackImage';
 
         // Toast notifications
@@ -572,12 +602,13 @@
                 return;
             }
             const id = el.dataset.id;
+            const kind = el.dataset.kind || 'MOVIE';
             if (!id) return;
             if (!isLoggedIn) {
                 showLoginModal();
                 return;
             }
-            window.location.href = `/Preview/Details?id=${encodeURIComponent(id)}&kind=MOVIE`;
+            window.location.href = `/Preview/Details?id=${encodeURIComponent(id)}&kind=${encodeURIComponent(kind)}`;
         }
 
         // Quick View Modal
@@ -810,6 +841,87 @@
             });
         }
 
+        function escapeSeriesText(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[character]);
+        }
+
+        function renderSeriesLatest(list) {
+            const wrap = $('#seriesLatestWrap');
+            wrap.attr('aria-busy', 'false');
+
+            if (!list || list.length === 0) {
+                wrap.html('<div class="col-12 p-4 text-center text-muted bg-dark rounded-3 border border-secondary">Chưa có danh sách phim bộ mới nhất.</div>');
+                return;
+            }
+
+            wrap.html(list.map(x => {
+                const id = x.seriesId ?? x.SeriesId;
+                const title = escapeSeriesText(x.title ?? x.Title ?? 'Chưa có tên');
+                const originalTitle = escapeSeriesText(x.originalTitle ?? x.OriginalTitle ?? '');
+                const poster = escapeSeriesText(x.posterUrl ?? x.PosterUrl ?? fallbackPoster);
+                const genres = escapeSeriesText(x.genres ?? x.Genres ?? 'Phim bộ');
+                const airDate = x.latestAirDate ?? x.LatestAirDate ?? x.firstAirDate ?? x.FirstAirDate;
+                const parsedDate = airDate ? new Date(airDate) : null;
+                const year = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.getFullYear() : 'Mới';
+                const country = escapeSeriesText(x.countryCode ?? x.CountryCode ?? 'VN');
+                const episodeCount = Number(x.episodeCount ?? x.EpisodeCount ?? 0);
+                const ratingValue = Number(x.avgRating ?? x.AvgRating ?? 0);
+                const rating = ratingValue > 0 ? ratingValue.toFixed(1) : 'Mới';
+                const isPremium = (x.isPremium ?? x.IsPremium) === 'Y';
+
+                return `
+                <div class="movie-card-item"
+                     data-id="${escapeSeriesText(id)}"
+                     data-kind="SERIES"
+                     data-title="${title}"
+                     data-original-title="${originalTitle}"
+                     data-poster="${poster}"
+                     data-year="${year}"
+                     data-genres="${genres}"
+                     data-country="${country}"
+                     onclick="handleMovieCardClick(this, event)">
+                    <div class="movie-poster-wrap">
+                        <div class="card-badge-top-left">
+                            ${isPremium ? '<span class="badge-vip">VIP</span>' : ''}
+                            <span class="badge-quality">${episodeCount > 0 ? `${episodeCount} tập` : 'Phim bộ'}</span>
+                        </div>
+                        <img class="movie-poster-img" src="${poster}" alt="Poster ${title}" loading="lazy" onerror="this.src='${fallbackPoster}'" />
+                        <div class="card-hover-overlay">
+                            <div class="btn-play-circle" title="Xem chi tiết"><i class="bi bi-play-fill"></i></div>
+                        </div>
+                    </div>
+                    <div class="movie-card-body">
+                        <div class="movie-card-title">${title}</div>
+                        <div class="movie-card-original-title">${genres}</div>
+                        <div class="movie-card-meta">
+                            <span>${year} • ${country}</span>
+                            <span class="card-rating-tag"><i class="bi bi-star-fill text-warning"></i> ${rating}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join(''));
+        }
+
+        function loadSeriesLatest() {
+            $('#seriesLatestWrap').attr('aria-busy', 'true');
+            $.get(urlSeriesLatest, function (res) {
+                const list = res?.data ?? res?.Data ?? [];
+                renderSeriesLatest(Array.isArray(list) ? list : []);
+            }).fail(() => {
+                $('#seriesLatestWrap').attr('aria-busy', 'false').html(`
+                    <div class="col-12 p-4 text-center bg-dark rounded-3 border border-secondary text-muted">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-3 mb-2 d-block"></i>
+                        <p class="mb-2">Không thể tải danh sách phim bộ mới nhất.</p>
+                        <button type="button" class="btn-tflix-glass btn-sm" onclick="loadSeriesLatest()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Thử lại
+                        </button>
+                    </div>
+                `);
+            });
+        }
+
         // Client-side quick filter via Genre Chips
         window.handleGenreChipFilter = function(genreKey) {
             if (genreKey === 'all') {
@@ -849,6 +961,7 @@
 
         $(document).ready(function () {
             loadMoviesLatest();
+            loadSeriesLatest();
             syncFavoriteButtons();
         });
     </script>

@@ -11,12 +11,14 @@ namespace WebBrowser.Controllers
         private readonly IHomeService _homeService;
         private readonly IMovieService _movieService;
         private readonly IPaymentService _paymentService;
+        private readonly ISeriesService _seriesService;
 
-        public HomeController(IHomeService homeService, IMovieService movieService, IPaymentService paymentService)
+        public HomeController(IHomeService homeService, IMovieService movieService, IPaymentService paymentService, ISeriesService seriesService)
         {
             _homeService = homeService;
             _movieService = movieService;
             _paymentService = paymentService;
+            _seriesService = seriesService;
         }
 
         public async Task<IActionResult> Index()
@@ -68,6 +70,49 @@ namespace WebBrowser.Controllers
         {
             var result = await _homeService.get_Movie_Lastest_Item(); // ?? kh�ng tham s?
             return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SeriesLatest()
+        {
+            try
+            {
+                var result = await _seriesService.get_all();
+                if (result?.success != true || result.Data?.Table == null)
+                {
+                    return Json(new
+                    {
+                        code = result?.code ?? "500",
+                        success = false,
+                        message = result?.message ?? "Không thể tải phim bộ mới nhất.",
+                        data = Array.Empty<object>()
+                    });
+                }
+
+                var items = result.Data.Table
+                    .Where(x => x.Status == "PUBLISHED" || x.Status == "ONGOING" || x.Status == "ENDED")
+                    .OrderByDescending(x => x.LatestAirDate ?? x.UpdatedAt ?? x.LastAirDate ?? x.FirstAirDate ?? x.CreatedAt)
+                    .Take(8)
+                    .ToList();
+
+                return Json(new
+                {
+                    code = "200",
+                    success = true,
+                    message = "Lấy phim bộ mới nhất thành công.",
+                    data = items
+                });
+            }
+            catch (Exception)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    code = "500",
+                    success = false,
+                    message = "Đã xảy ra lỗi khi tải phim bộ mới nhất.",
+                    data = Array.Empty<object>()
+                });
+            }
         }
 
         [HttpGet]

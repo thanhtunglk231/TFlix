@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using System.Globalization;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -15,7 +16,10 @@ namespace DataServiceLib.Implements
             IConfiguration configuration,
             ILogger<FfmpegVideoTranscodingService> logger)
         {
-            _ffmpegPath = configuration["FFmpeg:Path"] ?? "ffmpeg";
+            _ffmpegPath = ResolveExecutablePath(
+                configuration["FFmpeg:Path"],
+                "FFMPEG_PATH",
+                OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
             _logger = logger;
         }
 
@@ -50,6 +54,7 @@ namespace DataServiceLib.Implements
             }
 
             using var process = new Process { StartInfo = startInfo };
+            var processStarted = false;
             var stopwatch = Stopwatch.StartNew();
             var duration = await GetDurationAsync(sourcePath, cancellationToken);
             _logger.LogInformation("Starting MP4-to-HLS packaging");
@@ -59,6 +64,7 @@ namespace DataServiceLib.Implements
                 if (!process.Start())
                     throw new InvalidOperationException("Không khởi động được FFmpeg.");
 
+                processStarted = true;
                 var standardErrorTask = process.StandardError.ReadToEndAsync(cancellationToken);
                 var progressTask = ReadProgressAsync(process.StandardOutput, duration, progress, cancellationToken);
 
@@ -79,22 +85,40 @@ namespace DataServiceLib.Implements
             }
             catch (Exception ex)
             {
-                if (!process.HasExited)
+                if (processStarted)
                 {
-                    try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                    try
+                    {
+                        if (!process.HasExited)
+                            process.Kill(entireProcessTree: true);
+                    }
+                    catch (InvalidOperationException) { /* process is no longer associated */ }
+                    catch (Exception killException)
+                    {
+                        _logger.LogWarning(killException, "Could not stop FFmpeg process after failure");
+                    }
                 }
                 _logger.LogError(ex, "MP4-to-HLS packaging failed");
+
+                if (!processStarted && ex is Win32Exception)
+                {
+                    throw new InvalidOperationException(
+                        $"Khong khoi dong duoc FFmpeg tai '{_ffmpegPath}'. " +
+                        "Hay cai FFmpeg tren server va them vao PATH, dat bien moi truong FFMPEG_PATH, " +
+                        "hoac cau hinh FFmpeg:Path tro den file thuc thi FFmpeg.",
+                        ex);
+                }
                 throw;
             }
         }
 
         private async Task<TimeSpan?> GetDurationAsync(string sourcePath, CancellationToken cancellationToken)
         {
-            var ffprobePath = Path.Combine(
-                Path.GetDirectoryName(_ffmpegPath) ?? string.Empty,
-                OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe");
-            if (string.IsNullOrWhiteSpace(Path.GetDirectoryName(_ffmpegPath)))
-                ffprobePath = OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe";
+            var ffprobeFileName = OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe";
+            var configuredDirectory = Path.GetDirectoryName(_ffmpegPath);
+            var ffprobePath = string.IsNullOrWhiteSpace(configuredDirectory)
+                ? ResolveExecutablePath(null, "FFPROBE_PATH", ffprobeFileName)
+                : Path.Combine(configuredDirectory, ffprobeFileName);
 
             var startInfo = new ProcessStartInfo
             {
@@ -124,6 +148,27 @@ namespace DataServiceLib.Implements
                 _logger.LogWarning(ex, "Could not determine video duration with FFprobe");
                 return null;
             }
+        }
+
+        private static string ResolveExecutablePath(
+            string? configuredPath,
+            string environmentVariable,
+            string executableName)
+        {
+            if (!string.IsNullOrWhiteSpace(configuredPath))
+                return configuredPath.Trim();
+
+            var environmentPath = Environment.GetEnvironmentVariable(environmentVariable);
+            if (!string.IsNullOrWhiteSpace(environmentPath))
+                return environmentPath.Trim();
+
+            var appLocalCandidates = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, executableName),
+                Path.Combine(AppContext.BaseDirectory, "ffmpeg", executableName),
+                Path.Combine(AppContext.BaseDirectory, "tools", "ffmpeg", executableName)
+            };
+            return appLocalCandidates.FirstOrDefault(File.Exists) ?? executableName;
         }
 
         private static async Task ReadProgressAsync(

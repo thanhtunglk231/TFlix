@@ -658,6 +658,8 @@
 
           let cache = [];     // full list
           let filtered = [];  // after filter
+          let movieLookupRequest = null;
+          let episodeLookupRequest = null;
           let page = 1;
           let resumeFileState = null;
           let browserFfmpeg = null;
@@ -775,6 +777,17 @@
               if (o?.[k] !== undefined && o?.[k] !== null) return o[k];
             }
             return undefined;
+          }
+          function uniqueById(list, idSelector){
+            const seen = new Set();
+            return (Array.isArray(list) ? list : []).filter(item=>{
+              const id = idSelector(item);
+              if (id === undefined || id === null || String(id).trim() === '') return false;
+              const key = String(id);
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
           }
 
           // Pagination helpers
@@ -939,29 +952,33 @@
             $ddl.empty().append(new Option('-- Chọn Movie --', '', false, false)).trigger('change');
             if (!urls.movies) return;
 
-            $.get(urls.movies, res=>{
-              pickList(res).forEach(m=>{
+            movieLookupRequest?.abort();
+            movieLookupRequest = $.get(urls.movies, res=>{
+              $ddl.find('option:not(:first)').remove();
+              uniqueById(pickList(res), m=>gv(m,'movieId','MovieId','moviE_ID')).forEach(m=>{
                 const id = gv(m,'movieId','MovieId','moviE_ID');
                 const title = gv(m,'title','Title') || `Movie #${id}`;
-                if (id!=null) $ddl.append(new Option(title, id, false, false));
+                $ddl.append(new Option(title, id, false, false));
               });
-              if (selectedId){ $ddl.val(String(selectedId)).trigger('change'); }
-            });
+              $ddl.val(selectedId != null ? String(selectedId) : '').trigger('change');
+            }).always(()=> { movieLookupRequest = null; });
           }
           function fillEpisodes(selectedId){
             const $ddl = $('#EpisodeId');
             $ddl.empty().append(new Option('-- Chọn Episode --', '', false, false)).trigger('change');
             if (!urls.eps) return;
 
-            $.get(urls.eps, res=>{
-              pickList(res).forEach(ep=>{
+            episodeLookupRequest?.abort();
+            episodeLookupRequest = $.get(urls.eps, res=>{
+              $ddl.find('option:not(:first)').remove();
+              uniqueById(pickList(res), ep=>gv(ep,'episodeId','EpisodeId','episodE_ID')).forEach(ep=>{
                 const id   = gv(ep,'episodeId','EpisodeId','episodE_ID');
                 const epNo = gv(ep,'episodeNo','EpisodeNo','episodE_NO');
                 const title= gv(ep,'episodeTitle','EpisodeTitle','title','Title') || `Episode #${id}`;
-                if (id!=null) $ddl.append(new Option(`E${epNo ?? ''} - ${title}`, id, false, false));
+                $ddl.append(new Option(`E${epNo ?? ''} - ${title}`, id, false, false));
               });
-              if (selectedId){ $ddl.val(String(selectedId)).trigger('change'); }
-            });
+              $ddl.val(selectedId != null ? String(selectedId) : '').trigger('change');
+            }).always(()=> { episodeLookupRequest = null; });
           }
 
           function toggleTypeUI(){
@@ -1516,6 +1533,8 @@
             let uploadedChunks = new Set();
             let stopProgressPolling = false;
             let progressPollTask = null;
+            let completionStarted = false;
+            let getStatus = null;
 
             try {
               const fileFingerprint = await createMp4Fingerprint(file);
@@ -1523,7 +1542,7 @@
               uploadId = localStorage.getItem(sessionKey) || crypto.randomUUID();
               localStorage.setItem(sessionKey, uploadId);
 
-              const getStatus = async currentUploadId => $.ajax({
+              getStatus = async currentUploadId => $.ajax({
                 url: `${urls.mp4UploadStatus}?uploadId=${encodeURIComponent(currentUploadId)}&fileFingerprint=${encodeURIComponent(fileFingerprint)}`,
                 type: 'GET'
               });
@@ -1639,6 +1658,7 @@
               const completePayload = { ...payload, FileName: file.name, TotalChunks: totalChunks };
               if (sourceId) completePayload.SourceId = sourceId;
               if (oldStreamUrl) completePayload.OldStreamUrl = oldStreamUrl;
+              completionStarted = true;
               const result = await $.ajax({
                 url: completeUrl,
                 type: 'POST',
@@ -1664,6 +1684,69 @@
             } catch (xhr){
               const detail = xhr?.responseJSON?.message || xhr?.responseText || xhr?.message || 'Mạng bị ngắt hoặc server gặp lỗi.';
               const sessionExpired = xhr?.status === 401 || xhr?.status === 403;
+              if (completionStarted && !sessionExpired && uploadId){
+                stopProgressPolling = true;
+                if (progressPollTask) await progressPollTask;
+                progressPollTask = null;
+
+                showUploadProgress(
+                  'Server đang hoàn tất HLS',
+                  'Kết nối qua Cloudflare đã hết thời gian chờ. Đang kiểm tra kết quả từ server...',
+                  95,
+                  true);
+
+                let finalProgress = null;
+                for (let attempt = 0; attempt < 300; attempt++){
+                  try {
+                    const status = await getStatus(uploadId);
+                    const progress = status.progress ?? status.Progress ?? {};
+                    const stage = String(progress.stage ?? progress.Stage ?? '').toLowerCase();
+                    if (stage === 'complete'){
+                      finalProgress = { complete: true };
+                      break;
+                    }
+                    if (stage === 'failed'){
+                      finalProgress = {
+                        complete: false,
+                        failed: true,
+                        message: progress.message ?? progress.Message
+                      };
+                      break;
+                    }
+                  } catch {
+                    // Keep checking through temporary Cloudflare/network interruptions.
+                  }
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+
+                if (finalProgress?.complete){
+                  if (sessionKey) localStorage.removeItem(sessionKey);
+                  showUploadProgress('Hoàn tất', 'Server đã chuyển đổi và lưu HLS thành công.', 100);
+                  loadAll();
+                  closeSourceAndShowUploadResult(
+                    true,
+                    'Upload thành công',
+                    sourceId
+                      ? 'Đã thay nguồn bằng HLS mới và lưu thành công.'
+                      : 'Đã upload MP4, chuyển đổi HLS và lưu nguồn video thành công.');
+                  return;
+                }
+
+                if (finalProgress?.failed){
+                  if (sessionKey) localStorage.removeItem(sessionKey);
+                  const serverMessage = finalProgress.message || 'Server không thể hoàn tất quá trình chuyển đổi HLS.';
+                  showToast(serverMessage, false, 8000);
+                  showUploadResultPopup(false, 'Xử lý HLS thất bại', serverMessage);
+                  return;
+                }
+
+                showToast('Server vẫn đang xử lý HLS. Không hủy phiên để tránh xóa video đã upload.', false, 9000);
+                showUploadResultPopup(
+                  false,
+                  'HLS vẫn đang được xử lý',
+                  'Cloudflare đã hết thời gian chờ nhưng server chưa báo lỗi. Tài nguyên được giữ nguyên; vui lòng tải lại danh sách sau ít phút.');
+                return;
+              }
               const canResume = xhr?.status === 0 && uploadId && uploadedChunks.size > 0 && uploadedChunks.size < totalChunks;
               let cleanupMessage = canResume
                 ? `Đã giữ ${uploadedChunks.size}/${totalChunks} phần trên server. Chọn lại đúng file để Resume.`
@@ -2051,26 +2134,6 @@
             $('#EpisodeId').html('<option value="">-- Chọn Episode --</option>').trigger('change');
 
             // Nạp dữ liệu dropdown (không chặn UI)
-            $.get(urls.movies, res=>{
-              const $ddl = $('#MovieId');
-              pickList(res).forEach(m=>{
-                const id = gv(m,'movieId','MovieId','moviE_ID');
-                const title = gv(m,'title','Title') || `Movie #${id}`;
-                if (id!=null) $ddl.append(new Option(title, id, false, false));
-              });
-              $ddl.trigger('change');
-            });
-            $.get(urls.eps, res=>{
-              const $ddl = $('#EpisodeId');
-              pickList(res).forEach(ep=>{
-                const id   = gv(ep,'episodeId','EpisodeId','episodE_ID');
-                const epNo = gv(ep,'episodeNo','EpisodeNo','episodE_NO');
-                const title= gv(ep,'episodeTitle','EpisodeTitle','title','Title') || `Episode #${id}`;
-                if (id!=null) $ddl.append(new Option(`E${epNo ?? ''} - ${title}`, id, false, false));
-              });
-              $ddl.trigger('change');
-            });
-
             loadAll();
           })();
         })();
