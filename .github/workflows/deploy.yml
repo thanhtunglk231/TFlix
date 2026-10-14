@@ -66,5 +66,6 @@ jobs:
 
           Deploy-App "${{ runner.temp }}\tflix-frontend" "C:\Sites\DotnetAppBrowser\publish"
           Deploy-App "${{ runner.temp }}\tflix-api" "C:\Sites\Server\publish"
-
+      
           Write-Host "TFlix deployment completed!"
+          exit 0
