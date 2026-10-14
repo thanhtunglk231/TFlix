@@ -27,6 +27,12 @@ namespace WebBrowser.Areas.Admin.Controllers
         [HttpGet("owners")]
         public async Task<IActionResult> GetOwners() => Ok(await _assetService.get_owners());
 
+        [HttpGet("owner/{ownerType}/{ownerId:long}")]
+        public async Task<IActionResult> GetByOwner(string ownerType, long ownerId)
+            => ownerId <= 0 || !IsValidOwnerType(ownerType)
+                ? BadRequest(new { code = "400", message = "Loại nội dung hoặc mã nội dung không hợp lệ." })
+                : Ok(await _assetService.getByOwner(ownerId, ownerType.ToUpperInvariant()));
+
         [HttpGet("{id:decimal}")]
         public async Task<IActionResult> GetById(decimal id, [FromQuery] string ownerType = "MOVIE")
             => id <= 0 ? BadRequest(new { code = "400", message = "AssetId không hợp lệ." }) : Ok(await _assetService.getByid(id, ownerType));

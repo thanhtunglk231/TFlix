@@ -11,6 +11,7 @@ namespace DataServiceLib.Interfaces
         Task<CResponseMessage> sp_get_all(int pageSize = 25, string? cursorOwnerType = null, long? cursorAssetId = null, string? ownerType = null);
         Task<CResponseMessage> sp_get_by_id(decimal id, string ownerType = "MOVIE");
         Task<CResponseMessage> GetOwners();
+        Task<CResponseMessage> GetByOwner(long ownerId, string ownerType);
         Task<CResponseMessage> Update_episode(UpdateMovieAssetDto dto);
     }
 }

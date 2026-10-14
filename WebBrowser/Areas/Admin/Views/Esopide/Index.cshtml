@@ -880,11 +880,11 @@
             return id ? Number(id) : null;
           }
           function fillAssetForm(a){
-            $('#Asset_Id').val(a?.AssetId ?? a?.asseT_ID ?? '');
-            $('#Asset_EpisodeId').val(a?.EpisodeId ?? a?.episodE_ID ?? getCurrentEpisodeId() ?? '');
-            $('#Asset_Type').val(a?.AssetType ?? a?.asseT_TYPE ?? 'THUMB');
+            $('#Asset_Id').val(a?.assetId ?? a?.AssetId ?? a?.asseT_ID ?? '');
+            $('#Asset_EpisodeId').val(a?.ownerId ?? a?.OwnerId ?? a?.EpisodeId ?? a?.episodE_ID ?? getCurrentEpisodeId() ?? '');
+            $('#Asset_Type').val(a?.assetType ?? a?.AssetType ?? a?.asseT_TYPE ?? 'THUMB');
             $('#Asset_Url').val(a?.Url ?? a?.url ?? '');
-            $('#Asset_Sort').val(a?.SortOrder ?? a?.sorT_ORDER ?? 0);
+            $('#Asset_Sort').val(a?.sortOrder ?? a?.SortOrder ?? a?.sorT_ORDER ?? 0);
             $('#Asset_File').val('');
           }
           function resetAssetForm(){
@@ -923,10 +923,10 @@
 
                 function renderAssetRows(){
           const savedRows = (assetCache || []).map(a => {
-            const id  = a?.asseT_ID ?? a?.AssetId;
-            const typ = a?.asseT_TYPE ?? a?.AssetType ?? '';
+            const id  = a?.assetId ?? a?.AssetId ?? a?.asseT_ID;
+            const typ = a?.assetType ?? a?.AssetType ?? a?.asseT_TYPE ?? '';
             const url = (a?.url ?? a?.Url ?? '').trim();
-            const srt = a?.sorT_ORDER ?? a?.SortOrder ?? 0;
+            const srt = a?.sortOrder ?? a?.SortOrder ?? a?.sorT_ORDER ?? 0;
 
             // thumbnail
             let thumbHtml = '';
@@ -1092,7 +1092,7 @@
           function deleteAsset(id){
             if(!confirm(`Xóa tài nguyên #${id}?`)) return;
             const epId = getCurrentEpisodeId();
-            const a = assetCache.find(x => String(x?.asseT_ID ?? x?.AssetId) === String(id));
+            const a = assetCache.find(x => String(x?.assetId ?? x?.AssetId ?? x?.asseT_ID) === String(id));
             const oldUrl = a ? (a.url ?? a.Url ?? '') : '';
 
             showLoading();
@@ -1110,7 +1110,7 @@
               const ok = res && (res.success === true || res.code === "200");
               if(ok){
                 // cập nhật nhanh local hoặc reload lại
-                assetCache = assetCache.filter(x => String(x?.asseT_ID ?? x?.AssetId) !== String(id));
+                assetCache = assetCache.filter(x => String(x?.assetId ?? x?.AssetId ?? x?.asseT_ID) !== String(id));
                 renderAssetRows();
                 // reloadAssetsFor(epId); // nếu muốn chắc chắn đồng bộ
                 showToast("Đã xóa tài nguyên", true);
@@ -1173,12 +1173,12 @@
           $('#btnAssetReset').on('click', resetAssetForm);
           $assetTbody.on('click', '.btn-asset-edit', function(){
             const id = $(this).data('id');
-            const a = assetCache.find(x => String(x?.asseT_ID ?? x?.AssetId) === String(id));
+            const a = assetCache.find(x => String(x?.assetId ?? x?.AssetId ?? x?.asseT_ID) === String(id));
             if(!a){ showToast("Không tìm thấy tài nguyên.", false); return; }
             fillAssetForm({
-              AssetId  : a?.AssetId ?? a?.asseT_ID,
-              EpisodeId: a?.EpisodeId ?? a?.episodE_ID,
-              AssetType: a?.AssetType ?? a?.asseT_TYPE,
+              AssetId  : a?.assetId ?? a?.AssetId ?? a?.asseT_ID,
+              EpisodeId: a?.ownerId ?? a?.OwnerId ?? a?.EpisodeId ?? a?.episodE_ID,
+              AssetType: a?.assetType ?? a?.AssetType ?? a?.asseT_TYPE,
               Url      : a?.Url ?? a?.url,
               SortOrder: a?.SortOrder ?? a?.sorT_ORDER
             });

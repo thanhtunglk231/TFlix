@@ -22,6 +22,53 @@ namespace DataServiceLib.Implements.Admin.Movies
         public Task<CResponseMessage> sp_get_all(int pageSize = 25, string? cursorOwnerType = null, long? cursorAssetId = null, string? ownerType = null)
             => ExecuteAsync("GET_ALL", ownerType, pageSize: pageSize, cursorOwnerType: cursorOwnerType, cursorAssetId: cursorAssetId);
         public Task<CResponseMessage> GetOwners() => ExecuteAsync("GET_OWNERS");
+        public async Task<CResponseMessage> GetByOwner(long ownerId, string ownerType)
+        {
+            var normalizedOwnerType = ownerType.Trim().ToUpperInvariant();
+            var (tableName, ownerColumn) = normalizedOwnerType switch
+            {
+                "MOVIE" => ("dbo.movie_assets", "movie_id"),
+                "SERIES" => ("dbo.series_assets", "series_id"),
+                "EPISODE" => ("dbo.episode_assets", "episode_id"),
+                _ => (string.Empty, string.Empty)
+            };
+
+            if (ownerId <= 0 || string.IsNullOrEmpty(tableName))
+                return new CResponseMessage { Success = false, code = "400", message = "Loại nội dung hoặc mã nội dung không hợp lệ." };
+
+            try
+            {
+                await using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = $"""
+                    SELECT asset_id AS AssetId, @ownerType AS OwnerType, {ownerColumn} AS OwnerId,
+                           asset_type AS AssetType, url AS Url, sort_order AS SortOrder
+                    FROM {tableName}
+                    WHERE {ownerColumn} = @ownerId
+                    ORDER BY sort_order, asset_id;
+                    """;
+                command.Parameters.Add(new SqlParameter("@ownerType", SqlDbType.NVarChar, 20) { Value = normalizedOwnerType });
+                command.Parameters.Add(new SqlParameter("@ownerId", SqlDbType.BigInt) { Value = ownerId });
+
+                await using var reader = await command.ExecuteReaderAsync();
+                var table = new DataTable("Table");
+                table.Load(reader);
+                var dataSet = new DataSet();
+                dataSet.Tables.Add(table);
+                return new CResponseMessage
+                {
+                    Success = true,
+                    code = "200",
+                    message = "Lấy danh sách tài nguyên thành công.",
+                    Data = dataSet
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage { Success = false, code = "500", message = "Lỗi tải tài nguyên: " + ex.Message };
+            }
+        }
         public Task<CResponseMessage> sp_get_by_id(decimal id, string ownerType = "MOVIE")
             => ExecuteAsync("GET_BY_ID", ownerType, assetId: id);
         public Task<CResponseMessage> Add(AddMovieAssetDto dto)

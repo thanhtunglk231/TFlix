@@ -89,6 +89,14 @@ namespace WebBrowser.Services.Implements.Movies
             return resp;
         }
 
+        public async Task<ApiResponse<MovieAssetTableWrapper>> getByOwner(long ownerId, string ownerType)
+        {
+            var url = $"/api/MovieAsset/owner/{Uri.EscapeDataString(ownerType)}/{ownerId}";
+            var resp = await _httpService.GetAsync<ApiResponse<MovieAssetTableWrapper>>(url);
+            resp.success = resp.success || resp.code == "200";
+            return resp;
+        }
+
         // ========== 4) GET ALL ==========
         public async Task<ApiResponse<MovieAssetTableWrapper>> get_all(int pageSize = 25, string? cursorOwnerType = null, long? cursorAssetId = null, string? ownerType = null)
         {

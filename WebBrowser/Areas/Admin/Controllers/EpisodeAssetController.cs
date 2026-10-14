@@ -1,4 +1,4 @@
-using CoreLib.Dtos.EpisodeAsset;
+using CoreLib.Dtos.MovieAsset;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBrowser.Services.Interfaces;
@@ -8,12 +8,12 @@ namespace WebBrowser.Areas.Admin.Controllers
     [Route("Admin/[controller]")]
     public class EpisodeAssetController : AdminBaseController
     {
-        private readonly IEpisodeAsset _episodeAsset;
+        private readonly IMovieAssetService _assetService;
         private readonly ILogger<EpisodeAssetController> _logger;
 
-        public EpisodeAssetController(IEpisodeAsset episodeAsset, ILogger<EpisodeAssetController> logger)
+        public EpisodeAssetController(IMovieAssetService assetService, ILogger<EpisodeAssetController> logger)
         {
-            _episodeAsset = episodeAsset;
+            _assetService = assetService;
             _logger = logger;
         }
 
@@ -26,7 +26,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         public async Task<IActionResult> GetAll()
         {
             _logger.LogInformation("[Admin/EpisodeAsset] -> GetAll ENTER");
-            var result = await _episodeAsset.get_all();
+            var result = await _assetService.get_all(100, ownerType: "EPISODE");
             _logger.LogInformation("[Admin/EpisodeAsset] <- GetAll EXIT: {json}", JsonConvert.SerializeObject(result));
             return Ok(result);
         }
@@ -39,7 +39,7 @@ namespace WebBrowser.Areas.Admin.Controllers
             if (id <= 0) return BadRequest(new { code = "400", message = "Invalid id." });
 
             _logger.LogInformation("[Admin/EpisodeAsset] -> GetById ENTER, id={id}", id);
-            var result = await _episodeAsset.getByid(id);
+            var result = await _assetService.getByOwner(decimal.ToInt64(id), "EPISODE");
             _logger.LogInformation("[Admin/EpisodeAsset] <- GetById EXIT: {json}", JsonConvert.SerializeObject(result));
             return Ok(result);
         }
@@ -62,15 +62,16 @@ namespace WebBrowser.Areas.Admin.Controllers
             if (EpisodeId is null or <= 0 || string.IsNullOrWhiteSpace(AssetType))
                 return BadRequest(new { code = "400", message = "Thiếu EpisodeId/AssetType." });
 
-            var dto = new AddEpisodeAsset
+            var dto = new AddMovieAssetDto
             {
-                EpisodeId = EpisodeId.Value,
+                OwnerId = decimal.ToInt64(EpisodeId.Value),
+                OwnerType = "EPISODE",
                 AssetType = AssetType,
                 SortOrder = SortOrder ?? 0
                 // Url do API backend sinh sau khi upload
             };
 
-            var result = await _episodeAsset.add_Episode(file, dto);
+            var result = await _assetService.add_MovieAsset(file, dto);
             _logger.LogInformation("[Admin/EpisodeAsset] <- Add EXIT: {json}", JsonConvert.SerializeObject(result));
             return Ok(result);
         }
@@ -94,10 +95,11 @@ namespace WebBrowser.Areas.Admin.Controllers
             if (EpisodeId is null or <= 0 || string.IsNullOrWhiteSpace(AssetType))
                 return BadRequest(new { code = "400", message = "Thiếu EpisodeId/AssetType." });
 
-            var dto = new UpdateEpisodeAsset
+            var dto = new UpdateMovieAssetDto
             {
                 AssetId = id,
-                EpisodeId = EpisodeId.Value,
+                OwnerId = decimal.ToInt64(EpisodeId.Value),
+                OwnerType = "EPISODE",
                 AssetType = AssetType,
                 SortOrder = SortOrder ?? 0,
                 // dùng tạm Url để chuyển OldUrl sang service (service sẽ map thành field OldUrl trong form)
@@ -106,7 +108,9 @@ namespace WebBrowser.Areas.Admin.Controllers
 
             // Lưu ý: API backend hiện là POST /api/EpisodeAsset/{id}/replace-file (not PUT).
             // Service _episodeAsset.uppdate(...) sẽ gọi đúng route này.
-            var result = await _episodeAsset.uppdate(id, file!, dto);
+            if (file is null || file.Length == 0)
+                return BadRequest(new { code = "400", message = "Vui lòng chọn file thay thế." });
+            var result = await _assetService.replaceFile(id, file, dto, OldUrl);
             _logger.LogInformation("[Admin/EpisodeAsset] <- ReplaceFile EXIT: {json}", JsonConvert.SerializeObject(result));
             return Ok(result);
         }
@@ -119,9 +123,20 @@ namespace WebBrowser.Areas.Admin.Controllers
             _logger.LogInformation("[Admin/EpisodeAsset] -> Delete ENTER, id={id}", id);
             if (id <= 0) return BadRequest(new { code = "400", message = "Invalid id." });
 
-            var result = await _episodeAsset.delete(id, url);
+            var result = await _assetService.delete(id, "EPISODE", url);
             _logger.LogInformation("[Admin/EpisodeAsset] <- Delete EXIT: {json}", JsonConvert.SerializeObject(result));
             return Ok(result);
         }
+
+        [HttpPost("Update")]
+        [DisableRequestSizeLimit]
+        public Task<IActionResult> Update([FromForm] decimal id, [FromForm(Name = "file")] IFormFile? file,
+            [FromForm] decimal? EpisodeId, [FromForm] string? AssetType,
+            [FromForm] int? SortOrder, [FromForm] string? OldUrl)
+            => ReplaceFile(id, file, EpisodeId, AssetType, SortOrder, OldUrl);
+
+        [HttpDelete("Delete")]
+        public Task<IActionResult> DeleteByQuery([FromQuery] decimal id, [FromQuery] string? url = null)
+            => Delete(id, url);
     }
 }

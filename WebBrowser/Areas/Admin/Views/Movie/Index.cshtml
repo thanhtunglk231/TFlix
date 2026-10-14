@@ -859,7 +859,7 @@
                     return Promise.resolve(assetCache);
                 }
 
-                return $.get(`${urls.asset.root}/${movieId}`).then(res => {
+                return $.get(`${urls.asset.root}/owner/MOVIE/${movieId}`).then(res => {
                     assetCache = pickList(res);
                     return assetCache;
                 });
@@ -867,7 +867,7 @@
 
             function renderAssetRows(movieId) {
                 const savedRows = (assetCache || [])
-                    .filter(a => String(a?.movieId ?? a?.MovieId ?? '') === String(movieId))
+                    .filter(a => String(a?.ownerId ?? a?.OwnerId ?? a?.movieId ?? a?.MovieId ?? '') === String(movieId))
                     .map(a => {
                         const id = a?.assetId ?? a?.AssetId ?? a?.asseT_ID;
                         const typ = a?.assetType ?? a?.AssetType ?? a?.asseT_TYPE ?? '';
