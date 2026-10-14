@@ -1,0 +1,70 @@
+
+name: Deploy TFlix to AWS EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tflix-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Windows, X64]
+
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Check .NET SDK
+        run: dotnet --version
+
+      - name: Publish Frontend
+        run: |
+          dotnet publish ./WebBrowser/WebBrowser.csproj -c Release -o "${{ runner.temp }}\tflix-frontend"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish API
+        run: |
+          dotnet publish ./Server/Server.csproj -c Release -o "${{ runner.temp }}\tflix-api"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Deploy Frontend and API
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          function Deploy-App($source, $target) {
+            if (!(Test-Path $target)) {
+              throw "Target not found: $target"
+            }
+
+            $offline = Join-Path $target "app_offline.htm"
+
+            try {
+              Set-Content $offline "Deployment in progress"
+              Start-Sleep -Seconds 10
+
+              & robocopy $source $target /E /R:3 /W:2 /XF appsettings.json appsettings.Production.json web.config app_offline.htm
+
+              if ($LASTEXITCODE -ge 8) {
+                throw "Robocopy failed: $LASTEXITCODE"
+              }
+            }
+            finally {
+              Remove-Item $offline -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          Deploy-App "${{ runner.temp }}\tflix-frontend" "C:\Sites\DotnetAppBrowser\publish"
+          Deploy-App "${{ runner.temp }}\tflix-api" "C:\Sites\Server\publish"
+
+          Write-Host "TFlix deployment completed!"
