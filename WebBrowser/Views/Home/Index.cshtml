@@ -595,6 +595,17 @@
             }
         }
 
+        function toSeoSlug(value) {
+            return (value || 'noi-dung')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd')
+                .replace(/Đ/g, 'd')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'noi-dung';
+        }
+
         // Movie Card Click -> Navigate to Watch / Details
         function handleMovieCardClick(el, event) {
             const evt = event || window.event;
@@ -603,12 +614,14 @@
             }
             const id = el.dataset.id;
             const kind = el.dataset.kind || 'MOVIE';
+            const title = el.dataset.title || 'noi-dung';
             if (!id) return;
             if (!isLoggedIn) {
                 showLoginModal();
                 return;
             }
-            window.location.href = `/Preview/Details?id=${encodeURIComponent(id)}&kind=${encodeURIComponent(kind)}`;
+            const prefix = String(kind).toUpperCase() === 'SERIES' ? '/phim-bo/' : '/phim/';
+            window.location.href = `${prefix}${toSeoSlug(title)}-${encodeURIComponent(id)}`;
         }
 
         // Quick View Modal
@@ -650,8 +663,11 @@
             });
 
             // Action buttons
-            document.getElementById('modalWatchBtn').href = `/Film/Watch?id=${encodeURIComponent(id)}&kind=MOVIE`;
-            document.getElementById('modalDetailBtn').href = `/Preview/Details?id=${encodeURIComponent(id)}&kind=MOVIE`;
+            const kind = card.dataset.kind || 'MOVIE';
+            const isSeries = String(kind).toUpperCase() === 'SERIES';
+            const slug = toSeoSlug(title);
+            document.getElementById('modalWatchBtn').href = `${isSeries ? '/xem-phim-bo/' : '/xem-phim/'}${slug}-${encodeURIComponent(id)}`;
+            document.getElementById('modalDetailBtn').href = `${isSeries ? '/phim-bo/' : '/phim/'}${slug}-${encodeURIComponent(id)}`;
             
             const favBtn = document.getElementById('modalFavBtn');
             const isFav = localStorage.getItem(`tflix_fav_${id}`) === 'true';

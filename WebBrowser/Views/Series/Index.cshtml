@@ -472,7 +472,8 @@
             {
                 int sId = series.SeriesId;
                 string posterSrc = string.IsNullOrWhiteSpace(series.PosterUrl) ? fallbackPoster : series.PosterUrl;
-                string watchUrl = $"/Film/Watch?id={sId}&kind=series";
+                string watchUrl = Url.RouteUrl("series-watch", new { slug = SeoUrlHelper.ToSlug(series.Title), id = sId })
+                    ?? $"/Film/Watch?id={sId}&kind=series";
                 bool isVip = string.Equals(series.IsPremium, "Y", StringComparison.OrdinalIgnoreCase);
 
                 <div class="col">

@@ -27,6 +27,7 @@
         ? Model.ContentId
         : content.MovieId > 0 ? content.MovieId : (long)content.ContentId;
     var movieTitle = content.title ?? content.OriginalTitle ?? "Đang cập nhật";
+    var contentSlug = SeoUrlHelper.ToSlug(movieTitle);
     var originalTitle = content.OriginalTitle ?? content.title ?? "";
     var movieYear = content.ReleaseOrAirDate?.Year ?? 2024;
     var movieGenres = content.genres ?? "Hành động, Phiêu lưu";
@@ -42,6 +43,12 @@
     var description = content.OverviewText ?? "Theo dõi những diễn biến kịch tính và hấp dẫn nhất trong tác phẩm điện ảnh đỉnh cao, được phát sóng độc quyền với chất lượng chuẩn 4K Ultra HD trên nền tảng TFlix.";
 
     var currentEpisodeId = Model.CurrentEpisodeId;
+    var watchRouteName = isSeries
+        ? (currentEpisodeId.HasValue ? "series-watch-episode" : "series-watch")
+        : "movie-watch";
+    var canonicalPath = Url.RouteUrl(watchRouteName, new { slug = contentSlug, id = contentId, episodeId = currentEpisodeId });
+    if (!string.IsNullOrWhiteSpace(canonicalPath))
+        ViewData["CanonicalUrl"] = $"{Context.Request.Scheme}://{Context.Request.Host}{canonicalPath}";
     var currentEpisode = Model.Episodes.FirstOrDefault(x => x.EpisodeId == currentEpisodeId);
     var currentSources = Model.Sources
         .Where(x => currentEpisodeId.HasValue

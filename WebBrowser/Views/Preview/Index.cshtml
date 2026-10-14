@@ -68,7 +68,14 @@
 
     var watchId = (item?.ContentId > 0) ? (long)item.ContentId : ((item?.Id > 0) ? item.Id : (item?.MovieId ?? 0));
     var watchKind = !string.IsNullOrWhiteSpace(item?.kind) ? item.kind : "MOVIE";
-    var watchUrl = Url.Action("Watch", "Film", new { id = watchId, kind = watchKind }) ?? $"/Film/Watch?id={watchId}&kind={watchKind}";
+    var contentSlug = SeoUrlHelper.ToSlug(title);
+    var isSeriesContent = string.Equals(watchKind, "SERIES", StringComparison.OrdinalIgnoreCase);
+    var watchUrl = Url.RouteUrl(isSeriesContent ? "series-watch" : "movie-watch", new { slug = contentSlug, id = watchId })
+        ?? $"/Film/Watch?id={watchId}&kind={watchKind}";
+    var canonicalPath = Url.RouteUrl(isSeriesContent ? "series-details" : "movie-details", new { slug = contentSlug, id = watchId });
+    if (!string.IsNullOrWhiteSpace(canonicalPath))
+        ViewData["CanonicalUrl"] = $"{Context.Request.Scheme}://{Context.Request.Host}{canonicalPath}";
+    ViewData["Title"] = $"{title} · TFlix";
 }
 
 @section Styles {
@@ -911,8 +918,9 @@
                 @foreach (var sItem in Model.SeriesMovies)
                 {
                     var sPoster = !string.IsNullOrWhiteSpace(sItem.PosterUrl) ? sItem.PosterUrl : "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
-                    var sUrl = Url.Action("Details", "Preview", new { id = sItem.SeriesId, kind = "SERIES" }) ?? $"/Preview/Details?id={sItem.SeriesId}&kind=SERIES";
-                    var sWatch = Url.Action("Watch", "Film", new { id = sItem.SeriesId, kind = "SERIES" }) ?? $"/Film/Watch?id={sItem.SeriesId}&kind=SERIES";
+                    var sSlug = SeoUrlHelper.ToSlug(sItem.Title);
+                    var sUrl = Url.RouteUrl("series-details", new { slug = sSlug, id = sItem.SeriesId }) ?? $"/Preview/Details?id={sItem.SeriesId}&kind=SERIES";
+                    var sWatch = Url.RouteUrl("series-watch", new { slug = sSlug, id = sItem.SeriesId }) ?? $"/Film/Watch?id={sItem.SeriesId}&kind=SERIES";
                     var isVip = string.Equals(sItem.IsPremium, "Y", StringComparison.OrdinalIgnoreCase);
                     var sRating = sItem.AvgRating.HasValue && sItem.AvgRating.Value > 0 ? sItem.AvgRating.Value.ToString("0.0") : "8.5";
 
@@ -985,8 +993,9 @@
                 @foreach (var mItem in Model.SingleMovies)
                 {
                     var mPoster = !string.IsNullOrWhiteSpace(mItem.PosterUrl) ? mItem.PosterUrl : "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
-                    var mUrl = Url.Action("Details", "Preview", new { id = mItem.MovieId, kind = "movie" }) ?? $"/Preview/Details?id={mItem.MovieId}&kind=movie";
-                    var mWatch = Url.Action("Watch", "Film", new { id = mItem.MovieId, kind = "movie" }) ?? $"/Film/Watch?id={mItem.MovieId}&kind=movie";
+                    var mSlug = SeoUrlHelper.ToSlug(mItem.Title);
+                    var mUrl = Url.RouteUrl("movie-details", new { slug = mSlug, id = mItem.MovieId }) ?? $"/Preview/Details?id={mItem.MovieId}&kind=movie";
+                    var mWatch = Url.RouteUrl("movie-watch", new { slug = mSlug, id = mItem.MovieId }) ?? $"/Film/Watch?id={mItem.MovieId}&kind=movie";
                     var mRating = mItem.AvgRating.HasValue && mItem.AvgRating.Value > 0 ? mItem.AvgRating.Value.ToString("0.0") : "8.5";
 
                     <div class="col">

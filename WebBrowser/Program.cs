@@ -314,6 +314,34 @@ app.UseAuthorization();
 app.MapHub<WebBrowser.Hubs.CommentHub>("/commentHub");
 app.MapHub<WebBrowser.Hubs.SupportChatHub>("/supportChatHub");
 app.MapControllerRoute(
+    name: "movie-details",
+    pattern: "phim/{slug}-{id:int}",
+    defaults: new { controller = "Preview", action = "Details", kind = "MOVIE" });
+app.MapControllerRoute(
+    name: "series-details",
+    pattern: "phim-bo/{slug}-{id:int}",
+    defaults: new { controller = "Preview", action = "Details", kind = "SERIES" });
+app.MapControllerRoute(
+    name: "movie-watch",
+    pattern: "xem-phim/{slug}-{id:long}",
+    defaults: new { controller = "Film", action = "Watch", kind = "MOVIE" });
+app.MapControllerRoute(
+    name: "series-watch-episode",
+    pattern: "xem-phim-bo/{slug}-{id:long}/tap-{episodeId:long}",
+    defaults: new { controller = "Film", action = "Watch", kind = "SERIES" });
+app.MapControllerRoute(
+    name: "series-watch",
+    pattern: "xem-phim-bo/{slug}-{id:long}",
+    defaults: new { controller = "Film", action = "Watch", kind = "SERIES" });
+app.MapControllerRoute(
+    name: "movie-catalog",
+    pattern: "phim",
+    defaults: new { controller = "Movies", action = "Index", type = "movie" });
+app.MapControllerRoute(
+    name: "series-catalog",
+    pattern: "phim-bo",
+    defaults: new { controller = "Series", action = "Index" });
+app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 app.MapControllerRoute(

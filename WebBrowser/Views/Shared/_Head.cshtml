@@ -4,6 +4,11 @@
 <meta name="description" content="TFlix – Nền tảng xem phim trực tuyến hàng đầu, chất lượng Full HD & 4K siêu nét." />
 <meta name="keywords" content="xem phim, tflix, phim chieu rap, phim hanh dong, phim bo, phim le, phim moi" />
 <meta name="theme-color" content="#111318" />
+@if (ViewData["CanonicalUrl"] is string canonicalUrl && !string.IsNullOrWhiteSpace(canonicalUrl))
+{
+    <link rel="canonical" href="@canonicalUrl" />
+    <meta property="og:url" content="@canonicalUrl" />
+}
 
 <!-- Google Fonts: Plus Jakarta Sans & Inter -->
 <link rel="preconnect" href="https://fonts.googleapis.com">

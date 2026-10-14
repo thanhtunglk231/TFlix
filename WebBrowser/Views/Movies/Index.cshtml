@@ -311,7 +311,9 @@
                 long mId = Convert.ToInt64(movie.MovieId);
                 string posterSrc = string.IsNullOrWhiteSpace(movie.PosterUrl) ? fallbackPoster : movie.PosterUrl;
                 bool isSeries = string.Equals(movie.ContentType, "SERIES", StringComparison.OrdinalIgnoreCase);
-                string watchUrl = isSeries ? $"/Film/Watch?id={mId}&kind=series" : $"/Film/Watch?id={mId}&kind=movie";
+                string slug = SeoUrlHelper.ToSlug(movie.Title);
+                string watchUrl = Url.RouteUrl(isSeries ? "series-watch" : "movie-watch", new { slug, id = mId })
+                    ?? (isSeries ? $"/Film/Watch?id={mId}&kind=series" : $"/Film/Watch?id={mId}&kind=movie");
 
                 <div class="col">
                     <div class="card movie-card position-relative h-100" data-id="@mId" data-url="@watchUrl">

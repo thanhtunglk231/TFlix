@@ -468,7 +468,8 @@
             {
                 long mId = Convert.ToInt64(movie.MovieId);
                 string posterSrc = string.IsNullOrWhiteSpace(movie.PosterUrl) ? fallbackPoster : movie.PosterUrl;
-                string watchUrl = $"/Film/Watch?id={mId}&kind=movie";
+                string watchUrl = Url.RouteUrl("movie-watch", new { slug = SeoUrlHelper.ToSlug(movie.Title), id = mId })
+                    ?? $"/Film/Watch?id={mId}&kind=movie";
 
                 <div class="col">
                     <div class="single-card" data-id="@mId" data-url="@watchUrl">

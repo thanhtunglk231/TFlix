@@ -6,6 +6,7 @@ using WebBrowser.Models.Episode;
 using WebBrowser.Models.Genres;
 using WebBrowser.Models.Movie;
 using WebBrowser.Models.Preview;
+using WebBrowser.Helpers;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Controllers
@@ -53,14 +54,8 @@ namespace WebBrowser.Controllers
             return View();
         }
 
-        public async Task<IActionResult> Details(int id, string kind)
+        public async Task<IActionResult> Details(int id, string kind, string? slug = null)
         {
-            if (!IsUserAuthenticated())
-            {
-                string returnUrl = Url.Action("Details", "Preview", new { id, kind }) ?? "/Movies";
-                return RedirectToAction("Index", "Auth", new { returnUrl });
-            }
-
             var request = new GETCONTENTByID
             {
                 id = id,
@@ -78,6 +73,14 @@ namespace WebBrowser.Controllers
             }
 
             var movie = resp.Data.Table[0];
+            var expectedSlug = SeoUrlHelper.ToSlug(movie.title ?? movie.OriginalTitle);
+            var isSeries = string.Equals(kind, "SERIES", StringComparison.OrdinalIgnoreCase);
+            if (!string.Equals(slug, expectedSlug, StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToRoutePermanent(
+                    isSeries ? "series-details" : "movie-details",
+                    new { slug = expectedSlug, id });
+            }
 
             // 1. Fetch catalog movies for sidebar (Upcoming & Trending) and single movies
             List<MovieItem> upcomingMovies = new();

@@ -169,10 +169,19 @@
                 suggestions.classList.add('d-none');
             };
 
+            const toSeoSlug = value => (value || 'noi-dung')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd')
+                .replace(/Đ/g, 'd')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'noi-dung';
+
             const goToMovie = (movie) => {
                 const movieId = movie.movieId ?? movie.MovieId ?? movie.moviE_ID;
-                const kind = movie.kind || 'MOVIE';
-                window.location.href = `/Preview/Details?id=${encodeURIComponent(movieId)}&kind=${encodeURIComponent(kind)}`;
+                const title = movie.title ?? movie.Title ?? movie.originaL_TITLE ?? 'noi-dung';
+                window.location.href = `/phim/${toSeoSlug(title)}-${encodeURIComponent(movieId)}`;
             };
 
             const renderSuggestions = (movies) => {

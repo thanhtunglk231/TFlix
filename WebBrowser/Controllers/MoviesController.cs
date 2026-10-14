@@ -36,12 +36,6 @@ namespace WebBrowser.Controllers
         public async Task<IActionResult> Index(string? q, int? genreId, string? countryCode, int? year, string sortBy = "newest", string type = "all", int page = 1)
         {
             // Kiểm tra Đăng nhập
-            if (!IsUserAuthenticated())
-            {
-                string returnUrl = Url.Action("Index", "Movies", new { q, genreId, countryCode, year, sortBy, type, page }) ?? "/Movies";
-                return RedirectToAction("Index", "Auth", new { returnUrl });
-            }
-
             var filter = new MovieCatalogFilterDto
             {
                 Search = q?.Trim(),
