@@ -223,15 +223,50 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(10, 13, 18, 0.7) 40%, rgba(10, 13, 18, 0.95) 100%);
+            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(10, 13, 18, 0.75) 40%, rgba(10, 13, 18, 0.98) 100%);
             padding: 1rem 1.25rem;
+            padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
             opacity: 1;
-            transition: opacity 0.3s ease;
-            z-index: 10;
+            visibility: visible;
+            transform: translateY(0);
+            transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.28s ease;
+            z-index: 20;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .player-wrap.hide-ui {
+            cursor: none;
         }
         .player-wrap.hide-ui .player-controls {
             opacity: 0;
+            visibility: hidden;
             pointer-events: none;
+            transform: translateY(16px);
+        }
+
+        /* Ẩn nút chế độ rạp phim khi đang mở toàn màn hình */
+        :fullscreen #btnTheater,
+        :-webkit-full-screen #btnTheater,
+        #playerBox:fullscreen #btnTheater,
+        #playerBox.mobile-fullscreen-active #btnTheater {
+            display: none !important;
+        }
+
+        @@media (max-width: 576px) {
+            .player-controls {
+                padding: 0.65rem 0.75rem max(0.65rem, env(safe-area-inset-bottom, 0.65rem));
+            }
+            .control-btn {
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+            }
+            .time-label {
+                font-size: 0.75rem;
+            }
+            #vol {
+                width: 60px !important;
+            }
         }
 
         .control-btn {
@@ -1609,8 +1644,14 @@
             }
 
             video.addEventListener('canplay', clearPlayerError);
-            video.addEventListener('play', updatePlayBtnIcon);
-            video.addEventListener('pause', updatePlayBtnIcon);
+            video.addEventListener('play', () => {
+                updatePlayBtnIcon();
+                showControls(true);
+            });
+            video.addEventListener('pause', () => {
+                updatePlayBtnIcon();
+                showControls(false);
+            });
 
             video.addEventListener('error', () => {
                 const code = video.error?.code;
@@ -1622,6 +1663,120 @@
 
             // Prevent contextmenu
             playerBox.addEventListener('contextmenu', event => event.preventDefault());
+
+            // ==========================================
+            // PLAYER CONTROLS AUTO-HIDE & TAP TO TOGGLE (NHẤN 1 LẦN HIỆN, 2 LẦN ẨN)
+            // ==========================================
+            const playerControls = playerBox ? playerBox.querySelector('.player-controls') : null;
+            let controlsHideTimer = null;
+            let lastTapTimestamp = 0;
+
+            function showControls(autoHide = true) {
+                if (!playerBox) return;
+                playerBox.classList.remove('hide-ui');
+                clearTimeout(controlsHideTimer);
+                if (autoHide && video && !video.paused) {
+                    controlsHideTimer = setTimeout(() => {
+                        hideControls();
+                    }, 3500);
+                }
+            }
+
+            function hideControls() {
+                if (!playerBox) return;
+                playerBox.classList.add('hide-ui');
+                clearTimeout(controlsHideTimer);
+            }
+
+            function toggleControls() {
+                if (!playerBox) return;
+                const now = Date.now();
+                if (now - lastTapTimestamp < 250) return; // Debounce chống double trigger
+                lastTapTimestamp = now;
+
+                if (playerBox.classList.contains('hide-ui')) {
+                    // Nhấn lần 1: Hiện thanh công cụ lên
+                    showControls(true);
+                } else {
+                    // Nhấn lần 2 (nhấn lại): Ẩn thanh công cụ đi
+                    hideControls();
+                }
+            }
+
+            // Chặn click / touch bên trong cụm controls làm kích hoạt toggle ẩn/hiện
+            if (playerControls) {
+                playerControls.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (video && !video.paused) {
+                        showControls(true); // reset timer giữ controls hiển thị
+                    }
+                });
+                playerControls.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                    if (video && !video.paused) {
+                        showControls(true);
+                    }
+                }, { passive: true });
+            }
+
+            // Xử lý chạm trên mobile (chống lag 300ms và phân biệt vuốt/chạm)
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let isTouchScrolling = false;
+
+            if (playerBox) {
+                playerBox.addEventListener('touchstart', (e) => {
+                    if (e.touches && e.touches.length === 1) {
+                        touchStartX = e.touches[0].clientX;
+                        touchStartY = e.touches[0].clientY;
+                        isTouchScrolling = false;
+                    }
+                }, { passive: true });
+
+                playerBox.addEventListener('touchmove', (e) => {
+                    if (e.touches && e.touches.length === 1) {
+                        const dx = Math.abs(e.touches[0].clientX - touchStartX);
+                        const dy = Math.abs(e.touches[0].clientY - touchStartY);
+                        if (dx > 10 || dy > 10) {
+                            isTouchScrolling = true;
+                        }
+                    }
+                }, { passive: true });
+
+                playerBox.addEventListener('touchend', (e) => {
+                    if (isTouchScrolling) return;
+                    if (e.target.closest('.player-controls, .quality-toast, #playerError, .modal, button, select, input, a, .control-btn')) {
+                        return;
+                    }
+                    e.preventDefault();
+                    toggleControls();
+                });
+
+                // Xử lý click chuột máy tính
+                playerBox.addEventListener('click', (e) => {
+                    if (e.target.closest('.player-controls, .quality-toast, #playerError, .modal, button, select, input, a, .control-btn')) {
+                        return;
+                    }
+                    toggleControls();
+                });
+
+                // Di chuột trên PC thì hiện controls, rời chuột thì tự ẩn nếu đang phát
+                playerBox.addEventListener('mousemove', () => {
+                    showControls(true);
+                });
+                playerBox.addEventListener('mouseleave', () => {
+                    if (video && !video.paused) {
+                        hideControls();
+                    }
+                });
+            }
+
+            if (video) {
+                video.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleControls();
+                });
+            }
 
             (function initSelections(){
                 if (selServer) {
@@ -1722,6 +1877,7 @@
                     if (playerBox) playerBox.classList.remove('mobile-fullscreen-active');
                     document.body.classList.remove('has-fullscreen-player');
                     updateFsButtonIcon(false);
+                    showControls(false);
 
                     if (screen.orientation && screen.orientation.unlock) {
                         try { screen.orientation.unlock(); } catch (e) {}
@@ -1756,6 +1912,7 @@
                                 await promise;
                             }
                             updateFsButtonIcon(true);
+                            showControls(true);
                         } catch (err) {
                             console.warn('playerBox requestFullscreen failed:', err);
                             // If playerBox failed on Android / WebKit, try video element directly
@@ -1765,6 +1922,7 @@
                                     else if (video.webkitRequestFullscreen) await video.webkitRequestFullscreen();
                                     else if (typeof video.webkitEnterFullscreen === 'function') video.webkitEnterFullscreen();
                                     updateFsButtonIcon(true);
+                                    showControls(true);
                                     return;
                                 } catch (vErr) {
                                     console.warn('Video fullscreen also failed:', vErr);
@@ -1775,6 +1933,7 @@
                             if (playerBox) playerBox.classList.add('mobile-fullscreen-active');
                             document.body.classList.add('has-fullscreen-player');
                             updateFsButtonIcon(true);
+                            showControls(true);
                         }
                     } else if (video && typeof video.webkitEnterFullscreen === 'function') {
                         try {
@@ -1783,12 +1942,14 @@
                             if (playerBox) playerBox.classList.add('mobile-fullscreen-active');
                             document.body.classList.add('has-fullscreen-player');
                             updateFsButtonIcon(true);
+                            showControls(true);
                         }
                     } else {
                         // 3. Fallback CSS pseudo-fullscreen
                         if (playerBox) playerBox.classList.add('mobile-fullscreen-active');
                         document.body.classList.add('has-fullscreen-player');
                         updateFsButtonIcon(true);
+                        showControls(true);
                     }
 
                     // Attempt orientation lock to landscape on mobile devices
@@ -1814,6 +1975,11 @@
                         document.body.classList.remove('has-fullscreen-player');
                     }
                     updateFsButtonIcon(isFs);
+                    if (isFs) {
+                        showControls(true);
+                    } else {
+                        showControls(false);
+                    }
                 });
             });
 
