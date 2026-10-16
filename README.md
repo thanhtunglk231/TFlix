@@ -86,7 +86,7 @@ Hệ thống cung cấp trải nghiệm giải trí điện ảnh chuẩn rạp 
 ### 5. Tài Liệu OpenAPI / Swagger RESTful API
 > Hệ thống Backend REST API chuẩn hóa, tài liệu tương tác trực tiếp qua Swagger UI.
 
-![Swagger UI](docs/images/03_swagger_api.png)
+![Swagger UI](docs/images/03_swagger_api.png
 
 ---
 
