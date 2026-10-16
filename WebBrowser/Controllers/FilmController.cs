@@ -67,11 +67,27 @@ namespace WebBrowser.Controllers
             Console.WriteLine($"[FilmController.Watch] id={id}, kind={kind}, targetEpId={targetEpId}");
 
             // 1. Lấy danh sách episodes và series để xác định chính xác loại nội dung
-            var episodesResponse = await _episodeService.get_all();
-            var allEpisodes = episodesResponse?.Data?.Table ?? new List<WebBrowser.Models.Episode.EpisodeItem>();
+            var allEpisodes = new List<WebBrowser.Models.Episode.EpisodeItem>();
+            try
+            {
+                var episodesResponse = await _episodeService.get_all();
+                allEpisodes = episodesResponse?.Data?.Table ?? new List<WebBrowser.Models.Episode.EpisodeItem>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[FilmController.Watch] Warning: Không thể tải all episodes: " + ex.Message);
+            }
 
-            var seriesResponse = await _seriesService.get_all();
-            var allSeries = seriesResponse?.Data?.Table ?? new List<WebBrowser.Models.Series.SerieDto>();
+            var allSeries = new List<WebBrowser.Models.Series.SerieDto>();
+            try
+            {
+                var seriesResponse = await _seriesService.get_all();
+                allSeries = seriesResponse?.Data?.Table ?? new List<WebBrowser.Models.Series.SerieDto>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[FilmController.Watch] Warning: Không thể tải all series: " + ex.Message);
+            }
 
             var matchedSeries = allSeries.FirstOrDefault(x => x.SeriesId == id);
             var seriesEpisodes = allEpisodes.Where(x => x.SeriesId == id).OrderBy(x => x.SeasonNo).ThenBy(x => x.EpisodeNo).ToList();
