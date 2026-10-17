@@ -173,7 +173,7 @@
           const $tbody=$("#genreTable tbody"), $pager=$("#pagerWrap");
           const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('genreModal'));
 
-          let cache=[], filtered=[], page=1;
+          let cache=[], page=1, total=0, totalPages=1, searchTimer=null;
 
           // Helpers
           const showLoading=()=> $overlay.fadeIn(80);
@@ -183,14 +183,6 @@
 
           function toNum(v){ const n=Number(v); return Number.isFinite(n)?n:null; }
           function valOr(v, d){ return (v===undefined||v===null)?d:v; }
-
-          function paginate(list,page,size){
-            const total=list.length;
-            const last=Math.max(1, Math.ceil(total/size));
-            page=Math.min(Math.max(1,page),last);
-            const s=(page-1)*size;
-            return { page,size,total,last,items:list.slice(s, s+size) };
-          }
 
           function renderPager(state){
             const {page,last,total}=state;
@@ -204,24 +196,13 @@
             $pager.find('a.page-link').on('click',e=>{
               e.preventDefault();
               const p=+e.target.dataset.page;
-              if(Number.isFinite(p)){ page=p; renderTablePage(); }
-            });
-          }
-
-          // Filter + render genres table
-          function applyFilter(){
-            const q=($('#txtSearch').val()||'').trim().toLowerCase();
-            filtered=cache.filter(g=>{
-              const name=(g.genre_name ?? g.genreName ?? g.GENRE_NAME ?? '').toString().toLowerCase();
-              const slug=(g.slug ?? g.SLUG ?? '').toString().toLowerCase();
-              return (!q || name.includes(q) || slug.includes(q));
+              if(Number.isFinite(p) && p >= 1 && p <= last && p !== page){ page=p; reloadAll(); }
             });
           }
 
           function renderTablePage(){
             const size=+($('#pageSize').val()||20);
-            const st=paginate(filtered, page, size);
-            const rows = st.items.map(g=>{
+            const rows = cache.map(g=>{
               const id   = g.genre_id ?? g.GenreId ?? g.GENRE_ID ?? g.genreId;
               const name = g.genre_name ?? g.genreName ?? g.GENRE_NAME ?? '';
               const slug = g.slug ?? g.SLUG ?? '';
@@ -242,17 +223,23 @@
               </tr>`;
             }).join('');
             $tbody.html(rows || `<tr><td colspan="6" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
-            renderPager(st);
+            renderPager({ page, last:totalPages, total, size });
           }
 
           // Data
           function reloadAll(){
             showLoading();
-            $.get(urls.getAll).done(res=>{
+            const pageSize=+($('#pageSize').val()||20);
+            const search=($('#txtSearch').val()||'').trim();
+            $.get(urls.getAll, { page, pageSize, search }).done(res=>{
               console.log('[DEBUG] Genres/GetAll:', res);
               cache=pickList(res);
-              applyFilter(); page=1; renderTablePage();
-              showToast('Đã tải danh sách genres', true);
+              const d=res?.data??res?.Data;
+              const meta=(d?.table1??d?.Table1??d?.pageInfo??d?.PageInfo??[])[0]??{};
+              total=Number(meta.totalCount??meta.TotalCount??cache.length) || 0;
+              totalPages=Math.max(1, Number(meta.totalPages??meta.TotalPages??1) || 1);
+              page=Math.min(totalPages, Math.max(1, Number(meta.page??meta.Page??page) || 1));
+              renderTablePage();
             }).fail(xhr=>{
               console.error('[DEBUG] Genres/GetAll error:', xhr);
               showToast(xhr?.responseJSON?.message||xhr?.responseText||'Lỗi kết nối.', false);
@@ -324,8 +311,11 @@
           $('#btnRefresh').on('click', reloadAll);
           $('#btnAdd').on('click', openAdd);
           $('#btnSave').on('click', saveGenre);
-          $('#txtSearch').on('input', ()=>{ applyFilter(); page=1; renderTablePage(); });
-          $('#pageSize').on('change', ()=>{ page=1; renderTablePage(); });
+          $('#txtSearch').on('input', ()=>{
+            clearTimeout(searchTimer);
+            searchTimer=setTimeout(()=>{ page=1; reloadAll(); }, 300);
+          });
+          $('#pageSize').on('change', ()=>{ page=1; reloadAll(); });
           $tbody.on('click', '.btn-edit', e=> openEdit($(e.currentTarget).data('id')));
           $tbody.on('click', '.btn-del',  e=> removeGenre($(e.currentTarget).data('id')));
 

@@ -16,5 +16,6 @@ namespace WebBrowser.Models.Preview
         public CoreLib.Dtos.Rating.MovieRatingDto? RatingInfo { get; set; }
         public List<SerieDto> SeriesMovies { get; set; } = new();
         public List<MovieItem> SingleMovies { get; set; } = new();
+        public List<CoreLib.Dtos.VideoHighlight.VideoHighlightDto> VideoHighlights { get; set; } = new();
     }
 }

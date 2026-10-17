@@ -484,6 +484,17 @@
             position: relative;
             overflow: hidden;
         }
+        .highlight-video-player {
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            background: #050608;
+        }
+
+        #movieDetailTabs .nav-link.active {
+            color: #27d3c3 !important;
+            background: #171b20;
+            border-color: #495057 #495057 #171b20;
+        }
     </style>
 }
 
@@ -640,25 +651,71 @@
                         </div>
                     </div>
 
-                    <!-- Description -->
+                    <!-- Nội dung và video highlight -->
                     <div class="mt-3">
-                        <div class="panel-h">NỘI DUNG PHIM</div>
-                        <div class="panel-b">
-                            <p class="mb-2" id="description">@description</p>
-                            <ul class="mb-0" id="descLinks">
-                                @if (episodes.Any())
-                                {
-                                    foreach (var ep in episodes)
+                        <ul class="nav nav-tabs border-secondary" id="movieDetailTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active text-light" id="description-tab" data-bs-toggle="tab" data-bs-target="#description-pane" type="button" role="tab" aria-controls="description-pane" aria-selected="true">
+                                    <i class="bi bi-card-text me-1"></i>Nội dung phim
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link text-light" id="highlight-tab" data-bs-toggle="tab" data-bs-target="#highlight-pane" type="button" role="tab" aria-controls="highlight-pane" aria-selected="false">
+                                    <i class="bi bi-stars me-1"></i>Highlight video
+                                    <span class="badge bg-info text-dark ms-1">@Model.VideoHighlights.Count</span>
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content panel-b border border-top-0 border-secondary rounded-bottom" id="movieDetailTabContent">
+                            <div class="tab-pane fade show active" id="description-pane" role="tabpanel" aria-labelledby="description-tab" tabindex="0">
+                                <p class="mb-2" id="description">@description</p>
+                                <ul class="mb-0" id="descLinks">
+                                    @if (episodes.Any())
                                     {
-                                        var epUrl = Url.Action("Watch", "Film", new { id = watchId, kind = watchKind, episodeId = ep.EpisodeId }) ?? watchUrl;
-                                        <li><a href="@epUrl" class="btnEp text-decoration-none text-light">- @title - Tập @ep.EpisodeNo</a></li>
+                                        foreach (var ep in episodes)
+                                        {
+                                            var epUrl = Url.Action("Watch", "Film", new { id = watchId, kind = watchKind, episodeId = ep.EpisodeId }) ?? watchUrl;
+                                            <li><a href="@epUrl" class="btnEp text-decoration-none text-light">- @title - Tập @ep.EpisodeNo</a></li>
+                                        }
                                     }
+                                    else
+                                    {
+                                        <li><a href="@watchUrl" class="btnEp text-decoration-none text-light">- @title Tập 1</a></li>
+                                    }
+                                </ul>
+                            </div>
+                            <div class="tab-pane fade" id="highlight-pane" role="tabpanel" aria-labelledby="highlight-tab" tabindex="0">
+                                @if (Model.VideoHighlights.Any())
+                                {
+                                    <div class="row g-3">
+                                        @foreach (var highlight in Model.VideoHighlights)
+                                        {
+                                            <div class="col-12 col-md-6">
+                                                <article class="card h-100 bg-dark border-secondary overflow-hidden">
+                                                    <video class="w-100 highlight-video-player" controls preload="metadata" poster="@highlight.ThumbnailUrl" aria-label="@highlight.Title">
+                                                        <source src="@highlight.VideoUrl" type="video/mp4" />
+                                                        Trình duyệt không hỗ trợ phát video.
+                                                    </video>
+                                                    <div class="card-body">
+                                                        <h3 class="h6 text-white mb-1">@highlight.Title</h3>
+                                                        @if (!string.IsNullOrWhiteSpace(highlight.Description))
+                                                        {
+                                                            <p class="small text-secondary mb-0">@highlight.Description</p>
+                                                        }
+                                                    </div>
+                                                </article>
+                                            </div>
+                                        }
+                                    </div>
                                 }
                                 else
                                 {
-                                    <li><a href="@watchUrl" class="btnEp text-decoration-none text-light">- @title Tập 1</a></li>
+                                    <div class="text-center text-secondary py-4">
+                                        <i class="bi bi-camera-video-off fs-2 d-block mb-2"></i>
+                                        Phim này chưa có video highlight.
+                                    </div>
                                 }
-                            </ul>
+                            </div>
                         </div>
                     </div>
 

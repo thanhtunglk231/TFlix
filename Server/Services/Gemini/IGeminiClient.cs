@@ -12,5 +12,7 @@ namespace Server.Services.Gemini
             IEnumerable<ChatMessageDto> history,
             string currentPrompt,
             CancellationToken cancellationToken = default);
+        Task<string?> GenerateWithImagesAsync(string prompt, IReadOnlyList<byte[]> jpegImages,
+            CancellationToken cancellationToken = default);
     }
 }

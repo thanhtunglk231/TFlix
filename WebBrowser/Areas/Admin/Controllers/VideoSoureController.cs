@@ -332,9 +332,17 @@ namespace WebBrowser.Areas.Admin.Controllers
 
 
 
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null,
+            [FromQuery] string? sourceType = null,
+            [FromQuery] long? movieId = null,
+            [FromQuery] long? episodeId = null,
+            [FromQuery] string? quality = null)
         {
-            var result = await _videoSoureService.get_all();
+            var result = await _videoSoureService.get_all(
+                page, pageSize, search, sourceType, movieId, episodeId, quality);
             return Ok(result);
         }
 

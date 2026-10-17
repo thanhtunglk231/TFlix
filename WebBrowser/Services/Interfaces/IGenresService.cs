@@ -11,6 +11,6 @@ namespace WebBrowser.Services.Interfaces
         Task<CResponseMessage> add_Genre(AddGenreDto dto);
         Task<CResponseMessage> update_Genre(UpdateGenreDto dto);
         Task<CResponseMessage> delete_Genre(decimal id);
-        Task<ApiResponse<GenreTableWrapper>> get_all();
+        Task<ApiResponse<GenreTableWrapper>> get_all(int page = 1, int pageSize = 20, string? search = null);
     }
 }

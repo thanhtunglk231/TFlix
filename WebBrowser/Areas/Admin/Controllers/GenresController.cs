@@ -20,10 +20,10 @@ namespace WebBrowser.Areas.Admin.Controllers
         }
 
         // GET: /Admin/Genres/GetAll
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null)
         {
             Console.WriteLine("[Admin/GenresController] -> GetAll() ENTER");
-            var result = await _genresService.get_all();
+            var result = await _genresService.get_all(page, pageSize, search);
             Console.WriteLine("[Admin/GenresController] <- GetAll() EXIT: " + JsonConvert.SerializeObject(result));
             return Ok(result);
         }

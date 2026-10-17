@@ -21,14 +21,22 @@ namespace DataServiceLib.Implements.Admin
         }
 
         // ========== GET ALL ==========
-        public async Task<CResponseMessage> GetAll()
+        public async Task<CResponseMessage> GetAll(int page = 1, int pageSize = 20, string? search = null)
         {
             try
             {
+                page = Math.Max(1, page);
+                pageSize = Math.Clamp(pageSize, 1, 100);
+                var p_page = new SqlParameter("@p_page", SqlDbType.Int) { Value = page };
+                var p_page_size = new SqlParameter("@p_page_size", SqlDbType.Int) { Value = pageSize };
+                var p_search = new SqlParameter("@p_search", SqlDbType.NVarChar, 200)
+                {
+                    Value = string.IsNullOrWhiteSpace(search) ? DBNull.Value : search.Trim()
+                };
                 var o_code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
 
-                var parameters = new IDbDataParameter[] { o_code, o_message };
+                var parameters = new IDbDataParameter[] { p_page, p_page_size, p_search, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_genre_get_all", parameters, _connectionString);
 

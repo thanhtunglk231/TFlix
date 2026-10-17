@@ -62,27 +62,14 @@ namespace WebBrowser.Services.Implements
 
         // ========== GET ALL ==========
         // Nếu API trả về data.table như Movie, bạn có thể dùng GenreTableWrapper (khai báo ở dưới) cho chuẩn type-safe.
-        public async Task<ApiResponse<GenreTableWrapper>> get_all()
+        public async Task<ApiResponse<GenreTableWrapper>> get_all(int page = 1, int pageSize = 20, string? search = null)
         {
-            var url = $"{BASE}/getall";
+            var url = $"{BASE}/getall?page={Math.Max(1, page)}&pageSize={Math.Clamp(pageSize, 1, 100)}";
+            if (!string.IsNullOrWhiteSpace(search))
+                url += $"&search={Uri.EscapeDataString(search.Trim())}";
             Console.WriteLine("[GenresService] -> get_all ENTER url=" + url);
 
-            // gọi theo envelope
-            var env = await _httpService.GetAsync<ApiEnvelope<GenreTableWrapper>>(url);
-            var resp = env?.Result;
-
-            if (resp == null)
-            {
-                // fallback khi payload không có "result"
-                return new ApiResponse<GenreTableWrapper>
-                {
-                    success = false,
-                    code = "500",
-                    message = "Không đọc được payload (thiếu 'result')",
-                    Data = null
-                };
-            }
-
+            var resp = await _httpService.GetAsync<ApiResponse<GenreTableWrapper>>(url);
             resp.success = resp.success || resp.code == "200";
             Console.WriteLine("[GenresService] <- get_all EXIT: " + JsonConvert.SerializeObject(resp));
             return resp;

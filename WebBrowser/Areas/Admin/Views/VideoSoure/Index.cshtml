@@ -18,6 +18,7 @@
     var urlCancelMp4Upload = Url.Action("CancelMp4Upload", "VideoSoure", new { area = "Admin" });
     var urlUpdate = Url.Action("Update", "VideoSoure", new { area = "Admin" });
     var urlDelete = Url.Action("Delete", "VideoSoure", new { area = "Admin" });
+    var urlGenerateHighlight = Url.Action("Generate", "VideoHighlight", new { area = "Admin" });
 
     // Nguồn dữ liệu tham chiếu
     var urlGetAllMovies = Url.Action("GetAll", "Movie", new { area = "Admin" });
@@ -153,6 +154,15 @@
         box-shadow: 0 8px 24px rgba(0,0,0,.25)
     }
 
+    #highlightConfirmModal,
+    #uploadResultModal {
+        z-index: 1305 !important;
+    }
+
+    .modal-backdrop.highlight-popup-backdrop {
+        z-index: 1300 !important;
+    }
+
         .toastx.success {
             background: #28a745
         }
@@ -185,7 +195,7 @@
     /* Select2 & Dropdowns Dark Theme - Không còn nền trắng */
     #MovieId, #EpisodeId,
     #sourceModal .form-select,
-    #slType, #pageSize,
+    #slType,
     .select2-container--default .select2-selection--single {
         background-color: #171920 !important;
         color: #f1f5f9 !important;
@@ -195,7 +205,7 @@
 
     #MovieId option, #EpisodeId option,
     #sourceModal .form-select option,
-    #slType option, #pageSize option {
+    #slType option {
         background-color: #171920 !important;
         color: #f1f5f9 !important;
     }
@@ -329,6 +339,25 @@
     </div>
 </div>
 
+<div class="modal fade" id="highlightConfirmModal" tabindex="-1" aria-labelledby="highlightConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="highlightConfirmTitle"><i class="bi bi-stars text-warning me-2"></i>Xác nhận tạo video highlight</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Gemini sẽ phân tích nội dung và tạo 3 video highlight cho nguồn đang sửa.</p>
+                <div class="alert alert-warning mb-0" role="note">Quá trình có thể mất vài phút. Không đóng trang cho đến khi hoàn tất.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" id="btnConfirmGenerateHighlight"><i class="bi bi-stars me-1"></i>Bắt đầu tạo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h4 class="m-0"><i class="bi bi-hdd-network me-2"></i>Quản lý Video Sources</h4>
     <div class="d-flex gap-2">
@@ -362,12 +391,6 @@
             </div>
             <div class="col-6 col-md-3 d-flex gap-2">
                 <input id="txtQuality" class="form-control" placeholder="Lọc Quality (720p/1080p...)" />
-                <select id="pageSize" class="form-select" style="max-width:140px">
-                    <option value="10">10/trang</option>
-                    <option value="20" selected>20/trang</option>
-                    <option value="50">50/trang</option>
-                    <option value="100">100/trang</option>
-                </select>
             </div>
         </div>
 
@@ -589,6 +612,9 @@
                     <i class="bi bi-trash me-1"></i>Xóa nguồn này
                 </button>
                 <div class="d-flex gap-2 ms-auto">
+                    <button type="button" class="btn btn-outline-warning d-none" id="btnGenerateHighlight">
+                        <i class="bi bi-stars me-1"></i>Tạo 3 highlight bằng Gemini
+                    </button>
                     <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
                     <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
                 </div>
@@ -638,6 +664,7 @@
             clientLog: '@urlClientLog',
             update:  '@urlUpdate',
             deleteSource: '@urlDelete',
+            generateHighlight: '@urlGenerateHighlight',
             movies:  '@urlGetAllMovies',
             eps:     '@urlGetAllEpisodes'
           };
@@ -655,17 +682,29 @@
           const previewModalEl = document.getElementById('videoPreviewModal');
           const previewModal   = bootstrap.Modal.getOrCreateInstance(previewModalEl);
           const uploadResultModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('uploadResultModal'));
+          const highlightConfirmModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('highlightConfirmModal'));
 
-          let cache = [];     // full list
-          let filtered = [];  // after filter
+          document.getElementById('highlightConfirmModal').addEventListener('show.bs.modal', () => {
+            setTimeout(() => document.querySelector('.modal-backdrop:last-of-type')?.classList.add('highlight-popup-backdrop'));
+          });
+          document.getElementById('uploadResultModal').addEventListener('show.bs.modal', () => {
+            setTimeout(() => document.querySelector('.modal-backdrop:last-of-type')?.classList.add('highlight-popup-backdrop'));
+          });
+
+          let cache = [];     // current server page
           let movieLookupRequest = null;
           let episodeLookupRequest = null;
           let page = 1;
+          let totalCount = 0;
+          let totalPages = 1;
+          let filterTimer = null;
           let resumeFileState = null;
           let browserFfmpeg = null;
           let browserFfmpegLoaded = false;
           let browserHlsUploadPaused = false;
           let browserHlsUploadActive = false;
+          let pendingHighlightSourceId = 0;
+          let highlightProgressTimer = null;
 
           function reportVideoSourceClientError(eventName, detail){
             const antiForgeryToken = $('input[name="__RequestVerificationToken"]').first().val();
@@ -719,6 +758,7 @@
             $('#inlineUploadProgressText').text(`${value}%`);
             $('#inlineUploadProgressBar')
               .css('width', `${value}%`)
+              .toggleClass('progress-bar-striped', value > 0 && value < 100)
               .toggleClass('progress-bar-animated', processing || (value > 0 && value < 100))
               .parent().attr('aria-valuenow', value);
           }
@@ -790,19 +830,17 @@
             });
           }
 
-          // Pagination helpers
-          function paginate(list, page, size){
-            const total = list.length;
-            const last = Math.max(1, Math.ceil(total/size));
-            const p = Math.min(Math.max(1,page), last);
-            const start = (p-1)*size, end = start + size;
-            return { page:p, size, total, last, items:list.slice(start,end) };
-          }
           function renderPager($wrap, state){
             const { page, last, total } = state;
             const dis = c => c ? "disabled" : "";
-            const btn = (label,target,disabled)=>
-              `<li class="page-item ${dis(disabled)}"><a class="page-link" href="#" data-page="${target}">${label}</a></li>`;
+            const btn = (label,target,disabled=false,active=false)=>
+              `<li class="page-item ${dis(disabled)} ${active ? 'active' : ''}"><a class="page-link" href="#" data-page="${target}" ${active ? 'aria-current="page"' : ''}>${label}</a></li>`;
+            const start = Math.max(1, Math.min(page - 2, last - 4));
+            const end = Math.min(last, start + 4);
+            let pageButtons = '';
+            for(let pageNumber = start; pageNumber <= end; pageNumber++){
+              pageButtons += btn(pageNumber, pageNumber, false, pageNumber === page);
+            }
             const html = `
               <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <div class="small text-secondary">Tổng: <b>${total}</b> bản ghi • Trang <b>${page}</b>/<b>${last}</b></div>
@@ -810,7 +848,7 @@
                   <ul class="pagination m-0">
                     ${btn("«",1, page<=1)}
                     ${btn("‹",page-1, page<=1)}
-                    ${btn(page,page,true)}
+                    ${pageButtons}
                     ${btn("›",page+1, page>=last)}
                     ${btn("»",last, page>=last)}
                   </ul>
@@ -820,7 +858,7 @@
             $wrap.find("a.page-link").on("click", function(e){
               e.preventDefault();
               const p = Number($(this).data("page"));
-              if(Number.isFinite(p)){ page = p; renderTablePage(); }
+              if(Number.isFinite(p) && p >= 1 && p <= totalPages){ loadAll(p); }
             });
           }
 
@@ -837,37 +875,9 @@
           initSelect2();
 
           // ===== Filter + Render =====
-          function applyFilter(){
-            const q  = ($('#txtSearch').val()||'').trim().toLowerCase();
-            const t  = ($('#slType').val()||'').trim();
-            const m  = ($('#txtMovieId').val()||'').trim();
-            const e  = ($('#txtEpisodeId').val()||'').trim();
-            const ql = ($('#txtQuality').val()||'').trim().toLowerCase();
-
-            filtered = cache.filter(x=>{
-              const movieId     = gv(x,'movieId','MovieId','moviE_ID');
-              const episodeId   = gv(x,'episodeId','EpisodeId','episodE_ID');
-              const provider    = (gv(x,'provider','Provider')||'').toString().toLowerCase();
-              const server      = (gv(x,'serverName','ServerName','serveR_NAME')||'').toString().toLowerCase();
-              const url         = (gv(x,'streamUrl','StreamUrl','streaM_URL')||'').toString().toLowerCase();
-              const quality     = (gv(x,'quality','Quality')||'').toString().toLowerCase();
-              const movieTitle  = (gv(x,'movieTitle','MovieTitle','moviE_TITLE')||'').toString().toLowerCase();
-              const episodeTitle= (gv(x,'episodeTitle','EpisodeTitle','episodE_TITLE')||'').toString().toLowerCase();
-
-              let ok = true;
-              if (q)  ok = ok && (provider.includes(q) || server.includes(q) || url.includes(q) || movieTitle.includes(q) || episodeTitle.includes(q));
-              if (t === 'movie')   ok = ok && !!movieId && !episodeId;
-              if (t === 'episode') ok = ok && !!episodeId && !movieId;
-              if (m) ok = ok && String(movieId||'').includes(m);
-              if (e) ok = ok && String(episodeId||'').includes(e);
-              if (ql) ok = ok && quality.includes(ql);
-              return ok;
-            });
-          }
-
           function renderTablePage(){
-            const size = Number($('#pageSize').val()||20);
-            const state = paginate(filtered, page, size);
+            const size = 10;
+            const state = { page, size, total: totalCount, last: totalPages, items: cache };
 
             const rows = state.items.map(x=>{
               const id          = gv(x,'sourceId','SourceId','sourcE_ID');
@@ -931,13 +941,27 @@
             renderPager($pager, state);
           }
 
-          function render(){ applyFilter(); page = 1; renderTablePage(); }
+          function render(){ renderTablePage(); }
 
           // ===== Data =====
-          function loadAll(){
+          function loadAll(targetPage = page){
             showLoading();
-            $.get(urls.getAll, function(res){
+            const request = {
+              page: Math.max(1, Number(targetPage) || 1),
+              pageSize: 10,
+              search: ($('#txtSearch').val() || '').trim(),
+              sourceType: ($('#slType').val() || '').trim(),
+              movieId: ($('#txtMovieId').val() || '').trim(),
+              episodeId: ($('#txtEpisodeId').val() || '').trim(),
+              quality: ($('#txtQuality').val() || '').trim()
+            };
+            $.get(urls.getAll, request, function(res){
               cache = pickList(res);
+              const data = res?.data ?? res?.Data ?? {};
+              const metadata = (data.table1 ?? data.Table1 ?? data.pagination ?? data.Pagination ?? [])[0] ?? {};
+              page = Number(gv(metadata, 'page', 'Page')) || 1;
+              totalCount = Number(gv(metadata, 'totalCount', 'TotalCount')) || 0;
+              totalPages = Number(gv(metadata, 'totalPages', 'TotalPages')) || 1;
               render();
               showToast("Đã tải danh sách nguồn", true);
             }).fail(xhr=>{
@@ -1005,6 +1029,7 @@
             toggleInputMode();
 
             $('#btnDeleteCurrentSource').addClass('d-none').data('id', '').data('url', '');
+            $('#btnGenerateHighlight').addClass('d-none').data('id', '');
 
             $('#SourceType').val('movie');
             toggleTypeUI();
@@ -1047,6 +1072,7 @@
             $('#Status').val(gv(it,'status','Status')||'ACTIVE');
 
             $('#btnDeleteCurrentSource').removeClass('d-none').data('id', id).data('url', streamUrl);
+            $('#btnGenerateHighlight').removeClass('d-none').data('id', id);
 
             $('#File').val('').prop('disabled', false);
             resumeFileState = null;
@@ -2043,6 +2069,55 @@
           $('#btnRefresh').on('click', ()=> loadAll());
           $('#btnAdd').on('click', ()=> { openAdd(); });
           $('#btnSave').on('click', save);
+          $('#btnGenerateHighlight').on('click', function(){
+            pendingHighlightSourceId = Number($(this).data('id'));
+            if(!pendingHighlightSourceId){
+              showToast('Không tìm thấy Video Source để tạo highlight.', false);
+              return;
+            }
+            highlightConfirmModal.show();
+          });
+
+          $('#btnConfirmGenerateHighlight').on('click', function(){
+            const sourceId = pendingHighlightSourceId;
+            const button = $('#btnGenerateHighlight');
+            if(!sourceId) return;
+            highlightConfirmModal.hide();
+            const anti=$('input[name="__RequestVerificationToken"]').first().val();
+            button.prop('disabled',true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang tạo highlight...');
+            updateInlineUploadProgress('Đang chuẩn bị video', 'Đọc nguồn phát và thời lượng video...', 8, true);
+            let progress = 8;
+            clearInterval(highlightProgressTimer);
+            highlightProgressTimer = setInterval(() => {
+              progress = Math.min(92, progress + (progress < 35 ? 5 : progress < 70 ? 3 : 1));
+              const detail = progress < 35
+                ? 'Đang trích xuất các khung hình đại diện...'
+                : progress < 60
+                  ? 'Gemini đang phân tích và chọn các đoạn nổi bật...'
+                  : progress < 82
+                    ? 'FFmpeg đang cắt 3 video highlight...'
+                    : 'Đang tải video và thumbnail lên bộ nhớ...';
+              updateInlineUploadProgress('Đang tạo video highlight', detail, progress, true);
+            }, 1800);
+            $.ajax({url:urls.generateHighlight,type:'POST',data:{sourceId},headers:anti?{'RequestVerificationToken':anti}:{}})
+              .done(res=>{
+                const ok=res?.success===true||res?.Success===true||String(res?.code)==='200';
+                const message=res?.message||res?.Message||(ok?'Đã tạo highlight.':'Tạo highlight thất bại.');
+                updateInlineUploadProgress(ok?'Hoàn tất':'Không thể tạo highlight', message, ok?100:progress, false);
+                closeSourceAndShowUploadResult(ok, ok?'Tạo highlight thành công':'Tạo highlight thất bại', message);
+              })
+              .fail(xhr=>{
+                const message=xhr?.responseJSON?.message||'Không tạo được highlight.';
+                updateInlineUploadProgress('Không thể tạo highlight', message, progress, false);
+                closeSourceAndShowUploadResult(false, 'Tạo highlight thất bại', message);
+              })
+              .always(()=>{
+                clearInterval(highlightProgressTimer);
+                highlightProgressTimer=null;
+                pendingHighlightSourceId=0;
+                button.prop('disabled',false).html('<i class="bi bi-stars me-1"></i>Tạo 3 highlight bằng Gemini');
+              });
+          });
           $('#File').on('change', function(){
             const file = this.files?.[0] || null;
             resumeFileState = null;
@@ -2074,9 +2149,11 @@
           });
 
           // Lọc + phân trang
-          $('#txtSearch, #txtMovieId, #txtEpisodeId, #txtQuality').on('input', ()=> { applyFilter(); page=1; renderTablePage(); });
-          $('#slType').on('change', ()=> { applyFilter(); page=1; renderTablePage(); });
-          $('#pageSize').on('change', ()=> { page=1; renderTablePage(); });
+          $('#txtSearch, #txtMovieId, #txtEpisodeId, #txtQuality').on('input', ()=> {
+            clearTimeout(filterTimer);
+            filterTimer = setTimeout(()=> loadAll(1), 350);
+          });
+          $('#slType').on('change', ()=> loadAll(1));
 
           function confirmAndDeleteSource(sourceId, streamUrl){
             if (!sourceId){ showToast("Không tìm thấy ID nguồn để xóa.", false); return; }

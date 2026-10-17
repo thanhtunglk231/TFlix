@@ -86,6 +86,10 @@
             </svg>
             <span>Nguồn phát (Video)</span>
         </a>
+        <a class="sidebar-nav-link @(active("VideoHighlight", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="VideoHighlight" asp-action="Index">
+            <i class="bi bi-stars"></i><span>Video Highlight AI</span>
+        </a>
         <a class="sidebar-nav-link @(active("Genres", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="Genres" asp-action="Index">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

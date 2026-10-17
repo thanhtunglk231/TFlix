@@ -48,6 +48,55 @@ namespace Server.Services.Gemini
 
         public bool IsConfigured => !string.IsNullOrWhiteSpace(_apiKey);
 
+        public async Task<string?> GenerateWithImagesAsync(string prompt, IReadOnlyList<byte[]> jpegImages,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured || jpegImages.Count == 0) return null;
+            var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
+                ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
+            var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-2.5-flash" : _options.Model;
+            var parts = new List<object> { new { text = prompt } };
+            parts.AddRange(jpegImages.Select(image => (object)new
+            {
+                inline_data = new { mime_type = "image/jpeg", data = Convert.ToBase64String(image) }
+            }));
+            var payload = JsonSerializer.Serialize(new
+            {
+                contents = new[] { new { role = "user", parts } },
+                generationConfig = new { temperature = 0.2, maxOutputTokens = 2048, responseMimeType = "application/json" }
+            });
+            var response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                if ((int)response.StatusCode == StatusCodes.Status404NotFound
+                    && errorBody.Contains("no longer available", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(model, "gemini-3.8-flash", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning(
+                        "Configured Gemini highlight model {Model} is unavailable; retrying with gemini-3.8-flash.",
+                        model);
+                    response.Dispose();
+                    model = "gemini-3.8-flash";
+                    response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    _logger.LogError(
+                        "Gemini highlight analysis failed for model {Model}: {Body}", model, errorBody);
+                    response.Dispose();
+                    return null;
+                }
+            }
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            response.Dispose();
+            using var document = JsonDocument.Parse(responseBody);
+            return document.RootElement.GetProperty("candidates")[0].GetProperty("content")
+                .GetProperty("parts")[0].GetProperty("text").GetString();
+        }
+
         public async Task<string?> GenerateContentAsync(
             string systemInstruction,
             IEnumerable<ChatMessageDto> history,

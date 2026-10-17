@@ -1,6 +1,7 @@
 @model CoreLib.Dtos.Movies.MovieCatalogResultDto
 @using CoreLib.Dtos.Movies
 @using WebBrowser.Models.Genres
+@using CoreLib.Dtos.VideoHighlight
 
 @{
     ViewData["Title"] = "Kho Phim - TFlix";
@@ -10,6 +11,7 @@
     var token = Context.Session.GetString("JWToken");
     var isLoggedIn = !string.IsNullOrEmpty(token) || (User?.Identity?.IsAuthenticated ?? false);
     const string fallbackPoster = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop";
+    var videoHighlights = ViewBag.VideoHighlights as List<VideoHighlightDto> ?? new();
 }
 
 @section Styles {
@@ -85,6 +87,11 @@
             flex: 1;
             background: linear-gradient(90deg, var(--brand), transparent);
         }
+
+        .highlight-strip { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(260px,32%); gap:1rem; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:.5rem; }
+        .highlight-card { position:relative; overflow:hidden; border-radius:14px; background:#12161a; scroll-snap-align:start; border:1px solid rgba(255,255,255,.08); }
+        .highlight-card video { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:#000; }
+        @@media (max-width:767px) { .highlight-strip { grid-auto-columns:85%; } }
 
         /* Movie Card (Format matching Home/Index) */
         .movie-card {
@@ -295,6 +302,24 @@
             </div>
         </form>
     </div>
+
+    @if (videoHighlights.Count > 0)
+    {
+        <section class="mb-4" aria-labelledby="highlightTitle">
+            <div class="section-title"><span id="highlightTitle"><i class="bi bi-stars text-warning me-2"></i>Khoảnh khắc nổi bật</span></div>
+            <div class="highlight-strip">
+                @foreach (var highlight in videoHighlights)
+                {
+                    <article class="highlight-card">
+                        <video controls playsinline preload="metadata" poster="@highlight.ThumbnailUrl">
+                            <source src="@highlight.VideoUrl" type="video/mp4" />
+                        </video>
+                        <div class="p-3"><h6 class="text-white mb-1">@highlight.Title</h6><p class="text-secondary small mb-0">@highlight.Description</p></div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
 
     <!-- Section Header -->
     <div class="section-title">

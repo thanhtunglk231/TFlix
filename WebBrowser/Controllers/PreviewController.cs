@@ -20,6 +20,7 @@ namespace WebBrowser.Controllers
         private readonly ICommentService _commentService;
         private readonly IRatingService _ratingService;
         private readonly ISeriesService _seriesService;
+        private readonly IVideoHighlightService _videoHighlightService;
 
         public PreviewController(
             IPreviewService previewService,
@@ -28,7 +29,8 @@ namespace WebBrowser.Controllers
             IEpisode episodeService,
             ICommentService commentService,
             IRatingService ratingService,
-            ISeriesService seriesService)
+            ISeriesService seriesService,
+            IVideoHighlightService videoHighlightService)
         {
             _previewService = previewService;
             _movieService = movieService;
@@ -37,6 +39,7 @@ namespace WebBrowser.Controllers
             _commentService = commentService;
             _ratingService = ratingService;
             _seriesService = seriesService;
+            _videoHighlightService = videoHighlightService;
         }
 
         private bool IsUserAuthenticated()
@@ -170,6 +173,23 @@ namespace WebBrowser.Controllers
                 Console.WriteLine("[Preview.Details] Error loading rating: " + ex.Message);
             }
 
+            var videoHighlights = new List<CoreLib.Dtos.VideoHighlight.VideoHighlightDto>();
+            if (!isSeries)
+            {
+                try
+                {
+                    var highlightResponse = await _videoHighlightService.GetAllAsync(1, 100, true);
+                    videoHighlights = highlightResponse?.Data?.Table?
+                        .Where(item => item.MovieId == id)
+                        .OrderBy(item => item.SortOrder)
+                        .ThenBy(item => item.HighlightId)
+                        .ToList() ?? new();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[Preview.Details] Error loading video highlights: " + ex.Message);
+                }
+            }
             var vm = new PreviewDetailsViewModel
             {
                 Movie = movie,
@@ -179,7 +199,8 @@ namespace WebBrowser.Controllers
                 Episodes = episodes,
                 RatingInfo = ratingInfo,
                 SeriesMovies = seriesMovies,
-                SingleMovies = singleMovies
+                SingleMovies = singleMovies,
+                VideoHighlights = videoHighlights
             };
 
             return View("Index", vm);

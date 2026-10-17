@@ -1,0 +1,21 @@
+@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Quản lý video highlight";
+}
+<div class="mb-3"><h2 class="mb-1">Video Highlight</h2><p class="text-secondary">Clip nổi bật được Gemini đề xuất và cắt từ nguồn phim.</p></div>
+@Html.AntiForgeryToken()
+<div class="card"><div class="card-body">
+ <div class="table-responsive"><table class="table table-dark table-hover align-middle">
+  <thead><tr><th>Preview</th><th>Nội dung</th><th>Thời gian</th><th>Nguồn</th><th></th></tr></thead>
+  <tbody id="highlightRows"><tr><td colspan="5" class="text-center py-4"><span class="spinner-border"></span></td></tr></tbody>
+ </table></div><div id="highlightPager" class="d-flex justify-content-between align-items-center"></div>
+</div></div>
+@section Scripts {
+<script>
+(()=>{const rows=document.getElementById('highlightRows'),pager=document.getElementById('highlightPager'),token=document.querySelector('input[name="__RequestVerificationToken"]')?.value||'';
+const val=(o,...k)=>k.map(x=>o?.[x]).find(x=>x!==undefined&&x!==null),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function load(page=1){const response=await fetch(`@Url.Action("GetAll")?page=${page}`),json=await response.json(),data=json.data??json.Data??{},items=data.table??data.Table??[],meta=(data.table1??data.Table1??data.pagination??data.Pagination??[])[0]??{};
+rows.innerHTML=items.length?items.map(x=>`<tr><td><video src="${esc(val(x,'videoUrl','VideoUrl'))}" controls preload="metadata" style="width:220px;max-height:125px"></video></td><td><b>${esc(val(x,'title','Title'))}</b><div class="small text-secondary">${esc(val(x,'movieTitle','MovieTitle')||val(x,'episodeTitle','EpisodeTitle'))}</div></td><td>${Number(val(x,'startSeconds','StartSeconds')||0).toFixed(1)}s – ${Number(val(x,'endSeconds','EndSeconds')||0).toFixed(1)}s</td><td>#${esc(val(x,'sourceId','SourceId'))}</td><td><button class="btn btn-sm btn-outline-danger" data-delete="${val(x,'highlightId','HighlightId')}" data-video="${esc(val(x,'videoUrl','VideoUrl'))}" data-thumb="${esc(val(x,'thumbnailUrl','ThumbnailUrl'))}">Xóa</button></td></tr>`).join(''):'<tr><td colspan="5" class="text-center text-secondary py-4">Chưa có highlight</td></tr>';
+const current=Number(val(meta,'page','Page'))||1,total=Number(val(meta,'totalPages','TotalPages'))||1,count=Number(val(meta,'totalCount','TotalCount'))||0;pager.innerHTML=`<span>Tổng ${count} highlight</span><div><button class="btn btn-sm btn-outline-light" data-page="${current-1}" ${current<=1?'disabled':''}>Trước</button><span class="mx-2">${current}/${total}</span><button class="btn btn-sm btn-outline-light" data-page="${current+1}" ${current>=total?'disabled':''}>Sau</button></div>`;}
+pager.addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b)load(Number(b.dataset.page));});rows.addEventListener('click',async e=>{const b=e.target.closest('[data-delete]');if(!b||!confirm('Xóa highlight này?'))return;const body=new URLSearchParams({highlightId:b.dataset.delete,videoUrl:b.dataset.video||'',thumbnailUrl:b.dataset.thumb||''});await fetch('@Url.Action("Delete")',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','RequestVerificationToken':token},body});load();});load();})();
+</script>}

@@ -26,7 +26,8 @@ namespace WebBrowser.Services.Interfaces
         Task<CResponseMessage> CompleteBrowserHlsUploadAsync(Guid uploadId, CompleteBrowserHlsUploadDto request);
         Task<CResponseMessage> CompleteBrowserHlsUploadAsync(Guid uploadId, CompleteBrowserHlsUploadDto request, string bearerToken);
         Task<CResponseMessage> CancelBrowserHlsUploadAsync(Guid uploadId);
-        Task<ApiResponse<SourceTableWrapper>> get_all();
+        Task<ApiResponse<SourceTableWrapper>> get_all(int page = 1, int pageSize = 10, string? search = null,
+            string? sourceType = null, long? movieId = null, long? episodeId = null, string? quality = null);
         Task<CResponseMessage> uppdate_VideoSoure(decimal sourceId, IFormFile? file, UpdateVideoSourceInputDto meta);
         Task<CResponseMessage> Delete_video_source(decimal sourceId);
     }

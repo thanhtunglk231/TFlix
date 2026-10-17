@@ -140,6 +140,9 @@ builder.Services.AddScoped<ICSeason, CSeason>();
 builder.Services.AddScoped<ICSeries, CSeries>();
 
 builder.Services.AddScoped<ICVideoSoure, CVideoSoure>();
+builder.Services.AddScoped<ICVideoHighlight, CVideoHighlight>();
+builder.Services.AddScoped<Server.Services.VideoHighlights.IVideoHighlightGenerator,
+    Server.Services.VideoHighlights.VideoHighlightGenerator>();
 
 // =====================================================
 // VIDEO TRANSCODING

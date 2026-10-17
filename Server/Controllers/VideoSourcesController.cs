@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Server.Forms;
 using Server.Services;
 using System.Collections.Concurrent;
+using System.Data;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -29,6 +30,7 @@ namespace Server.Controllers
         private readonly ISupabaseService _supabase;
         private readonly ICloudflareR2Service _cloudflareR2;
         private readonly ICVideoSoure _videoSourceService;
+        private readonly ICVideoHighlight _videoHighlightService;
         private readonly IVideoTranscodingService _videoTranscodingService;
         private readonly ILogger<VideoSourcesController> _logger;
         private readonly VideoUploadProgressTracker _uploadProgress;
@@ -39,6 +41,7 @@ namespace Server.Controllers
             ISupabaseService supabase,
             ICloudflareR2Service cloudflareR2,
             ICVideoSoure videoSourceService,
+            ICVideoHighlight videoHighlightService,
             IVideoTranscodingService videoTranscodingService,
             ILogger<VideoSourcesController> logger,
             IConfiguration configuration,
@@ -47,6 +50,7 @@ namespace Server.Controllers
             _supabase = supabase;
             _cloudflareR2 = cloudflareR2;
             _videoSourceService = videoSourceService;
+            _videoHighlightService = videoHighlightService;
             _videoTranscodingService = videoTranscodingService;
             _logger = logger;
             _uploadProgress = uploadProgress;
@@ -1041,9 +1045,18 @@ namespace Server.Controllers
         //  GET
         // =========================================================
         [HttpGet("getall")]
-        public IActionResult GetAll()
+        public IActionResult GetAll(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null,
+            [FromQuery] string? sourceType = null,
+            [FromQuery] long? movieId = null,
+            [FromQuery] long? episodeId = null,
+            [FromQuery] string? quality = null)
         {
-            var result = _videoSourceService.get_all();
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            var result = _videoSourceService.get_all(page, pageSize, search, sourceType, movieId, episodeId, quality);
             return Ok(result);
         }
 
@@ -1092,6 +1105,29 @@ namespace Server.Controllers
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
+            var highlightResponse = await _videoHighlightService.GetBySourceAsync(Convert.ToInt64(sourceId));
+            if (!highlightResponse.Success)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    code = highlightResponse.code,
+                    success = false,
+                    message = "Không thể kiểm tra các video highlight của nguồn này. Dữ liệu chưa bị xóa."
+                });
+            }
+
+            var highlights = new List<(long Id, string? VideoUrl, string? ThumbnailUrl)>();
+            if (highlightResponse.Data is DataSet highlightData && highlightData.Tables.Count > 0)
+            {
+                foreach (DataRow row in highlightData.Tables[0].Rows)
+                {
+                    highlights.Add((
+                        Convert.ToInt64(row["HighlightId"]),
+                        row["VideoUrl"] == DBNull.Value ? null : Convert.ToString(row["VideoUrl"]),
+                        row["ThumbnailUrl"] == DBNull.Value ? null : Convert.ToString(row["ThumbnailUrl"])));
+                }
+            }
+
             foreach (var storageUrl in storageUrls)
             {
                 bool deleted;
@@ -1121,11 +1157,34 @@ namespace Server.Controllers
                 "Deleted {StorageObjectCount} storage objects for video source {SourceId}; deleting database record",
                 storageUrls.Length,
                 sourceId);
+
+            foreach (var highlight in highlights)
+            {
+                if (!string.IsNullOrWhiteSpace(highlight.VideoUrl))
+                    await _cloudflareR2.DeleteFileAsync(highlight.VideoUrl);
+                if (!string.IsNullOrWhiteSpace(highlight.ThumbnailUrl))
+                    await _cloudflareR2.DeleteFileAsync(highlight.ThumbnailUrl);
+
+                var deleteHighlight = await _videoHighlightService.DeleteAsync(highlight.Id);
+                if (!deleteHighlight.Success)
+                {
+                    _logger.LogError(
+                        "Could not delete highlight {HighlightId} while deleting source {SourceId}: {Message}",
+                        highlight.Id, sourceId, deleteHighlight.message);
+                    return StatusCode(StatusCodes.Status500InternalServerError, deleteHighlight);
+                }
+            }
+
             var response = await _videoSourceService.Delete_video_source(sourceId);
             if (response.code != "200" && !response.Success)
                 return StatusCode(500, new { code = response.code, message = response.message });
 
-            return Ok(new { code = "200", message = "Xóa video source thành công.", success = true });
+            return Ok(new
+            {
+                code = "200",
+                message = $"Xóa nguồn video và {highlights.Count} highlight thành công.",
+                success = true
+            });
         }
 
         // =========================================================

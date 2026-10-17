@@ -261,9 +261,23 @@ namespace WebBrowser.Services.Implements
         //    return resp!;
         //}
 
-        public async Task<ApiResponse<SourceTableWrapper>> get_all()
+        public async Task<ApiResponse<SourceTableWrapper>> get_all(int page = 1, int pageSize = 10,
+            string? search = null, string? sourceType = null, long? movieId = null,
+            long? episodeId = null, string? quality = null)
         {
-            const string url = "/api/VideoSources/getall";
+            var query = new Dictionary<string, string?>
+            {
+                ["page"] = Math.Max(page, 1).ToString(),
+                ["pageSize"] = Math.Clamp(pageSize, 1, 100).ToString(),
+                ["search"] = search,
+                ["sourceType"] = sourceType,
+                ["movieId"] = movieId?.ToString(),
+                ["episodeId"] = episodeId?.ToString(),
+                ["quality"] = quality
+            };
+            var url = "/api/VideoSources/getall?" + string.Join("&", query
+                .Where(item => !string.IsNullOrWhiteSpace(item.Value))
+                .Select(item => $"{Uri.EscapeDataString(item.Key)}={Uri.EscapeDataString(item.Value!)}"));
             _logger.LogInformation("Loading video source list from {ApiPath}", url);
 
             var resp = await _httpService.GetAsync<ApiResponse<SourceTableWrapper>>(url);

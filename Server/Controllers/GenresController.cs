@@ -18,9 +18,9 @@ namespace Server.Controllers
 
 
         [HttpGet("getall")]
-        public async Task<IActionResult> getall()
+        public async Task<IActionResult> getall([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null)
         {
-            var result = await _gernes.GetAll();
+            var result = await _gernes.GetAll(page, pageSize, search);
             return Ok(result);
         }
 

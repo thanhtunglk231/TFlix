@@ -22,10 +22,14 @@ namespace DataServiceLib.Implements.Admin
         }
 
         // ===== GET ALL =====
-        public CResponseMessage get_all()
+        public CResponseMessage get_all(int page = 1, int pageSize = 10, string? search = null,
+            string? sourceType = null, long? movieId = null, long? episodeId = null, string? quality = null)
         {
             try
             {
+                page = Math.Max(page, 1);
+                pageSize = Math.Clamp(pageSize, 1, 100);
+
                 var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
                 {
                     Direction = ParameterDirection.Output
@@ -36,7 +40,18 @@ namespace DataServiceLib.Implements.Admin
                     Direction = ParameterDirection.Output
                 };
 
-                var parameters = new IDbDataParameter[] { o_code, o_message };
+                var parameters = new IDbDataParameter[]
+                {
+                    new SqlParameter("@p_page", SqlDbType.Int) { Value = page },
+                    new SqlParameter("@p_page_size", SqlDbType.Int) { Value = pageSize },
+                    new SqlParameter("@p_search", SqlDbType.NVarChar, 500) { Value = (object?)search ?? DBNull.Value },
+                    new SqlParameter("@p_source_type", SqlDbType.NVarChar, 20) { Value = (object?)sourceType ?? DBNull.Value },
+                    new SqlParameter("@p_movie_id", SqlDbType.BigInt) { Value = (object?)movieId ?? DBNull.Value },
+                    new SqlParameter("@p_episode_id", SqlDbType.BigInt) { Value = (object?)episodeId ?? DBNull.Value },
+                    new SqlParameter("@p_quality", SqlDbType.NVarChar, 30) { Value = (object?)quality ?? DBNull.Value },
+                    o_code,
+                    o_message
+                };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_get_all_video_sources", parameters, _connectionString);
 
@@ -87,6 +102,47 @@ namespace DataServiceLib.Implements.Admin
                 {
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "400",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage
+                {
+                    Success = false,
+                    code = "500",
+                    message = "Lỗi server: " + ex.Message
+                };
+            }
+        }
+
+        public CResponseMessage GetBySourceId(long sourceId)
+        {
+            try
+            {
+                var o_code = new SqlParameter("@o_code", SqlDbType.VarChar, 10)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                var parameters = new IDbDataParameter[]
+                {
+                    new SqlParameter("@p_source_id", SqlDbType.BigInt) { Value = sourceId },
+                    o_code,
+                    o_message
+                };
+
+                var dataset = _baseProvider.GetDatasetFromSP(
+                    "sp_video_source_get_by_source_id", parameters, _connectionString);
+
+                return new CResponseMessage
+                {
+                    Data = dataset,
+                    code = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
                     Success = o_code.Value?.ToString() == "200"
                 };

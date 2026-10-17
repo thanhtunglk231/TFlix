@@ -18,12 +18,15 @@ namespace WebBrowser.Controllers
         private readonly IMovieService _movieService;
         private readonly IGenresService _genresService;
         private readonly ISeriesService _seriesService;
+        private readonly IVideoHighlightService _videoHighlightService;
 
-        public MoviesController(IMovieService movieService, IGenresService genresService, ISeriesService seriesService)
+        public MoviesController(IMovieService movieService, IGenresService genresService, ISeriesService seriesService,
+            IVideoHighlightService videoHighlightService)
         {
             _movieService = movieService;
             _genresService = genresService;
             _seriesService = seriesService;
+            _videoHighlightService = videoHighlightService;
         }
 
         private bool IsUserAuthenticated()
@@ -51,7 +54,7 @@ namespace WebBrowser.Controllers
             List<GenreItem> genres = new();
             try
             {
-                var genresResp = await _genresService.get_all();
+                var genresResp = await _genresService.get_all(page: 1, pageSize: 100);
                 if (genresResp != null && genresResp.Data != null && genresResp.Data.Table != null)
                 {
                     genres = genresResp.Data.Table;
@@ -222,6 +225,15 @@ namespace WebBrowser.Controllers
 
             ViewBag.Filter = filter;
             ViewBag.Type = type;
+            try
+            {
+                var highlightResponse = await _videoHighlightService.GetAllAsync(1, 12, true);
+                ViewBag.VideoHighlights = highlightResponse?.Data?.Table ?? new();
+            }
+            catch
+            {
+                ViewBag.VideoHighlights = new List<CoreLib.Dtos.VideoHighlight.VideoHighlightDto>();
+            }
             return View(catalogResult);
         }
 
