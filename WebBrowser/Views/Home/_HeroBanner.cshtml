@@ -57,7 +57,8 @@
                                asp-controller="Film"
                                asp-action="Watch"
                                asp-route-id="@m.MovieId"
-                               asp-route-kind="MOVIE">
+                               asp-route-kind="MOVIE"
+                               onclick="if(typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn){event.preventDefault(); event.stopPropagation(); if (typeof window.showLoginModal === 'function') { window.showLoginModal(); } else if (typeof window.triggerLoginModalIfAvailable === 'function') { window.triggerLoginModalIfAvailable(); } return false;}">
                                 <i class="bi bi-play-fill fs-5"></i>
                                 <span>Xem ngay</span>
                             </a>

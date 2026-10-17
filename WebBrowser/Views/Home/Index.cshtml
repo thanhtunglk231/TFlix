@@ -7,7 +7,7 @@
 @{
     ViewData["Title"] = "TFlix - Xem Phim Trực Tuyến Đỉnh Cao";
     var token = Context.Session.GetString("JWToken");
-    var isLoggedIn = !string.IsNullOrEmpty(token);
+    var isLoggedIn = !string.IsNullOrEmpty(token) || (User?.Identity?.IsAuthenticated ?? false);
     
     var allMovies = Model?.Movies ?? new List<WebBrowser.Models.Movie.MovieItem>();
     
@@ -566,7 +566,8 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
     <script>
-        const isLoggedIn = @isLoggedIn.ToString().ToLower();
+        window.isLoggedIn = @isLoggedIn.ToString().ToLower();
+        const isLoggedIn = window.isLoggedIn;
         const urlMoviesLatest = '@Url.Action("MoviesLatest", "Home")';
         const urlSeriesLatest = '@Url.Action("SeriesLatest", "Home")';
         const fallbackPoster = '@fallbackImage';
@@ -588,11 +589,23 @@
         };
 
         // Modal triggers
-        function showLoginModal() {
+        window.showLoginModal = function() {
+            const qvModal = document.getElementById('quickViewModal');
+            if (qvModal && typeof bootstrap !== 'undefined') {
+                const qvInst = bootstrap.Modal.getInstance(qvModal);
+                if (qvInst) qvInst.hide();
+            }
+            if (typeof window.closeRatingPopover === 'function') {
+                window.closeRatingPopover();
+            }
             const modalEl = document.getElementById('loginRequiredModal');
-            if (modalEl) {
+            if (modalEl && typeof bootstrap !== 'undefined') {
                 bootstrap.Modal.getOrCreateInstance(modalEl).show();
             }
+        };
+
+        function showLoginModal() {
+            window.showLoginModal();
         }
 
         function toSeoSlug(value) {
@@ -666,7 +679,18 @@
             const kind = card.dataset.kind || 'MOVIE';
             const isSeries = String(kind).toUpperCase() === 'SERIES';
             const slug = toSeoSlug(title);
-            document.getElementById('modalWatchBtn').href = `${isSeries ? '/xem-phim-bo/' : '/xem-phim/'}${slug}-${encodeURIComponent(id)}`;
+            const modalWatchBtn = document.getElementById('modalWatchBtn');
+            if (modalWatchBtn) {
+                modalWatchBtn.href = `${isSeries ? '/xem-phim-bo/' : '/xem-phim/'}${slug}-${encodeURIComponent(id)}`;
+                modalWatchBtn.onclick = function(e) {
+                    if (!window.isLoggedIn) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.showLoginModal();
+                        return false;
+                    }
+                };
+            }
             document.getElementById('modalDetailBtn').href = `${isSeries ? '/phim-bo/' : '/phim/'}${slug}-${encodeURIComponent(id)}`;
             
             const favBtn = document.getElementById('modalFavBtn');

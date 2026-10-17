@@ -179,16 +179,68 @@ window.showTFlixToast = function (message, type = 'info', title = null) {
 };
 
 
+function createGlobalLoginModal() {
+    let modalEl = document.getElementById('loginRequiredModal');
+    if (modalEl) return modalEl;
+    modalEl = document.createElement('div');
+    modalEl.className = 'modal fade tflix-modal';
+    modalEl.id = 'loginRequiredModal';
+    modalEl.tabIndex = -1;
+    modalEl.setAttribute('aria-labelledby', 'loginModalTitle');
+    modalEl.setAttribute('aria-hidden', 'true');
+    modalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background:#1c1f26; color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:12px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title d-flex align-items-center gap-2" id="loginModalTitle">
+                        <i class="bi bi-shield-lock-fill text-warning fs-4"></i>
+                        <span>Yêu cầu đăng nhập</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <p class="text-muted mb-0">
+                        Bạn cần đăng nhập tài khoản TFlix để thưởng thức bộ phim này với chất lượng cao nhất và thực hiện đánh giá.
+                    </p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Để sau</button>
+                    <a class="btn btn-primary" href="/Auth">
+                        <i class="bi bi-person-fill"></i> Đăng nhập ngay
+                    </a>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(modalEl);
+    return modalEl;
+}
+
 function triggerLoginModalIfAvailable() {
+    if (typeof window.showLoginModal === 'function') {
+        window.showLoginModal();
+        return;
+    }
     if (typeof showLoginModal === 'function') {
         showLoginModal();
-    } else {
-        const modalEl = document.getElementById('loginRequiredModal');
-        if (modalEl && typeof bootstrap !== 'undefined') {
-            bootstrap.Modal.getOrCreateInstance(modalEl).show();
-        }
+        return;
+    }
+    const qvModal = document.getElementById('quickViewModal');
+    if (qvModal && typeof bootstrap !== 'undefined') {
+        const qvInst = bootstrap.Modal.getInstance(qvModal);
+        if (qvInst) qvInst.hide();
+    }
+    if (typeof window.closeRatingPopover === 'function') {
+        window.closeRatingPopover();
+    }
+    let modalEl = document.getElementById('loginRequiredModal');
+    if (!modalEl) {
+        modalEl = createGlobalLoginModal();
+    }
+    if (modalEl && typeof bootstrap !== 'undefined') {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 }
+window.triggerLoginModalIfAvailable = triggerLoginModalIfAvailable;
 
 // =========================================================================
 // RATING HELPER & DISPLAY SYNCHRONIZER
@@ -437,6 +489,13 @@ function getRatingPopover() {
                 const movieId = popover.dataset.movieId;
                 if (!movieId) return;
 
+                if (typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn) {
+                    hintEl.innerHTML = `<span class="text-danger small"><i class="bi bi-lock-fill me-1"></i>Cần <a href="/Auth" class="text-warning text-decoration-underline">đăng nhập</a></span>`;
+                    window.showTFlixToast('Vui lòng đăng nhập để đánh giá phim!', 'bi-person-lock text-warning');
+                    triggerLoginModalIfAvailable();
+                    return;
+                }
+
                 hintEl.innerHTML = `<span class="text-warning fw-bold"><i class="bi bi-hourglass-split me-1"></i>Đang lưu ${starVal} sao...</span>`;
                 starBtns.forEach(b => b.disabled = true);
 
@@ -503,6 +562,12 @@ function getRatingPopover() {
 }
 
 window.openRatingPopover = function (ratingTag) {
+    if (typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn) {
+        window.showTFlixToast('Vui lòng đăng nhập để đánh giá phim!', 'bi-person-lock text-warning');
+        triggerLoginModalIfAvailable();
+        return;
+    }
+
     const movieId = getMovieIdFromElement(ratingTag);
     if (!movieId) {
         console.warn('Không tìm thấy movieId cho thẻ đánh giá:', ratingTag);
@@ -626,12 +691,29 @@ document.addEventListener('click', function (e) {
         return;
     }
 
-    // 2. Nhấp vào thẻ badge đánh giá sao (.card-rating-tag) trên card phim -> mở Popover 5 sao
+    // 1b. Nhấp vào nút phát xem phim nhanh (.btn-play-circle) trên card phim
+    const playCircle = e.target.closest('.btn-play-circle');
+    if (playCircle) {
+        if (typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            triggerLoginModalIfAvailable();
+            return;
+        }
+    }
+
+    // 2. Nhấp vào thẻ badge đánh giá sao (.card-rating-tag) trên card phim -> mở Popover 5 sao hoặc login modal nếu chưa đăng nhập
     const ratingTag = e.target.closest('.card-rating-tag');
     if (ratingTag) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+        if (typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn) {
+            window.showTFlixToast('Vui lòng đăng nhập để đánh giá phim!', 'bi-person-lock text-warning');
+            triggerLoginModalIfAvailable();
+            return;
+        }
         window.openRatingPopover(ratingTag);
         return;
     }
@@ -642,6 +724,11 @@ document.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+        if (typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn) {
+            window.showTFlixToast('Vui lòng đăng nhập để đánh giá phim!', 'bi-person-lock text-warning');
+            triggerLoginModalIfAvailable();
+            return;
+        }
         const starVal = parseInt(starBtn.dataset.star, 10);
         const movieId = getMovieIdFromElement(starBtn);
         if (movieId && starVal) {
@@ -652,9 +739,18 @@ document.addEventListener('click', function (e) {
 
     // 4. Nhấp vào container của rating widget trên card phim -> chặn click lan truyền làm chuyển trang
     const isRatingWidget = e.target.closest('.card-quick-rating, .card-stars-widget');
-    if (isRatingWidget && e.target.closest('.movie-card-item, .film-card, .preview-catalog-card, .slist-item, .item, a')) {
-        e.stopPropagation();
-        return;
+    if (isRatingWidget) {
+        if (typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            triggerLoginModalIfAvailable();
+            return;
+        }
+        if (e.target.closest('.movie-card-item, .film-card, .preview-catalog-card, .slist-item, .item, a')) {
+            e.stopPropagation();
+            return;
+        }
     }
 }, true); // useCapture = true: Bắt trước thẻ card cha để ngăn chuyển trang ngoài ý muốn
 
@@ -691,6 +787,12 @@ window.rateMovieFromCard = async function (movieId, ratingVal, event, starBtn) {
         event.preventDefault();
     }
     if (!movieId || ratingVal < 1 || ratingVal > 5) return;
+
+    if (typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn) {
+        window.showTFlixToast('Vui lòng đăng nhập để đánh giá phim!', 'bi-person-lock text-warning');
+        triggerLoginModalIfAvailable();
+        return;
+    }
 
     const widget = starBtn ? starBtn.closest('.card-stars-widget, .quick-stars, .stars-picker') : null;
     if (widget) {

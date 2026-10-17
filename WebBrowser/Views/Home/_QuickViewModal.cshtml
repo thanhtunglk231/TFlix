@@ -19,7 +19,7 @@
                         <div id="modalOriginalTitle" class="text-muted small mb-2 fst-italic">Original Title</div>
 
                         <div class="d-flex align-items-center flex-wrap gap-2 mb-2 small">
-                            <span class="card-rating-tag" id="modalRatingTag" title="Nhấn để đánh giá sao"><i class="bi bi-star-fill text-warning"></i> <span id="modalRating">8.5</span></span>
+                            <span class="card-rating-tag" id="modalRatingTag" title="Nhấn để đánh giá sao" onclick="if(typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn){event.preventDefault(); event.stopPropagation(); if (typeof window.showLoginModal === 'function') { window.showLoginModal(); } else if (typeof window.triggerLoginModalIfAvailable === 'function') { window.triggerLoginModalIfAvailable(); } return false;}"><i class="bi bi-star-fill text-warning"></i> <span id="modalRating">8.5</span></span>
                             <span>•</span>
                             <span id="modalYear">2024</span>
                             <span>•</span>
@@ -51,7 +51,7 @@
                         </p>
 
                         <div class="d-flex align-items-center gap-2 mt-4 flex-wrap">
-                            <a id="modalWatchBtn" href="#" class="btn-tflix-primary">
+                            <a id="modalWatchBtn" href="#" class="btn-tflix-primary" onclick="if(typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn){event.preventDefault(); event.stopPropagation(); if (typeof window.showLoginModal === 'function') { window.showLoginModal(); } else if (typeof window.triggerLoginModalIfAvailable === 'function') { window.triggerLoginModalIfAvailable(); } return false;}">
                                 <i class="bi bi-play-fill fs-5"></i>
                                 <span>Xem phim ngay</span>
                             </a>
