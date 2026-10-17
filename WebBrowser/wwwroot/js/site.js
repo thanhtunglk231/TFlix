@@ -1,7 +1,97 @@
-// TFlix Global Scripts - Toast & Star Rating System
+// =========================================================================
+// TFLIX CINEMATIC PAGE TRANSITION & TOP PROGRESS BAR
+// =========================================================================
+(function () {
+    let progressBar = document.getElementById('tflixPageProgressBar');
+    if (!progressBar) {
+        progressBar = document.createElement('div');
+        progressBar.id = 'tflixPageProgressBar';
+        document.body.prepend(progressBar);
+    }
 
-// Toast Notification
-window.showTFlixToast = function (message, iconClass = 'bi-check-circle-fill text-warning') {
+    let progressInterval = null;
+    let currentProgress = 0;
+
+    window.tflixProgressBar = {
+        start: function () {
+            clearInterval(progressInterval);
+            currentProgress = 15;
+            progressBar.classList.add('active');
+            progressBar.style.width = currentProgress + '%';
+            progressBar.style.opacity = '1';
+
+            progressInterval = setInterval(() => {
+                if (currentProgress < 85) {
+                    currentProgress += Math.random() * 12 + 5;
+                    progressBar.style.width = Math.min(currentProgress, 88) + '%';
+                }
+            }, 180);
+        },
+        set: function (percent) {
+            currentProgress = Math.max(0, Math.min(100, percent));
+            progressBar.style.width = currentProgress + '%';
+        },
+        done: function () {
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            setTimeout(() => {
+                progressBar.style.opacity = '0';
+                setTimeout(() => {
+                    progressBar.classList.remove('active');
+                    progressBar.style.width = '0%';
+                }, 300);
+            }, 200);
+        }
+    };
+
+    // Tự động kích hoạt thanh tiến trình và hiệu ứng mượt mà khi click chuyển trang nội bộ
+    document.addEventListener('click', function (e) {
+        const anchor = e.target.closest('a');
+        if (!anchor) return;
+
+        const href = anchor.getAttribute('href');
+        const target = anchor.getAttribute('target');
+
+        if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+        if (target === '_blank' || anchor.hasAttribute('download')) return;
+        if (anchor.getAttribute('data-bs-toggle') || anchor.getAttribute('data-bs-target') || anchor.classList.contains('no-transition')) return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+
+        const currentUrl = window.location.pathname + window.location.search;
+        if (href === currentUrl || href === window.location.href) return;
+
+        const isInternal = href.startsWith('/') || href.startsWith(window.location.origin);
+        if (isInternal) {
+            document.body.classList.add('page-transitioning');
+            window.tflixProgressBar.start();
+        }
+    });
+
+    window.addEventListener('pageshow', function () {
+        document.body.classList.remove('page-transitioning');
+        window.tflixProgressBar.done();
+    });
+})();
+
+// =========================================================================
+// UNICODE DECODER HELPER
+// =========================================================================
+function decodeUnicodeString(str) {
+    if (!str || typeof str !== 'string') return str || '';
+    try {
+        const txt = document.createElement('textarea');
+        txt.innerHTML = str;
+        return txt.value;
+    } catch (e) {
+        return str;
+    }
+}
+window.decodeUnicodeString = decodeUnicodeString;
+
+// =========================================================================
+// PREMIUM OTT TOAST NOTIFICATION SYSTEM
+// =========================================================================
+window.showTFlixToast = function (message, type = 'info', title = null) {
     let container = document.getElementById('toastContainer');
     if (!container) {
         container = document.createElement('div');
@@ -9,16 +99,85 @@ window.showTFlixToast = function (message, iconClass = 'bi-check-circle-fill tex
         container.className = 'tflix-toast-container';
         document.body.appendChild(container);
     }
+
+    // Chuẩn hóa loại toast (type)
+    let toastType = 'info';
+    let iconClass = 'bi-info-circle-fill';
+    let defaultTitle = 'Thông báo';
+
+    const t = String(type).toLowerCase();
+    if (t === 'success' || t.includes('success')) {
+        toastType = 'success';
+        iconClass = 'bi-check-circle-fill';
+        defaultTitle = 'Thành công';
+    } else if (t === 'error' || t === 'danger' || t.includes('danger') || t.includes('error')) {
+        toastType = 'error';
+        iconClass = 'bi-exclamation-triangle-fill';
+        defaultTitle = 'Có lỗi xảy ra';
+    } else if (t === 'warning' || t.includes('warning')) {
+        toastType = 'warning';
+        iconClass = 'bi-exclamation-circle-fill';
+        defaultTitle = 'Cảnh báo';
+    } else if (t.includes('bi-')) {
+        // Cho phép truyền thẳng class icon tùy chọn
+        iconClass = type;
+        if (t.includes('check')) { toastType = 'success'; defaultTitle = 'Thành công'; }
+        else if (t.includes('star')) { toastType = 'warning'; defaultTitle = 'Đánh giá'; }
+        else if (t.includes('heart')) { toastType = 'success'; defaultTitle = 'Yêu thích'; }
+        else { toastType = 'info'; defaultTitle = 'Thông báo'; }
+    }
+
+    const toastTitle = title || defaultTitle;
+    const cleanMessage = decodeUnicodeString(message);
+
     const toast = document.createElement('div');
-    toast.className = 'tflix-toast';
-    toast.innerHTML = `<i class="bi ${iconClass}"></i><span>${message}</span>`;
+    toast.className = `tflix-toast toast-${toastType}`;
+    toast.innerHTML = `
+        <div class="tflix-toast-icon-wrap">
+            <i class="bi ${iconClass}"></i>
+        </div>
+        <div class="tflix-toast-content">
+            <div class="tflix-toast-title">${toastTitle}</div>
+            <div class="tflix-toast-message">${cleanMessage}</div>
+        </div>
+        <button type="button" class="tflix-toast-close" aria-label="Đóng">&times;</button>
+        <div class="tflix-toast-progress"></div>
+    `;
+
     container.appendChild(toast);
-    setTimeout(() => toast.classList.add('show'), 20);
-    setTimeout(() => {
+
+    // Kích hoạt animation trượt vào
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    let dismissTimer = null;
+    const closeToast = () => {
+        clearTimeout(dismissTimer);
         toast.classList.remove('show');
+        toast.classList.add('hide');
         setTimeout(() => toast.remove(), 350);
-    }, 3200);
+    };
+
+    const closeBtn = toast.querySelector('.tflix-toast-close');
+    if (closeBtn) closeBtn.addEventListener('click', closeToast);
+
+    // Tự động đóng sau 3.5s
+    dismissTimer = setTimeout(closeToast, 3500);
+
+    // Tạm dừng khi rê chuột vào
+    toast.addEventListener('mouseenter', () => {
+        clearTimeout(dismissTimer);
+        const bar = toast.querySelector('.tflix-toast-progress');
+        if (bar) bar.style.animationPlayState = 'paused';
+    });
+    toast.addEventListener('mouseleave', () => {
+        dismissTimer = setTimeout(closeToast, 2000);
+        const bar = toast.querySelector('.tflix-toast-progress');
+        if (bar) bar.style.animationPlayState = 'running';
+    });
 };
+
 
 function triggerLoginModalIfAvailable() {
     if (typeof showLoginModal === 'function') {

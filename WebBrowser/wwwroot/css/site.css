@@ -1588,44 +1588,213 @@ h1, h2, h3, h4, h5, h6 {
   padding: 1.25rem 1.5rem;
 }
 
-/* Toast Container */
+/* ==========================================================================
+   PAGE TRANSITION & TOP PROGRESS BAR
+   ========================================================================== */
+#tflixPageProgressBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, #19d3c5 0%, #1683ff 50%, #9061f9 100%);
+  box-shadow: 0 0 14px rgba(25, 211, 197, 0.8), 0 0 6px rgba(22, 131, 255, 0.9);
+  z-index: 99999;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  pointer-events: none;
+  opacity: 0;
+}
+
+#tflixPageProgressBar.active {
+  opacity: 1;
+}
+
+/* Page fade transition */
+body.page-transitioning main {
+  opacity: 0.82;
+  filter: blur(1px);
+  transition: opacity 0.22s ease, filter 0.22s ease;
+}
+
+main {
+  animation: pageFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0.65;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   PREMIUM OTT TOAST NOTIFICATION SYSTEM
+   ========================================================================== */
 .tflix-toast-container {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  z-index: 1090;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10999;
   display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
+  flex-direction: column-reverse;
+  gap: 12px;
   pointer-events: none;
+  max-width: 420px;
+  width: calc(100vw - 32px);
+}
+
+@media (max-width: 575.98px) {
+  .tflix-toast-container {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
 }
 
 .tflix-toast {
   pointer-events: auto;
-  background: #1c1f26;
-  border: 1px solid var(--border-glow);
-  border-radius: 12px;
-  padding: 0.85rem 1.25rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+  background: rgba(23, 25, 31, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.15);
   color: #ffffff;
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 280px;
-  transform: translateY(20px);
+  align-items: flex-start;
+  gap: 14px;
+  transform: translateX(110%);
   opacity: 0;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
 }
 
 .tflix-toast.show {
-  transform: translateY(0);
+  transform: translateX(0);
   opacity: 1;
 }
 
-.tflix-toast i {
-  font-size: 1.25rem;
-  color: var(--primary-cyan);
+.tflix-toast.hide {
+  transform: translateX(110%);
+  opacity: 0;
 }
+
+.tflix-toast-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.15rem;
+}
+
+.tflix-toast-content {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.tflix-toast-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+
+.tflix-toast-message {
+  font-size: 0.84rem;
+  color: #b5bcc7;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.tflix-toast-close {
+  background: transparent;
+  border: none;
+  color: #6e7683;
+  padding: 0;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.tflix-toast-close:hover {
+  color: #ffffff;
+}
+
+/* Toast Progress Bar */
+.tflix-toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2.5px;
+  width: 100%;
+  transform-origin: left;
+  animation: tflixToastTimer 3.5s linear forwards;
+}
+
+@keyframes tflixToastTimer {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* Variants */
+.tflix-toast.toast-success {
+  border-color: rgba(25, 211, 197, 0.35);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(25, 211, 197, 0.15);
+}
+.tflix-toast.toast-success .tflix-toast-icon-wrap {
+  background: rgba(25, 211, 197, 0.15);
+  color: #19d3c5;
+  box-shadow: 0 0 12px rgba(25, 211, 197, 0.2);
+}
+.tflix-toast.toast-success .tflix-toast-title { color: #19d3c5; }
+.tflix-toast.toast-success .tflix-toast-progress { background: linear-gradient(90deg, #19d3c5, #1683ff); }
+
+.tflix-toast.toast-error, .tflix-toast.toast-danger {
+  border-color: rgba(255, 77, 109, 0.4);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 77, 109, 0.15);
+}
+.tflix-toast.toast-error .tflix-toast-icon-wrap, .tflix-toast.toast-danger .tflix-toast-icon-wrap {
+  background: rgba(255, 77, 109, 0.15);
+  color: #ff4d6d;
+  box-shadow: 0 0 12px rgba(255, 77, 109, 0.2);
+}
+.tflix-toast.toast-error .tflix-toast-title, .tflix-toast.toast-danger .tflix-toast-title { color: #ff4d6d; }
+.tflix-toast.toast-error .tflix-toast-progress, .tflix-toast.toast-danger .tflix-toast-progress { background: linear-gradient(90deg, #ff4d6d, #f43f5e); }
+
+.tflix-toast.toast-warning {
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.15);
+}
+.tflix-toast.toast-warning .tflix-toast-icon-wrap {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+}
+.tflix-toast.toast-warning .tflix-toast-title { color: #f59e0b; }
+.tflix-toast.toast-warning .tflix-toast-progress { background: linear-gradient(90deg, #f59e0b, #d97706); }
+
+.tflix-toast.toast-info {
+  border-color: rgba(22, 131, 255, 0.4);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(22, 131, 255, 0.15);
+}
+.tflix-toast.toast-info .tflix-toast-icon-wrap {
+  background: rgba(22, 131, 255, 0.15);
+  color: #1683ff;
+  box-shadow: 0 0 12px rgba(22, 131, 255, 0.2);
+}
+.tflix-toast.toast-info .tflix-toast-title { color: #1683ff; }
+.tflix-toast.toast-info .tflix-toast-progress { background: linear-gradient(90deg, #1683ff, #19d3c5); }
 
 /* ==========================================================================
    SKELETON SHIMMER LOADERS

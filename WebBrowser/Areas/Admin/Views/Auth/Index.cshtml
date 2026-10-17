@@ -83,6 +83,40 @@
         .auth-tabs .nav-link { color: #9aa0aa; border-radius: 9px; font-weight: 700; }
         .auth-tabs .nav-link.active { color: #001014; background: var(--brand); }
         #passwordPane > .d-flex { display: none !important; }
+
+        /* Premium Glassmorphism Admin Alert */
+        .admin-alert-box {
+            background: rgba(255, 77, 109, 0.12);
+            border: 1px solid rgba(255, 77, 109, 0.35);
+            box-shadow: 0 8px 24px rgba(255, 77, 109, 0.15);
+            border-radius: 14px;
+            padding: 0.85rem 1rem;
+            color: #ffd6dc;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.88rem;
+            line-height: 1.4;
+            animation: alertSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .admin-alert-box.alert-success {
+            background: rgba(39, 211, 195, 0.12);
+            border-color: rgba(39, 211, 195, 0.35);
+            box-shadow: 0 8px 24px rgba(39, 211, 195, 0.15);
+            color: #c7fbf5;
+        }
+        @@keyframes alertSlideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @@keyframes shakeCard {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .shake {
+            animation: shakeCard 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
     </style>
 </head>
 <body>
@@ -95,7 +129,7 @@
             <p class="text-secondary small">Đăng nhập tài khoản Quản trị viên hệ thống</p>
         </div>
 
-        <div id="alertBox" class="alert alert-danger d-none text-start small mb-3"></div>
+        <div id="alertBox" class="admin-alert-box d-none text-start mb-3" role="alert"></div>
 
         <ul class="nav nav-pills nav-fill auth-tabs mb-4" role="tablist" aria-label="Chọn hình thức đăng nhập Admin">
             <li class="nav-item"><button class="nav-link active" id="password-tab" data-bs-toggle="pill" data-bs-target="#passwordPane" type="button" role="tab" aria-controls="passwordPane" aria-selected="true"><i class="bi bi-key me-1"></i>Mật khẩu</button></li>
@@ -160,6 +194,35 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function decodeUnicodeString(str) {
+            if (!str || typeof str !== 'string') return str || '';
+            try {
+                const txt = document.createElement('textarea');
+                txt.innerHTML = str;
+                return txt.value;
+            } catch (e) {
+                return str;
+            }
+        }
+
+        function showAdminAlert(message, type = 'danger') {
+            const box = $('#alertBox');
+            const isSuccess = type === 'success';
+            const iconClass = isSuccess ? 'bi-shield-check text-info' : 'bi-shield-exclamation text-danger';
+            const cleanMsg = decodeUnicodeString(message);
+
+            box.removeClass('d-none alert-success alert-danger')
+               .addClass(isSuccess ? 'admin-alert-box alert-success' : 'admin-alert-box alert-danger')
+               .html(`<i class="bi ${iconClass} fs-5 flex-shrink-0"></i><div>${cleanMsg}</div>`);
+
+            if (!isSuccess) {
+                const card = $('.admin-login-card');
+                card.removeClass('shake');
+                void card[0].offsetWidth; // trigger reflow
+                card.addClass('shake');
+            }
+        }
+
         const showOtpSending = button => {
             button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Đang gửi...');
         };
@@ -182,16 +245,15 @@
 
         $('#adminLoginForm').on('submit', function (e) {
             e.preventDefault();
-            const alertBox = $('#alertBox');
             const btn = $('#btnLogin');
-            alertBox.addClass('d-none').text('');
+            $('#alertBox').addClass('d-none').empty();
 
             const username = $('#username').val().trim();
             const password = $('#password').val();
             const returnUrl = $('#returnUrl').val();
 
             if (!username || !password) {
-                alertBox.removeClass('d-none').text('Vui lòng nhập tên đăng nhập và mật khẩu.');
+                showAdminAlert('Vui lòng nhập tên đăng nhập và mật khẩu Quản trị.', 'danger');
                 return;
             }
 
@@ -200,51 +262,77 @@
             $.ajax({
                 url: '/Admin/Auth/Login?returnUrl=' + encodeURIComponent(returnUrl),
                 type: 'POST',
-                contentType: 'application/json',
+                contentType: 'application/json; charset=utf-8',
                 data: JSON.stringify({ username: username, password: password }),
                 success: function (res) {
                     btn.html('<i class="bi bi-check-lg me-1"></i> Thành công!');
-                    window.location.href = res.redirectUrl || '/Admin';
+                    showAdminAlert(res.message || 'Đăng nhập thành công! Đang chuyển hướng...', 'success');
+                    setTimeout(() => {
+                        window.location.href = res.redirectUrl || '/Admin';
+                    }, 400);
                 },
                 error: function (xhr) {
                     btn.prop('disabled', false).html('<i class="bi bi-box-arrow-in-right me-1"></i> Đăng Nhập Quản Trị');
-                    let msg = 'Đăng nhập thất bại. Kiểm tra lại thông tin tài khoản admin.';
+                    let msg = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin tài khoản admin.';
                     if (xhr.responseJSON && xhr.responseJSON.message) {
                         msg = xhr.responseJSON.message;
+                    } else if (xhr.status === 401) {
+                        msg = 'Tên đăng nhập hoặc mật khẩu không chính xác.';
+                    } else if (xhr.status === 403) {
+                        msg = 'Tài khoản này không có quyền truy cập trang Quản trị.';
+                    } else if (xhr.status >= 500) {
+                        msg = 'Máy chủ quản trị tạm thời gián đoạn. Vui lòng thử lại sau.';
                     }
-                    alertBox.removeClass('d-none').text(msg);
+                    showAdminAlert(msg, 'danger');
                 }
             });
         });
 
         $('#btnSendOtp').on('click', function () {
             const email = $('#otpEmail').val().trim();
-            if (!email) { $('#alertBox').removeClass('d-none').text('Vui lòng nhập email quản trị.'); return; }
+            if (!email) {
+                showAdminAlert('Vui lòng nhập email quản trị trước khi gửi mã OTP.', 'danger');
+                return;
+            }
             const btn = $(this);
             let sent = false;
             showOtpSending(btn);
             $.ajax({
-                url: '/Admin/Auth/RequestOtp', type: 'POST', contentType: 'application/json',
+                url: '/Admin/Auth/RequestOtp',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
                 data: JSON.stringify({ email }),
                 success: res => {
                     sent = true;
-                    $('#alertBox').removeClass('d-none alert-danger').addClass('alert-success').text(res.message || 'Đã gửi OTP.');
+                    showAdminAlert(res.message || 'Đã gửi mã xác thực OTP về email quản trị.', 'success');
                     startOtpCountdown(btn);
                 },
-                error: xhr => $('#alertBox').removeClass('d-none alert-success').addClass('alert-danger').text(xhr.responseJSON?.message || 'Không thể gửi OTP.'),
+                error: xhr => {
+                    const msg = xhr.responseJSON?.message || 'Không thể gửi mã OTP lúc này. Vui lòng thử lại sau.';
+                    showAdminAlert(msg, 'danger');
+                },
                 complete: () => { if (!sent) btn.prop('disabled', false).text('Gửi OTP'); }
             });
         });
 
         $('#adminOtpForm').on('submit', function (e) {
             e.preventDefault();
-            const btn = $('#btnOtpLogin').prop('disabled', true).text('Đang xác thực...');
+            const btn = $('#btnOtpLogin').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span> Đang xác thực...');
             $.ajax({
                 url: '/Admin/Auth/LoginWithOtp?returnUrl=' + encodeURIComponent($('#returnUrl').val()),
-                type: 'POST', contentType: 'application/json',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
                 data: JSON.stringify({ email: $('#otpEmail').val().trim(), otp: $('#adminOtp').val().trim() }),
-                success: res => window.location.href = res.redirectUrl || '/Admin',
-                error: xhr => $('#alertBox').removeClass('d-none alert-success').addClass('alert-danger').text(xhr.responseJSON?.message || 'OTP không hợp lệ.'),
+                success: res => {
+                    showAdminAlert(res.message || 'Xác thực OTP thành công! Đang chuyển hướng...', 'success');
+                    setTimeout(() => {
+                        window.location.href = res.redirectUrl || '/Admin';
+                    }, 400);
+                },
+                error: xhr => {
+                    const msg = xhr.responseJSON?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.';
+                    showAdminAlert(msg, 'danger');
+                },
                 complete: () => btn.prop('disabled', false).text('Đăng nhập bằng OTP')
             });
         });

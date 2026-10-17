@@ -239,7 +239,15 @@ builder.Services.AddAuthorization(opts =>
 });
 // Các dịch vụ khác
 builder.Services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
-builder.Services.AddControllersWithViews();
+// Cấu hình mã hóa Unicode toàn diện cho Razor View và JSON trả về (tránh lỗi font / entities &#x...;)
+builder.Services.AddSingleton(System.Text.Encodings.Web.HtmlEncoder.Create(System.Text.Unicode.UnicodeRanges.All));
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All);
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(o =>
 {

@@ -207,8 +207,18 @@
             const antiForgeryToken = $('input[name="__RequestVerificationToken"]').val();
 
             const showMessage = (message, type) => {
+                const cleanMsg = typeof decodeUnicodeString === 'function' ? decodeUnicodeString(message) : message;
+                const isSuccess = type === 'success';
+                const isWarning = type === 'warning';
+                const icon = isSuccess ? 'bi-check-circle-fill text-success' : (isWarning ? 'bi-exclamation-triangle-fill text-warning' : 'bi-shield-exclamation text-danger');
+
                 messageBox.removeClass("d-none alert-success alert-danger alert-warning")
-                    .addClass(`alert-${type}`).text(message);
+                    .addClass(`alert-${type} d-flex align-items-center gap-2 rounded-3 border-0 shadow-sm`)
+                    .html(`<i class="bi ${icon} fs-5 flex-shrink-0"></i><div>${cleanMsg}</div>`);
+
+                if (typeof window.showTFlixToast === 'function') {
+                    window.showTFlixToast(cleanMsg, type === 'danger' ? 'error' : type);
+                }
             };
 
             const setBusy = (button, busy) => {

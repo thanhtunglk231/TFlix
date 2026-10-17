@@ -74,7 +74,8 @@
         .Where(x => !string.IsNullOrWhiteSpace(x.url))
         .ToList();
 
-    var currentSource = sources.FirstOrDefault().url ?? content.PrimaryStreamUrl ?? "";
+    var isPremiumLocked = Model.IsPremiumContent && !Model.HasActiveSubscription;
+    var currentSource = isPremiumLocked ? "" : (sources.FirstOrDefault().url ?? content.PrimaryStreamUrl ?? "");
     var hasSource = !string.IsNullOrWhiteSpace(currentSource);
 
     var episodes = Model.Episodes;
@@ -819,7 +820,45 @@
             <div class="ambient-glow-wrapper">
                 <div class="ambient-glow"></div>
                 <div id="playerBox" class="player-wrap">
-                    @if (hasSource)
+                    @if (isPremiumLocked)
+                    {
+                        <!-- Khung video hiển thị thông báo nội dung này dành cho tài khoản Premium và nút thanh toán -->
+                        <div class="premium-locked-player-box d-flex flex-column align-items-center justify-content-center text-center p-4 p-md-5 text-white" 
+                             style="width: 100%; aspect-ratio: 16 / 9; min-height: 420px; background: radial-gradient(circle at center, #1e2430 0%, #0d1015 100%); border-radius: 18px; border: 1px solid rgba(245, 158, 11, 0.35); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.65);">
+                            
+                            <div class="mb-3 p-3 rounded-circle d-inline-flex align-items-center justify-content-center" style="background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.45); box-shadow: 0 0 35px rgba(245, 158, 11, 0.25);">
+                                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </div>
+
+                            <span class="badge px-3 py-1.5 rounded-pill mb-2.5 fw-bold" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #081119; letter-spacing: 0.05em; font-size: 0.8rem;">
+                                <i class="bi bi-gem me-1"></i> ĐẶC QUYỀN PREMIUM VIP
+                            </span>
+
+                            <h3 class="fw-bold text-white mb-2" style="font-size: clamp(1.25rem, 2.8vw, 1.75rem);">Nội dung này dành cho tài khoản Premium</h3>
+                            
+                            <p class="text-white-50 mx-auto mb-4" style="max-width: 520px; font-size: 0.95rem; line-height: 1.6;">
+                                @(isLoggedIn 
+                                    ? "Tài khoản của bạn hiện chưa có gói Premium hoặc gói đã hết hạn. Hãy thanh toán nâng cấp ngay để mở khóa toàn bộ phim bản quyền với chất lượng 4K Ultra HD không giới hạn." 
+                                    : "Bộ phim này thuộc danh mục đặc quyền Premium của TFlix. Vui lòng thanh toán nâng cấp tài khoản để bắt đầu thưởng thức.")
+                            </p>
+
+                            <div class="d-flex flex-wrap gap-2.5 justify-content-center">
+                                @if (!isLoggedIn)
+                                {
+                                    <a href="@Url.Action("Index", "Auth", new { returnUrl = Context.Request.Path + Context.Request.QueryString })" class="btn px-4 py-2.5 rounded-pill fw-bold text-dark d-inline-flex align-items-center gap-2" style="background: #ffffff; text-decoration: none;">
+                                        <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
+                                    </a>
+                                }
+                                <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString" class="btn px-4 py-2.5 rounded-pill fw-bold d-inline-flex align-items-center gap-2 shadow-lg" style="background: var(--brand-gradient); color: #081119; text-decoration: none; font-size: 0.95rem;">
+                                    <i class="bi bi-credit-card-fill"></i> Thanh toán nâng cấp Premium
+                                </a>
+                            </div>
+                        </div>
+                    }
+                    else if (hasSource)
                     {
                         <video id="video"
                                class="video-el"
@@ -841,11 +880,19 @@
                         <div id="premiumPlayerGate" class="player-status-overlay premium-player-gate d-none" role="alert" aria-live="assertive">
                             <div class="text-center text-white" style="max-width: 560px;">
                                 <div class="mb-3 text-warning" aria-hidden="true"><i class="bi bi-gem fs-1"></i></div>
-                                <h3 class="h4 fw-bold mb-2">Đây là phim Premium</h3>
-                                <p id="premiumPlayerMessage" class="text-white-50 mb-4">Vui lòng nâng cấp tài khoản để xem nội dung này.</p>
-                                <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString" class="btn px-4 py-2 rounded-pill fw-bold" style="background: var(--brand-gradient); color: #081119;">
-                                    <i class="bi bi-gem me-2"></i>Nâng cấp tài khoản
-                                </a>
+                                <h3 class="h4 fw-bold mb-2">Nội dung này dành cho tài khoản Premium</h3>
+                                <p id="premiumPlayerMessage" class="text-white-50 mb-4">Vui lòng thanh toán nâng cấp tài khoản để xem nội dung này.</p>
+                                <div class="d-flex flex-wrap gap-2 justify-content-center">
+                                    @if (!isLoggedIn)
+                                    {
+                                        <a href="@Url.Action("Index", "Auth", new { returnUrl = Context.Request.Path + Context.Request.QueryString })" class="btn px-4 py-2 rounded-pill fw-bold text-dark" style="background: #ffffff; text-decoration: none;">
+                                            <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập
+                                        </a>
+                                    }
+                                    <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString" class="btn px-4 py-2 rounded-pill fw-bold d-inline-flex align-items-center gap-2 shadow" style="background: var(--brand-gradient); color: #081119; text-decoration: none;">
+                                        <i class="bi bi-credit-card-fill"></i>Thanh toán nâng cấp Premium
+                                    </a>
+                                </div>
                             </div>
                         </div>
 
@@ -920,39 +967,6 @@
                     }
                     else
                     {
-                        @if (Model.IsPremiumContent && !Model.HasActiveSubscription)
-                        {
-                            <div class="d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 440px; background: radial-gradient(circle at center, #1e2530 0%, #0d1015 100%); border-radius: 18px; border: 1px solid rgba(245, 158, 11, 0.25);">
-                                <div class="mb-3 p-4 rounded-circle position-relative" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); box-shadow: 0 0 30px rgba(245, 158, 11, 0.15);">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
-                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                    </svg>
-                                </div>
-                                <div class="badge px-3 py-1.5 rounded-pill mb-2 fw-bold" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #081119; letter-spacing: 0.05em;">
-                                    ĐẶC QUYỀN PREMIUM VIP
-                                </div>
-                                <h3 class="fw-bold text-white mb-2">Đây là phim Premium</h3>
-                                <p class="text-muted mx-auto mb-4" style="max-width: 540px; font-size: 0.95rem; line-height: 1.6;">
-                                    @(isLoggedIn
-                                        ? "Vui lòng nâng cấp tài khoản để xem nội dung này. Gói Premium hiện tại của bạn chưa hoạt động hoặc đã hết hạn."
-                                        : "Vui lòng đăng nhập và nâng cấp tài khoản để xem nội dung này.")
-                                </p>
-                                <div class="d-flex flex-wrap gap-2 justify-content-center">
-                                    @if (!isLoggedIn)
-                                    {
-                                        <a href="@Url.Action("Index", "Auth", new { returnUrl = Context.Request.Path + Context.Request.QueryString })" class="btn px-4 py-2.5 rounded-pill fw-bold text-dark d-inline-flex align-items-center gap-2" style="background: #ffffff; text-decoration: none;">
-                                            <i class="bi bi-box-arrow-in-right"></i> Đăng nhập tài khoản
-                                        </a>
-                                    }
-                                    <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString" class="btn px-4 py-2.5 rounded-pill fw-bold d-inline-flex align-items-center gap-2" style="background: var(--brand-gradient); color: #081119; text-decoration: none;">
-                                        <i class="bi bi-gem"></i> Nâng cấp gói Premium
-                                    </a>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
                         <!-- Hiển thị thông báo khi phim chưa có source -->
                         <div class="d-flex flex-column align-items-center justify-content-center text-center p-5 text-white" style="min-height: 420px; background: radial-gradient(circle at center, #1b2029 0%, #0e1115 100%); border-radius: 18px;">
                             <div class="mb-3 p-4 rounded-circle" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3);">
@@ -1372,20 +1386,27 @@
 <!-- Modal: Yêu cầu đăng nhập -->
 <div class="modal fade" id="loginRequiredModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content text-light" style="background: #17191f; border: 1px solid var(--border-subtle); border-radius: 18px;">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    Yêu cầu đăng nhập tài khoản
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="modal-content text-light" style="background: rgba(23, 25, 31, 0.96); backdrop-filter: blur(20px); border: 1px solid rgba(25, 211, 197, 0.25); border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(25, 211, 197, 0.1);">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); display: flex; align-items: center; justify-content: center; color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);">
+                        <i class="bi bi-shield-lock-fill fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-white mb-0">Yêu cầu đăng nhập tài khoản</h5>
+                        <small class="text-secondary">Trải nghiệm trọn vẹn rạp phim TFlix</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
-            <div class="modal-body py-4 text-muted">
-                Bạn cần đăng nhập để sử dụng tính năng xem phim, lưu yêu thích hoặc tham gia bình luận trực tiếp.
+            <div class="modal-body py-4 px-4 text-muted" style="line-height: 1.6; font-size: 0.95rem;">
+                Bạn cần đăng nhập tài khoản để có thể xem trọn bộ các tập phim, lưu vào danh sách yêu thích và tham gia bình luận trực tiếp cùng cộng đồng người xem TFlix.
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <a class="btn fw-bold rounded-pill px-4" style="background: var(--brand-gradient); color: #071118;" asp-controller="Auth" asp-action="Index">Đăng nhập ngay</a>
-                <button type="button" class="btn btn-outline-secondary text-light rounded-pill px-3" data-bs-dismiss="modal">Để sau</button>
+            <div class="modal-footer border-0 pt-0 pb-4 px-4 gap-2">
+                <button type="button" class="btn btn-outline-secondary text-light rounded-pill px-4 py-2 border-secondary border-opacity-25" data-bs-dismiss="modal">Để sau</button>
+                <a class="btn fw-bold rounded-pill px-4 py-2 text-dark" style="background: var(--accent-gradient, linear-gradient(135deg, #19d3c5 0%, #1683ff 100%)); box-shadow: 0 4px 15px rgba(25, 211, 197, 0.35);" asp-controller="Auth" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập ngay
+                </a>
             </div>
         </div>
     </div>
@@ -2390,7 +2411,11 @@
                     if (cmtCharCount) cmtCharCount.textContent = '0 / 500';
                 } catch (err) {
                     console.error('Lỗi khi gửi bình luận:', err);
-                    alert(err?.message || 'Gửi bình luận thất bại. Vui lòng thử lại!');
+                    if (typeof window.showTFlixToast === 'function') {
+                        window.showTFlixToast(err?.message || 'Gửi bình luận thất bại. Vui lòng thử lại!', 'error', 'Bình luận');
+                    } else {
+                        alert(err?.message || 'Gửi bình luận thất bại. Vui lòng thử lại!');
+                    }
                 } finally {
                     btnCmt.disabled = false;
                     btnCmt.innerHTML = originalHtml;
@@ -2413,7 +2438,7 @@
                 const canWatch = item.dataset.canWatch === 'true';
 
                 if (isEpPremium && !canWatch) {
-                    showPremiumGate('Đây là phim Premium. Vui lòng nâng cấp tài khoản để xem nội dung này.');
+                    showPremiumGate('Nội dung này dành cho tài khoản Premium. Vui lòng thanh toán nâng cấp tài khoản để xem.');
                     return;
                 }
 
@@ -2435,7 +2460,7 @@
                         const json = await res.json();
 
                         if (json && json.isPremium && !json.hasActiveSubscription) {
-                            showPremiumGate(json.message || 'Đây là phim Premium. Vui lòng nâng cấp tài khoản để xem nội dung này.');
+                            showPremiumGate(json.message || 'Nội dung này dành cho tài khoản Premium. Vui lòng thanh toán nâng cấp tài khoản để xem.');
                             return;
                         }
 
@@ -2518,8 +2543,15 @@
                 const active = result.data?.isFavorite ?? result.data?.IsFavorite ?? false;
                 button.classList.toggle('active', active);
                 if (label) label.textContent = active ? 'Đã yêu thích' : 'Yêu thích';
+                if (typeof window.showTFlixToast === 'function') {
+                    window.showTFlixToast(active ? 'Đã thêm phim vào danh sách yêu thích của bạn!' : 'Đã xóa phim khỏi danh sách yêu thích.', active ? 'success' : 'info', 'Yêu thích');
+                }
             } catch (error) {
-                alert(error.message || 'Không thể cập nhật phim yêu thích.');
+                if (typeof window.showTFlixToast === 'function') {
+                    window.showTFlixToast(error.message || 'Không thể cập nhật phim yêu thích.', 'error', 'Yêu thích');
+                } else {
+                    alert(error.message || 'Không thể cập nhật phim yêu thích.');
+                }
                 if (label) label.textContent = oldLabel;
             } finally {
                 button.disabled = false;
@@ -2541,9 +2573,17 @@
         document.getElementById('btnShare')?.addEventListener('click', function() {
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(window.location.href);
-                alert('Đã sao chép liên kết chia sẻ phim vào bộ nhớ tạm!');
+                if (typeof window.showTFlixToast === 'function') {
+                    window.showTFlixToast('Đã sao chép liên kết chia sẻ phim vào bộ nhớ tạm!', 'success', 'Chia sẻ phim');
+                } else {
+                    alert('Đã sao chép liên kết chia sẻ phim vào bộ nhớ tạm!');
+                }
             } else {
-                alert('Liên kết: ' + window.location.href);
+                if (typeof window.showTFlixToast === 'function') {
+                    window.showTFlixToast('Liên kết: ' + window.location.href, 'info', 'Chia sẻ phim');
+                } else {
+                    alert('Liên kết: ' + window.location.href);
+                }
             }
         });
 
