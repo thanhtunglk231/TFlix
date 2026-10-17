@@ -39,5 +39,13 @@ namespace WebBrowser.Models.MovieAsset
         public long? NextAssetId { get; set; }
         [JsonProperty("hasMore")]
         public bool HasMore { get; set; }
+        [JsonProperty("totalCount")]
+        public int TotalCount { get; set; }
+        [JsonProperty("page")]
+        public int Page { get; set; }
+        [JsonProperty("pageSize")]
+        public int PageSize { get; set; }
+        [JsonProperty("totalPages")]
+        public int TotalPages { get; set; }
     }
 }

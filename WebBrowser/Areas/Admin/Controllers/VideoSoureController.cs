@@ -334,7 +334,7 @@ namespace WebBrowser.Areas.Admin.Controllers
 
         public async Task<IActionResult> GetAll()
         {
-            var result = await _videoSoureService.get_all();
+            var result = await _videoSoureService.get_all(GetOwnershipFilterUserId());
             return Ok(result);
         }
 

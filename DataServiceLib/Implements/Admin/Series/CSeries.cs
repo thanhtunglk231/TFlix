@@ -21,7 +21,7 @@ namespace DataServiceLib.Implements.Admin.Series
         }
 
         // ===== GET ALL =====
-        public async Task<CResponseMessage> get_all()
+        public async Task<CResponseMessage> get_all(long? userId = null)
         {
             try
             {
@@ -31,9 +31,10 @@ namespace DataServiceLib.Implements.Admin.Series
                 var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000)
                 { Direction = ParameterDirection.Output };
 
+                var userIdParameter = new SqlParameter("@p_user_id", SqlDbType.BigInt) { Value = (object?)userId ?? DBNull.Value };
                 var dataset = _baseProvider.GetDatasetFromSP(
                     "sp_get_all_series",
-                    new IDbDataParameter[] { o_code, o_message },
+                    new IDbDataParameter[] { userIdParameter, o_code, o_message },
                     _connectionString
                 );
 
@@ -120,6 +121,10 @@ namespace DataServiceLib.Implements.Admin.Series
             {
                 Value = string.IsNullOrWhiteSpace(dto.EpisodesJson) ? "[]" : dto.EpisodesJson
             },
+            new SqlParameter("@p_created_by", SqlDbType.BigInt)
+            {
+                Value = (object?)dto.CreatedBy ?? DBNull.Value
+            },
 
             // OUTPUT
             new SqlParameter("@o_series_id", SqlDbType.Int)
@@ -146,10 +151,10 @@ namespace DataServiceLib.Implements.Admin.Series
                     _connectionString
                 );
 
-                var seriesIdObj = parameters[13].Value;
-                var seasonIdObj = parameters[14].Value;
-                var codeObj = parameters[15].Value;
-                var messageObj = parameters[16].Value;
+                var seriesIdObj = parameters[14].Value;
+                var seasonIdObj = parameters[15].Value;
+                var codeObj = parameters[16].Value;
+                var messageObj = parameters[17].Value;
 
                 var code = codeObj?.ToString() ?? "500";
                 var message = messageObj?.ToString() ?? "Không có phản hồi";
@@ -191,6 +196,8 @@ namespace DataServiceLib.Implements.Admin.Series
         {
             try
             {
+                var accessDenied = CheckOwnership(dto.SeriesId, dto.UserId);
+                if (accessDenied != null) return accessDenied;
                 var parameters = new IDbDataParameter[]
                 {
                     new SqlParameter("@p_series_id", SqlDbType.Decimal) { Value = dto.SeriesId },
@@ -210,7 +217,6 @@ namespace DataServiceLib.Implements.Admin.Series
 
                     new SqlParameter("@p_imdb_id", SqlDbType.NVarChar) { Value = (object?)dto.ImdbId ?? DBNull.Value },
                     new SqlParameter("@p_tmdb_id", SqlDbType.NVarChar) { Value = (object?)dto.TmdbId ?? DBNull.Value },
-
                     new SqlParameter("@o_code", SqlDbType.VarChar, 10) { Direction = ParameterDirection.Output },
                     new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output }
                 };
@@ -237,10 +243,12 @@ namespace DataServiceLib.Implements.Admin.Series
         }
 
         // ===== DELETE =====
-        public async Task<CResponseMessage> Delete_series(decimal seriesId)
+        public async Task<CResponseMessage> Delete_series(decimal seriesId, long? userId = null)
         {
             try
             {
+                var accessDenied = CheckOwnership(seriesId, userId);
+                if (accessDenied != null) return accessDenied;
                 var parameters = new IDbDataParameter[]
                 {
                     new SqlParameter("@p_series_id", SqlDbType.Decimal) { Value = seriesId },
@@ -267,6 +275,25 @@ namespace DataServiceLib.Implements.Admin.Series
                     message = "Lỗi server: " + ex.Message
                 };
             }
+        }
+
+        private CResponseMessage? CheckOwnership(decimal seriesId, long? userId)
+        {
+            if (!userId.HasValue) return null;
+            var code = new SqlParameter("@o_code", SqlDbType.NVarChar, 10) { Direction = ParameterDirection.Output };
+            var message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+            _baseProvider.GetDatasetFromSP("sp_series_check_owner", new IDbDataParameter[]
+            {
+                new SqlParameter("@p_series_id", SqlDbType.BigInt) { Value = seriesId },
+                new SqlParameter("@p_user_id", SqlDbType.BigInt) { Value = userId.Value },
+                code, message
+            }, _connectionString);
+            return code.Value?.ToString() == "200" ? null : new CResponseMessage
+            {
+                Success = false,
+                code = code.Value?.ToString() ?? "403",
+                message = message.Value?.ToString() ?? "Bạn không có quyền thao tác phim bộ này."
+            };
         }
     }
 }

@@ -20,7 +20,7 @@ namespace WebBrowser.Areas.Admin.Controllers
 
         public async Task<IActionResult> GetAll()
         {
-            var currentUserId = GetCurrentAdminUserId();
+            var currentUserId = GetOwnershipFilterUserId();
             Console.WriteLine("[Admin/MovieController] -> GetAll() ENTER for userId=" + currentUserId);
             var result = await _movieService.get_all(currentUserId);
             return Ok(result);
@@ -35,7 +35,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         }
         public async Task<IActionResult> UpdateMovie([FromBody] UpdateMovieDto dto)
         {
-            dto.UserId = GetCurrentAdminUserId();
+            dto.UserId = GetOwnershipFilterUserId();
             Console.WriteLine("[Admin/MovieController] <- UpdateMovie() Calling: "+ dto.MovieId + " by userId: " + dto.UserId);
             var result = await _movieService.uppdate_Movie(dto);
             Console.WriteLine("[Admin/MovieController] <- UpdateMovie() EXIT: " + JsonConvert.SerializeObject(result));
@@ -43,7 +43,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         }
         public async Task<IActionResult> Delete([FromQuery] decimal id)
         {
-            var currentUserId = GetCurrentAdminUserId();
+            var currentUserId = GetOwnershipFilterUserId();
             Console.WriteLine("[Admin/MovieController] -> Delete() ENTER, id=" + id + ", userId=" + currentUserId);
             if (id <= 0) return BadRequest(new { message = "Invalid id." });
             var result = await _movieService.delete_Season(id, currentUserId);

@@ -5,7 +5,11 @@
     <div id="assetAlert" class="alert d-none" role="alert"></div>
     <div id="assetLoading" class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải</span></div></div>
     <div id="assetEmpty" class="asset-empty d-none">Chưa có media asset nào.</div>
-    <div class="table-responsive d-none" id="assetTableWrap"><table class="table table-dark table-hover align-middle"><thead><tr><th>Preview</th><th>Đối tượng</th><th>Loại</th><th>Thứ tự</th><th class="text-end">Thao tác</th></tr></thead><tbody id="assetRows"></tbody></table><div class="text-center py-3"><button class="btn btn-outline-light d-none" id="btnLoadMore" type="button">Tải thêm</button></div></div>
+    <div class="table-responsive d-none" id="assetTableWrap"><table class="table table-dark table-hover align-middle"><thead><tr><th>Preview</th><th>Đối tượng</th><th>Loại</th><th>Thứ tự</th><th class="text-end">Thao tác</th></tr></thead><tbody id="assetRows"></tbody></table></div>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-3" aria-label="Phân trang media">
+        <div class="d-flex align-items-center gap-2"><label class="text-secondary small" for="assetPageSize">Số dòng</label><select class="form-select form-select-sm asset-page-size" id="assetPageSize"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option></select><span class="text-secondary small" id="assetPaginationSummary"></span></div>
+        <nav aria-label="Danh sách trang media"><ul class="pagination pagination-sm mb-0" id="assetPagination"></ul></nav>
+    </div>
 </main>
 <div class="modal fade" id="assetModal" tabindex="-1" aria-labelledby="assetModalTitle" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content bg-dark text-white"><form id="assetForm" enctype="multipart/form-data">
     <div class="modal-header border-secondary"><h2 class="modal-title fs-5" id="assetModalTitle">Thêm media</h2><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button></div>

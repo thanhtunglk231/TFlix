@@ -19,8 +19,8 @@ namespace DataServiceLib.Implements.Admin.Movies
             _connectionString = configuration.GetConnectionString("SqlServer")!;
         }
 
-        public Task<CResponseMessage> sp_get_all(int pageSize = 25, string? cursorOwnerType = null, long? cursorAssetId = null, string? ownerType = null)
-            => ExecuteAsync("GET_ALL", ownerType, pageSize: pageSize, cursorOwnerType: cursorOwnerType, cursorAssetId: cursorAssetId);
+        public Task<CResponseMessage> sp_get_all(int page = 1, int pageSize = 10, string? ownerType = null)
+            => ExecuteAsync("GET_ALL", ownerType, page: page, pageSize: pageSize);
         public Task<CResponseMessage> GetOwners() => ExecuteAsync("GET_OWNERS");
         public async Task<CResponseMessage> GetByOwner(long ownerId, string ownerType)
         {
@@ -80,7 +80,7 @@ namespace DataServiceLib.Implements.Admin.Movies
 
         private Task<CResponseMessage> ExecuteAsync(string action, string? ownerType = null, long? ownerId = null,
             decimal? assetId = null, string? assetType = null, string? url = null, int? sortOrder = null,
-            int? pageSize = null, string? cursorOwnerType = null, long? cursorAssetId = null)
+            int? page = null, int? pageSize = null)
         {
             try
             {
@@ -96,9 +96,8 @@ namespace DataServiceLib.Implements.Admin.Movies
                     new SqlParameter("@p_asset_type", SqlDbType.NVarChar, 30) { Value = (object?)assetType ?? DBNull.Value },
                     new SqlParameter("@p_url", SqlDbType.NVarChar, 1600) { Value = (object?)url ?? DBNull.Value },
                     new SqlParameter("@p_sort_order", SqlDbType.Int) { Value = (object?)sortOrder ?? DBNull.Value },
+                    new SqlParameter("@p_page", SqlDbType.Int) { Value = (object?)page ?? DBNull.Value },
                     new SqlParameter("@p_page_size", SqlDbType.Int) { Value = (object?)pageSize ?? DBNull.Value },
-                    new SqlParameter("@p_cursor_owner_type", SqlDbType.NVarChar, 20) { Value = (object?)cursorOwnerType ?? DBNull.Value },
-                    new SqlParameter("@p_cursor_asset_id", SqlDbType.BigInt) { Value = (object?)cursorAssetId ?? DBNull.Value },
                     outputAssetId, code, message
                 };
 

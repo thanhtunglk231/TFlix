@@ -18,9 +18,9 @@ namespace Server.Controllers
             _cMovie = cMovie;
         }
         [HttpGet("getall")]
-        public async Task<IActionResult> GetAllMovies()
+        public async Task<IActionResult> GetAllMovies([FromQuery] long? userId = null)
         {
-            var response = await _cMovie.get_all();
+            var response = await _cMovie.get_all(userId);
             if (response.code != "200")
             {
                 return StatusCode(500, new { code = response.code, message = response.message });
@@ -62,15 +62,21 @@ namespace Server.Controllers
         }
 
         [HttpPost("delete")]
-        public async Task<IActionResult> deletemovie([FromBody] decimal id)
+        public async Task<IActionResult> deletemovie([FromBody] DeleteSeriesRequest request)
         {
-
-            var response = await _cMovie.Delete_series(id);
+            if (request.Id <= 0) return BadRequest(new { code = "400", message = "Invalid series id." });
+            var response = await _cMovie.Delete_series(request.Id, request.UserId);
             if (response.code != "200")
             {
                 return StatusCode(500, new { code = response.code, message = response.message });
             }
             return Ok(response);
+        }
+
+        public sealed class DeleteSeriesRequest
+        {
+            public decimal Id { get; set; }
+            public long? UserId { get; set; }
         }
     }
 }

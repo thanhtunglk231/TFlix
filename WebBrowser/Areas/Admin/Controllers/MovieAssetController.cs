@@ -20,9 +20,9 @@ namespace WebBrowser.Areas.Admin.Controllers
         public IActionResult Index() => View();
 
         [HttpGet("getall")]
-        public async Task<IActionResult> GetAll([FromQuery] int pageSize = 25, [FromQuery] string? cursorOwnerType = null,
-            [FromQuery] long? cursorAssetId = null, [FromQuery] string? ownerType = null)
-            => Ok(await _assetService.get_all(pageSize, cursorOwnerType, cursorAssetId, ownerType));
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10,
+            [FromQuery] string? ownerType = null)
+            => Ok(await _assetService.get_all(page, pageSize, ownerType));
 
         [HttpGet("owners")]
         public async Task<IActionResult> GetOwners() => Ok(await _assetService.get_owners());

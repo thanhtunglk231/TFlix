@@ -23,5 +23,28 @@ namespace WebBrowser.Areas.Admin.Controllers
                 return null;
             }
         }
+
+        protected bool IsSuperAdmin()
+        {
+            var user = GetCurrentAdminUser();
+            return user?.roles.Any(role => string.Equals(role, "SUPER_ADMIN", StringComparison.OrdinalIgnoreCase)) == true;
+        }
+
+        protected bool HasAdminRole()
+        {
+            var user = GetCurrentAdminUser();
+            return user?.roles.Any(role => string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(role, "SUPER_ADMIN", StringComparison.OrdinalIgnoreCase)) == true;
+        }
+
+        protected long? GetOwnershipFilterUserId() => IsSuperAdmin() ? null : GetCurrentAdminUserId();
+
+        private UserInfo? GetCurrentAdminUser()
+        {
+            var json = HttpContext.Session.GetString("AdminCurrentUser");
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try { return JsonConvert.DeserializeObject<UserInfo>(json); }
+            catch { return null; }
+        }
     }
 }

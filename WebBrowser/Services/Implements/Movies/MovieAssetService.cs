@@ -98,11 +98,9 @@ namespace WebBrowser.Services.Implements.Movies
         }
 
         // ========== 4) GET ALL ==========
-        public async Task<ApiResponse<MovieAssetTableWrapper>> get_all(int pageSize = 25, string? cursorOwnerType = null, long? cursorAssetId = null, string? ownerType = null)
+        public async Task<ApiResponse<MovieAssetTableWrapper>> get_all(int page = 1, int pageSize = 10, string? ownerType = null)
         {
-            var url = $"/api/MovieAsset/getall?pageSize={Math.Clamp(pageSize, 1, 100)}";
-            if (!string.IsNullOrWhiteSpace(cursorOwnerType)) url += $"&cursorOwnerType={Uri.EscapeDataString(cursorOwnerType)}";
-            if (cursorAssetId.HasValue) url += $"&cursorAssetId={cursorAssetId.Value}";
+            var url = $"/api/MovieAsset/getall?page={Math.Max(page, 1)}&pageSize={Math.Clamp(pageSize, 1, 100)}";
             if (!string.IsNullOrWhiteSpace(ownerType)) url += $"&ownerType={Uri.EscapeDataString(ownerType)}";
             var resp = await _httpService.GetAsync<ApiResponse<MovieAssetTableWrapper>>(url);
             resp.success = resp.success || resp.code == "200";

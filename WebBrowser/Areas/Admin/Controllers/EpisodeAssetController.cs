@@ -26,7 +26,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         public async Task<IActionResult> GetAll()
         {
             _logger.LogInformation("[Admin/EpisodeAsset] -> GetAll ENTER");
-            var result = await _assetService.get_all(100, ownerType: "EPISODE");
+            var result = await _assetService.get_all(page: 1, pageSize: 100, ownerType: "EPISODE");
             _logger.LogInformation("[Admin/EpisodeAsset] <- GetAll EXIT: {json}", JsonConvert.SerializeObject(result));
             return Ok(result);
         }

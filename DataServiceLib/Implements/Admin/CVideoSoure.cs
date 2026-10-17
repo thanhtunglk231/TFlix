@@ -22,7 +22,7 @@ namespace DataServiceLib.Implements.Admin
         }
 
         // ===== GET ALL =====
-        public CResponseMessage get_all()
+        public CResponseMessage get_all(long? userId = null)
         {
             try
             {
@@ -36,7 +36,8 @@ namespace DataServiceLib.Implements.Admin
                     Direction = ParameterDirection.Output
                 };
 
-                var parameters = new IDbDataParameter[] { o_code, o_message };
+                var p_user_id = new SqlParameter("@p_user_id", SqlDbType.BigInt) { Value = (object?)userId ?? DBNull.Value };
+                var parameters = new IDbDataParameter[] { p_user_id, o_code, o_message };
 
                 var dataset = _baseProvider.GetDatasetFromSP("sp_get_all_video_sources", parameters, _connectionString);
 
