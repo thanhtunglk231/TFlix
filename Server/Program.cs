@@ -227,6 +227,10 @@ builder.Services.AddScoped<
     Server.Services.Chat.IChatbotService,
     Server.Services.Chat.ChatbotService>();
 
+builder.Services.AddSingleton<
+    Server.Services.Subtitles.ISubtitleService,
+    Server.Services.Subtitles.SubtitleService>();
+
 // =====================================================
 // JWT AUTHENTICATION
 // =====================================================

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using CoreLib.Dtos.Payment;
+using CoreLib.Dtos.Subtitle;
 using WebBrowser.Models.Episode;
 using WebBrowser.Models.Film;
 using WebBrowser.Models.Preview;
@@ -21,6 +22,7 @@ namespace WebBrowser.Controllers
         private readonly IRatingService _ratingService;
         private readonly ILogger<FilmController> _logger;
         private readonly IPaymentService _paymentService;
+        private readonly ISubtitleService _subtitleService;
 
         public FilmController(
             IPreviewService previewService,
@@ -30,7 +32,8 @@ namespace WebBrowser.Controllers
             ICommentService commentService,
             IRatingService ratingService,
             ILogger<FilmController> logger,
-            IPaymentService paymentService)
+            IPaymentService paymentService,
+            ISubtitleService subtitleService)
         {
             _previewService = previewService;
             _episodeService = episodeService;
@@ -40,6 +43,7 @@ namespace WebBrowser.Controllers
             _ratingService = ratingService;
             _logger = logger;
             _paymentService = paymentService;
+            _subtitleService = subtitleService;
         }
 
         public IActionResult Index()
@@ -289,6 +293,26 @@ namespace WebBrowser.Controllers
                 _logger.LogError(ex, "Lỗi khi lấy thông tin đánh giá phim {MovieId}", id);
             }
 
+            List<SubtitleTrackDto> subtitles = new();
+            try
+            {
+                var durationSec = (movie.DurationMin ?? 120) * 60.0;
+                var subResp = await _subtitleService.GetSubtitlesAsync(
+                    id,
+                    currentEpisodeId,
+                    movie.title ?? movie.OriginalTitle,
+                    movie.OverviewText,
+                    durationSec);
+                if (subResp?.Success == true && subResp.Tracks != null)
+                {
+                    subtitles = subResp.Tracks;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Lỗi tải phụ đề ban đầu cho ContentId={ContentId}", id);
+            }
+
             return View("Index", new WatchViewModel
             {
                 ContentId = id,
@@ -300,7 +324,8 @@ namespace WebBrowser.Controllers
                 IsPremiumContent = isPremiumContent,
                 HasActiveSubscription = hasActiveSubscription,
                 SubscriptionEndAt = subscriptionEndAt,
-                RatingInfo = ratingInfo
+                RatingInfo = ratingInfo,
+                Subtitles = subtitles
             });
         }
 
@@ -712,6 +737,31 @@ namespace WebBrowser.Controllers
                 IsPremium = info.isPrem,
                 status = "PUBLISHED"
             };
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetSubtitles(long id, long? episodeId = null, string? title = null, string? overview = null, double? duration = null)
+        {
+            var res = await _subtitleService.GetSubtitlesAsync(id, episodeId, title, overview, duration);
+            return Json(res ?? new GenerateSubtitleResponseDto { Success = false, Message = "Không thể lấy danh sách phụ đề." });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> GenerateSubtitles([FromBody] GenerateSubtitleRequestDto request)
+        {
+            if (request == null)
+            {
+                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ." });
+            }
+            var res = await _subtitleService.GenerateSubtitlesAsync(request);
+            return Json(res ?? new GenerateSubtitleResponseDto { Success = false, Message = "Không thể tạo phụ đề bằng Gemini." });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SubtitleVtt(long id, string lang, long? episodeId = null)
+        {
+            var vtt = await _subtitleService.GetWebVttAsync(id, episodeId, lang);
+            return Content(vtt ?? "WEBVTT\n\n", "text/vtt; charset=utf-8");
         }
     }
 

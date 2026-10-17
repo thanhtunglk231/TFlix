@@ -91,8 +91,9 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IFavoriteService,
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IRatingService,
                            WebBrowser.Services.Implements.RatingService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IChatService,
-
                            WebBrowser.Services.Implements.ChatService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.ISubtitleService,
+                           WebBrowser.Services.Implements.SubtitleService>();
 builder.Services.AddSignalR();
 var authenticationBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(opts =>
