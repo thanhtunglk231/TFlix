@@ -44,7 +44,7 @@ namespace WebBrowser.Services.Implements.Movies
         }
 
         // ========== 2) REPLACE FILE ==========
-        public async Task<CResponseMessage> replaceFile(decimal assetId, IFormFile file, UpdateMovieAssetDto updateDto, string? oldUrl = null)
+        public async Task<CResponseMessage> replaceFile(decimal assetId, IFormFile? file, UpdateMovieAssetDto updateDto, string? oldUrl = null)
         {
             var url = $"/api/MovieAsset/{assetId}/replace-file"; // POST (multipart/form-data)
 

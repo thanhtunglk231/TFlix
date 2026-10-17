@@ -62,8 +62,8 @@ namespace WebBrowser.Areas.Admin.Controllers
         public async Task<IActionResult> ReplaceFile(decimal id, [FromForm] IFormFile? file, [FromForm] long? ownerId,
             [FromForm] string? ownerType, [FromForm] string? assetType, [FromForm] int? sortOrder, [FromForm] string? oldUrl)
         {
-            if (id <= 0 || file is null || file.Length == 0)
-                return BadRequest(new { code = "400", message = "AssetId hoặc file không hợp lệ." });
+            if (id <= 0)
+                return BadRequest(new { code = "400", message = "AssetId không hợp lệ." });
             if (ownerId is null or <= 0 || !IsValidOwnerType(ownerType) || string.IsNullOrWhiteSpace(assetType))
                 return BadRequest(new { code = "400", message = "Thông tin nội dung hoặc loại asset không hợp lệ." });
 

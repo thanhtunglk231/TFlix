@@ -92,7 +92,7 @@ namespace Server.Controllers
                 return BadRequest(new { code = "400", message = "Thiếu hoặc sai loại nội dung/AssetType." });
 
             var ownerType = NormalizeOwnerType(form.OwnerType);
-            var publicUrl = await UploadFileAsync(form.File, form.OwnerId, ownerType, form.AssetType);
+            var publicUrl = await UploadFileAsync(form.File!, form.OwnerId, ownerType, form.AssetType);
             if (string.IsNullOrWhiteSpace(publicUrl))
                 return StatusCode(503, new { code = "503", message = GetUploadFailureMessage(ownerType) });
 
@@ -125,17 +125,23 @@ namespace Server.Controllers
         {
             if (assetId <= 0)
                 return BadRequest(new { code = "400", message = "assetId không hợp lệ." });
-            if (form.File == null || form.File.Length == 0)
-                return BadRequest(new { code = "400", message = "File rỗng." });
             if (form.OwnerId <= 0 || !IsValidOwnerType(form.OwnerType) || string.IsNullOrWhiteSpace(form.AssetType))
                 return BadRequest(new { code = "400", message = "Thiếu hoặc sai loại nội dung/AssetType." });
 
             var ownerType = NormalizeOwnerType(form.OwnerType);
             var existingAsset = await _cMovieAsset.sp_get_by_id(assetId, ownerType);
             var oldUrl = GetAssetUrl(existingAsset);
-            var newUrl = await UploadFileAsync(form.File, form.OwnerId, ownerType, form.AssetType);
-            if (string.IsNullOrWhiteSpace(newUrl))
-                return StatusCode(503, new { code = "503", message = GetUploadFailureMessage(ownerType) });
+            if (string.IsNullOrWhiteSpace(oldUrl))
+                return NotFound(new { code = "404", message = "Không tìm thấy media asset cần cập nhật." });
+
+            var hasReplacementFile = form.File is { Length: > 0 };
+            var newUrl = oldUrl;
+            if (hasReplacementFile)
+            {
+                newUrl = await UploadFileAsync(form.File!, form.OwnerId, ownerType, form.AssetType);
+                if (string.IsNullOrWhiteSpace(newUrl))
+                    return StatusCode(503, new { code = "503", message = GetUploadFailureMessage(ownerType) });
+            }
 
             var dto = new UpdateMovieAssetDto
             {
@@ -150,11 +156,12 @@ namespace Server.Controllers
             var resp = await _cMovieAsset.Update_episode(dto); // (hàm tên cũ) => nếu được, rename thành Update
             if (!resp.Success)
             {
-                await DeleteFileBestEffortAsync(newUrl, "rollback replace");
+                if (hasReplacementFile)
+                    await DeleteFileBestEffortAsync(newUrl, "rollback replace");
                 return StatusCode(500, new { code = resp.code, message = resp.message });
             }
 
-            if (!string.IsNullOrWhiteSpace(oldUrl))
+            if (hasReplacementFile && !string.Equals(oldUrl, newUrl, StringComparison.OrdinalIgnoreCase))
                 await DeleteFileBestEffortAsync(oldUrl, "remove replaced file");
 
             await _cache.RemoveByPrefixAsync("tflix:movies:");
@@ -239,7 +246,7 @@ namespace Server.Controllers
     // ======= FORM MODELS (FromForm) =======
     public class MovieAssetAddForm
     {
-        public IFormFile File { get; set; } = default!;
+        public IFormFile? File { get; set; }
         public long OwnerId { get; set; }
         public string OwnerType { get; set; } = "MOVIE";
         public string AssetType { get; set; } = default!;  // STILL|THUMB|TRAILER
@@ -248,7 +255,7 @@ namespace Server.Controllers
 
     public class MovieAssetReplaceForm
     {
-        public IFormFile File { get; set; } = default!;
+        public IFormFile? File { get; set; }
         public long OwnerId { get; set; }
         public string OwnerType { get; set; } = "MOVIE";
         public string AssetType { get; set; } = default!;

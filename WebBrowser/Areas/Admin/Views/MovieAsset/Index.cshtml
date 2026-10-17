@@ -14,8 +14,10 @@
         <div class="col-md-8"><label class="form-label" for="ownerId">Nội dung</label><select class="form-select" id="ownerId" required><option value="">Chọn nội dung</option></select></div>
         <div class="col-md-6"><label class="form-label" for="assetType">Loại asset</label><select class="form-select" id="assetType" required><option value="POSTER">Poster</option><option value="BACKDROP">Backdrop</option><option value="THUMB">Thumbnail</option><option value="STILL">Still</option><option value="TRAILER">Trailer</option></select></div>
         <div class="col-md-3"><label class="form-label" for="sortOrder">Thứ tự</label><input class="form-control" id="sortOrder" type="number" min="0" value="0"></div>
-        <div class="col-12"><label class="form-label" for="assetFile">File media</label><input class="form-control" id="assetFile" type="file" accept="image/*,video/*" required><div class="form-text text-secondary">Chấp nhận ảnh hoặc video. Khi sửa cần chọn file thay thế.</div></div>
+        <div class="col-12"><label class="form-label" for="assetFile">File media</label><input class="form-control" id="assetFile" type="file" accept="image/*,video/*"><div class="form-text text-secondary" id="assetFileHelp">Chọn ảnh hoặc video để thêm media.</div></div>
     </div></div>
     <div class="modal-footer border-secondary"><button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Hủy</button><button type="submit" class="btn btn-primary" id="btnSaveAsset">Lưu media</button></div>
 </form></div></div></div>
-<script src="~/js/admin-movie-assets.js" asp-append-version="true"></script>
+@section Scripts {
+    <script src="~/js/admin-movie-assets.js" asp-append-version="true"></script>
+}

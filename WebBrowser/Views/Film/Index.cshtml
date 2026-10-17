@@ -218,6 +218,43 @@
             display: block;
         }
 
+        .player-status-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 14;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: rgba(5, 8, 13, 0.72);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .player-status-overlay.d-none { display: none; }
+
+        .player-loading-spinner {
+            width: 3.25rem;
+            height: 3.25rem;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: var(--brand-cyan);
+            border-right-color: var(--brand-primary);
+            border-radius: 50%;
+            animation: player-loading-spin 0.85s linear infinite;
+            box-shadow: 0 0 24px rgba(25, 211, 197, 0.25);
+        }
+
+        @@keyframes player-loading-spin { to { transform: rotate(360deg); } }
+
+        @@media (prefers-reduced-motion: reduce) {
+            .player-loading-spinner { animation-duration: 1.8s; }
+        }
+
+        .premium-player-gate {
+            z-index: 16;
+            background: radial-gradient(circle at center, rgba(38, 31, 18, 0.97) 0%, rgba(8, 11, 16, 0.98) 72%);
+        }
+
         .player-controls {
             position: absolute;
             left: 0;
@@ -793,6 +830,25 @@
                                disablepictureinpicture
                                disableremoteplayback></video>
 
+                        <div id="playerLoading" class="player-status-overlay d-none" role="status" aria-live="polite" aria-label="Đang tải phim">
+                            <div class="text-center text-white">
+                                <div class="player-loading-spinner mx-auto" aria-hidden="true"></div>
+                                <div class="fw-semibold mt-3">Đang tải phim...</div>
+                                <div class="small text-white-50 mt-1">Vui lòng chờ trong giây lát</div>
+                            </div>
+                        </div>
+
+                        <div id="premiumPlayerGate" class="player-status-overlay premium-player-gate d-none" role="alert" aria-live="assertive">
+                            <div class="text-center text-white" style="max-width: 560px;">
+                                <div class="mb-3 text-warning" aria-hidden="true"><i class="bi bi-gem fs-1"></i></div>
+                                <h3 class="h4 fw-bold mb-2">Đây là phim Premium</h3>
+                                <p id="premiumPlayerMessage" class="text-white-50 mb-4">Vui lòng nâng cấp tài khoản để xem nội dung này.</p>
+                                <a asp-controller="Payment" asp-action="Index" asp-route-returnUrl="@Context.Request.Path@Context.Request.QueryString" class="btn px-4 py-2 rounded-pill fw-bold" style="background: var(--brand-gradient); color: #081119;">
+                                    <i class="bi bi-gem me-2"></i>Nâng cấp tài khoản
+                                </a>
+                            </div>
+                        </div>
+
                         <div id="playerError" class="position-absolute top-50 start-50 translate-middle text-center text-white d-none px-3" role="alert" style="z-index: 15;">
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" class="mb-2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                             <div id="playerErrorText" class="mt-2 text-danger fw-semibold">Không thể tải video từ máy chủ lưu trữ.</div>
@@ -807,7 +863,7 @@
                         </div>
 
                         <!-- Glassmorphism Floating Controls -->
-                        <div class="player-controls">
+                        <div id="playerControls" class="player-controls">
                             <!-- Scrub / Progress Line -->
                             <div class="mb-2.5">
                                 <div id="progress" class="progress-wrap">
@@ -876,11 +932,11 @@
                                 <div class="badge px-3 py-1.5 rounded-pill mb-2 fw-bold" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #081119; letter-spacing: 0.05em;">
                                     ĐẶC QUYỀN PREMIUM VIP
                                 </div>
-                                <h3 class="fw-bold text-white mb-2">Nội dung chỉ dành cho tài khoản Premium</h3>
+                                <h3 class="fw-bold text-white mb-2">Đây là phim Premium</h3>
                                 <p class="text-muted mx-auto mb-4" style="max-width: 540px; font-size: 0.95rem; line-height: 1.6;">
                                     @(isLoggedIn
-                                        ? "Tài khoản của bạn hiện chưa có gói Premium hoặc gói đã hết hạn. Hãy nâng cấp ngay để mở khóa toàn bộ phim bản quyền với chất lượng 4K Ultra HD không quảng cáo!"
-                                        : "Bộ phim này thuộc danh mục đặc quyền Premium của TFlix. Vui lòng đăng nhập tài khoản có gói Premium hoặc đăng ký nâng cấp để bắt đầu xem!")
+                                        ? "Vui lòng nâng cấp tài khoản để xem nội dung này. Gói Premium hiện tại của bạn chưa hoạt động hoặc đã hết hạn."
+                                        : "Vui lòng đăng nhập và nâng cấp tài khoản để xem nội dung này.")
                                 </p>
                                 <div class="d-flex flex-wrap gap-2 justify-content-center">
                                     @if (!isLoggedIn)
@@ -1385,6 +1441,38 @@
         const qualityToastText = document.getElementById('qualityToastText');
         const playerError = document.getElementById('playerError');
         const playerErrorText = document.getElementById('playerErrorText');
+        const playerLoading = document.getElementById('playerLoading');
+        const premiumPlayerGate = document.getElementById('premiumPlayerGate');
+        const premiumPlayerMessage = document.getElementById('premiumPlayerMessage');
+        const playerControls = document.getElementById('playerControls');
+
+        function showPlayerLoading() {
+            if (!playerLoading || !premiumPlayerGate?.classList.contains('d-none')) return;
+            playerLoading.classList.remove('d-none');
+        }
+
+        function hidePlayerLoading() {
+            playerLoading?.classList.add('d-none');
+        }
+
+        function showPremiumGate(message) {
+            hidePlayerLoading();
+            if (video) {
+                video.pause();
+                if (video.hlsInstance) {
+                    video.hlsInstance.destroy();
+                    video.hlsInstance = null;
+                }
+            }
+            if (premiumPlayerMessage && message) premiumPlayerMessage.textContent = message;
+            premiumPlayerGate?.classList.remove('d-none');
+            playerControls?.classList.add('d-none');
+        }
+
+        function hidePremiumGate() {
+            premiumPlayerGate?.classList.add('d-none');
+            playerControls?.classList.remove('d-none');
+        }
 
         let toastTimer = null;
         function showQualityToast(text) {
@@ -1515,6 +1603,7 @@
             }
 
             function showPlayerError(message) {
+                hidePlayerLoading();
                 if (!playerError || !playerErrorText) return;
                 playerErrorText.textContent = message || 'Không thể tải video.';
                 playerError.classList.remove('d-none');
@@ -1558,6 +1647,8 @@
                 }
 
                 clearPlayerError();
+                hidePremiumGate();
+                showPlayerLoading();
                 localStorage.setItem(movieKey + ":server", rawUrl);
 
                 if (video.hlsInstance) {
@@ -1627,13 +1718,13 @@
                             showQualityToast('Chất lượng: ' + resText);
                         }
                     });
-                } else if (isHlsSource(url) && video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = url;
+                } else if (isHlsSource(rawUrl) && video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = streamToLoad;
                     video.addEventListener('loadedmetadata', restorePlaybackPosition, { once: true });
                     video.load();
                     video.play().catch(() => {});
                 } else {
-                    video.src = url;
+                    video.src = streamToLoad;
                     populateFallbackQualities();
                     video.addEventListener('loadedmetadata', restorePlaybackPosition, { once: true });
                     video.load();
@@ -1643,7 +1734,16 @@
                 updatePlayBtnIcon();
             }
 
-            video.addEventListener('canplay', clearPlayerError);
+            video.addEventListener('loadstart', showPlayerLoading);
+            video.addEventListener('waiting', showPlayerLoading);
+            video.addEventListener('stalled', showPlayerLoading);
+            video.addEventListener('seeking', showPlayerLoading);
+            video.addEventListener('canplay', () => {
+                hidePlayerLoading();
+                clearPlayerError();
+            });
+            video.addEventListener('playing', hidePlayerLoading);
+            video.addEventListener('seeked', hidePlayerLoading);
             video.addEventListener('play', () => {
                 updatePlayBtnIcon();
                 showControls(true);
@@ -1654,6 +1754,7 @@
             });
 
             video.addEventListener('error', () => {
+                hidePlayerLoading();
                 const code = video.error?.code;
                 const message = code === 4
                     ? 'Trình duyệt không hỗ trợ nguồn phát hoặc máy chủ chặn CORS.'
@@ -2312,13 +2413,7 @@
                 const canWatch = item.dataset.canWatch === 'true';
 
                 if (isEpPremium && !canWatch) {
-                    if (!isLoggedIn) {
-                        window.location.href = `/Auth?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-                        return;
-                    }
-                    if (confirm('Tập phim này thuộc gói đặc quyền Premium. Bạn có muốn nâng cấp tài khoản Premium để thưởng thức ngay không?')) {
-                        window.location.href = `/Payment?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-                    }
+                    showPremiumGate('Đây là phim Premium. Vui lòng nâng cấp tài khoản để xem nội dung này.');
                     return;
                 }
 
@@ -2340,12 +2435,7 @@
                         const json = await res.json();
 
                         if (json && json.isPremium && !json.hasActiveSubscription) {
-                            if (!isLoggedIn) {
-                                window.location.href = `/Auth?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-                                return;
-                            }
-                            alert(json.message || 'Tập phim này yêu cầu tài khoản Premium để phát.');
-                            window.location.href = `/Payment?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+                            showPremiumGate(json.message || 'Đây là phim Premium. Vui lòng nâng cấp tài khoản để xem nội dung này.');
                             return;
                         }
 
