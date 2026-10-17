@@ -21,7 +21,7 @@
     }
     
     var recentlyUpdatedMovies = allMovies.OrderByDescending(m => m.UpdatedAt ?? m.CreatedAt ?? m.ReleaseDate).Take(5).ToList();
-    var upcomingList = allMovies.OrderByDescending(m => m.ReleaseDate).Take(3).ToList();
+    var upcomingList = allMovies.OrderByDescending(m => m.ReleaseDate).Take(5).ToList();
     
     var fallbackImage = "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?q=80&w=800&auto=format&fit=crop";
 }
@@ -757,14 +757,16 @@
         }
 
         // Render Phim lẻ mới nhất with error retry
+        // Render Phim lẻ mới nhất (tối đa 5 phim) with error retry
         function renderMoviesLatest(list) {
             const wrap = $('#moviesLatestWrap');
-            if (!list || list.length === 0) {
+            const items = (Array.isArray(list) ? list : []).slice(0, 5);
+            if (items.length === 0) {
                 wrap.html('<div class="col-12 p-4 text-center text-muted bg-dark rounded-3 border border-secondary">Chưa có danh sách phim lẻ mới nhất.</div>');
                 return;
             }
 
-            wrap.html(list.map(x => {
+            wrap.html(items.map(x => {
                 const id = x.movieId ?? x.movie_id ?? x.MovieId ?? x.moviE_ID;
                 const title = x.title ?? x.Title ?? 'Chưa có tên';
                 const originalTitle = x.originalTitle ?? x.original_title ?? x.OriginalTitle ?? '';
@@ -802,7 +804,7 @@
                                 <i class="bi bi-heart"></i>
                             </button>
                         </div>
-                        <img class="movie-poster-img" src="${poster}" alt="Poster ${title}" loading="lazy" onerror="this.src='${fallbackPoster}'" />
+                        <img class="movie-poster-img" src="${poster}" alt="Poster ${title}" loading="lazy" decoding="async" onerror="this.src='${fallbackPoster}'" />
                         <div class="card-hover-overlay">
                             <div class="btn-play-circle" title="Xem ngay"><i class="bi bi-play-fill"></i></div>
                             <div class="card-quick-rating" onclick="event.stopPropagation();" title="Đánh giá nhanh">
@@ -863,16 +865,18 @@
             })[character]);
         }
 
+        // Render Phim bộ mới nhất (tối đa 5 phim)
         function renderSeriesLatest(list) {
             const wrap = $('#seriesLatestWrap');
             wrap.attr('aria-busy', 'false');
 
-            if (!list || list.length === 0) {
+            const items = (Array.isArray(list) ? list : []).slice(0, 5);
+            if (items.length === 0) {
                 wrap.html('<div class="col-12 p-4 text-center text-muted bg-dark rounded-3 border border-secondary">Chưa có danh sách phim bộ mới nhất.</div>');
                 return;
             }
 
-            wrap.html(list.map(x => {
+            wrap.html(items.map(x => {
                 const id = x.seriesId ?? x.SeriesId;
                 const title = escapeSeriesText(x.title ?? x.Title ?? 'Chưa có tên');
                 const originalTitle = escapeSeriesText(x.originalTitle ?? x.OriginalTitle ?? '');
@@ -903,7 +907,7 @@
                             ${isPremium ? '<span class="badge-vip">VIP</span>' : ''}
                             <span class="badge-quality">${episodeCount > 0 ? `${episodeCount} tập` : 'Phim bộ'}</span>
                         </div>
-                        <img class="movie-poster-img" src="${poster}" alt="Poster ${title}" loading="lazy" onerror="this.src='${fallbackPoster}'" />
+                        <img class="movie-poster-img" src="${poster}" alt="Poster ${title}" loading="lazy" decoding="async" onerror="this.src='${fallbackPoster}'" />
                         <div class="card-hover-overlay">
                             <div class="btn-play-circle" title="Xem chi tiết"><i class="bi bi-play-fill"></i></div>
                         </div>
@@ -936,6 +940,39 @@
                     </div>
                 `);
             });
+        }
+
+        // Lazy load các section bằng IntersectionObserver để tối ưu tốc độ tải ban đầu
+        function setupLazyLoadSections() {
+            let moviesLatestLoaded = false;
+            let seriesLatestLoaded = false;
+
+            if ('IntersectionObserver' in window) {
+                const sectionObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            if (entry.target.id === 'movies-latest-section' && !moviesLatestLoaded) {
+                                moviesLatestLoaded = true;
+                                loadMoviesLatest();
+                                observer.unobserve(entry.target);
+                            } else if (entry.target.id === 'series-latest-section' && !seriesLatestLoaded) {
+                                seriesLatestLoaded = true;
+                                loadSeriesLatest();
+                                observer.unobserve(entry.target);
+                            }
+                        }
+                    });
+                }, { rootMargin: '250px 0px' });
+
+                const secMovies = document.getElementById('movies-latest-section');
+                if (secMovies) sectionObserver.observe(secMovies);
+
+                const secSeries = document.getElementById('series-latest-section');
+                if (secSeries) sectionObserver.observe(secSeries);
+            } else {
+                loadMoviesLatest();
+                loadSeriesLatest();
+            }
         }
 
         // Client-side quick filter via Genre Chips
@@ -976,8 +1013,7 @@
         };
 
         $(document).ready(function () {
-            loadMoviesLatest();
-            loadSeriesLatest();
+            setupLazyLoadSections();
             syncFavoriteButtons();
         });
     </script>

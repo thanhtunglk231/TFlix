@@ -2,7 +2,7 @@
 
 @{
     var upcomingList = (Model != null && Model.Count > 0)
-        ? Model.OrderByDescending(m => m.ReleaseDate).Take(3).ToList()
+        ? Model.OrderByDescending(m => m.ReleaseDate).Take(5).ToList()
         : new List<WebBrowser.Models.Movie.MovieItem>();
 
     var fallbackBackdrop = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1600&auto=format&fit=crop";
