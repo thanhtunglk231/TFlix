@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.AuthDtos;
+using CoreLib.Dtos.AuthDtos;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -6,6 +6,7 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace DataServiceLib.Implements
@@ -371,13 +372,44 @@ namespace DataServiceLib.Implements
                 var parameters = new IDbDataParameter[] { pEmail, pPurpose, pHash, oCode, oMessage };
                 var data = _baseProvider.GetDatasetFromSP(procedure, parameters, _connectionString);
                 var code = oCode.Value?.ToString() ?? "500";
-                return new CResponseMessage { Success = code == "200", code = code, message = oMessage.Value?.ToString(), Data = data };
+                var rawMessage = oMessage.Value?.ToString();
+
+                string finalMessage = FixMojibakeText(rawMessage);
+                if (code == "200" && procedure == "sp_auth_otp_issue")
+                {
+                    finalMessage = "Mã OTP đã được gửi và có hiệu lực trong 5 phút.";
+                }
+
+                return new CResponseMessage { Success = code == "200", code = code, message = finalMessage, Data = data };
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[CAuth.{procedure}] Exception: {ex.Message}");
                 return new CResponseMessage { Success = false, code = "500", message = "Không thể xử lý OTP. Vui lòng thử lại sau." };
             }
+        }
+
+        private static string FixMojibakeText(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return input ?? string.Empty;
+            if (input.Contains("OTP", StringComparison.OrdinalIgnoreCase) && 
+                (input.Contains("Ã") || input.Contains("Ä") || input.Contains("5 ph") || input.Contains("&nbsp;")))
+            {
+                return "Mã OTP đã được gửi và có hiệu lực trong 5 phút.";
+            }
+            try
+            {
+                if (input.Contains("Ã") || input.Contains("Ä") || input.Contains("Æ") || input.Contains("á»"))
+                {
+                    var raw = input.Replace("&nbsp;", " ");
+                    var bytes = Encoding.GetEncoding("ISO-8859-1").GetBytes(raw);
+                    var decoded = Encoding.UTF8.GetString(bytes);
+                    if (!string.IsNullOrWhiteSpace(decoded) && !decoded.Contains('\uFFFD'))
+                        return decoded;
+                }
+            }
+            catch { }
+            return input;
         }
     }
 }
