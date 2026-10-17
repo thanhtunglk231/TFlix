@@ -402,37 +402,42 @@
             box-shadow: 0 0 0 2px rgba(25, 211, 197, 0.25);
         }
 
-        /* Subtitle Overlay & Menu Styles */
+        /* Subtitle Overlay & Menu Styles (Netflix / Disney+ style) */
         .subtitle-overlay {
             position: absolute;
-            bottom: 72px;
+            bottom: 45px;
             left: 5%;
             right: 5%;
             text-align: center;
             pointer-events: none;
-            z-index: 13;
-            transition: bottom 0.25s ease;
+            z-index: 25;
+            transition: bottom 0.22s ease, opacity 0.2s ease;
         }
-        #playerBox:hover .subtitle-overlay,
-        .player-controls-visible .subtitle-overlay {
-            bottom: 92px;
+        /* Khi thanh điều khiển hiển thị (mặc định hoặc khi hover) */
+        .player-wrap:not(.hide-ui) .subtitle-overlay,
+        #playerBox:hover .subtitle-overlay {
+            bottom: 96px;
+        }
+        /* Khi ẩn thanh điều khiển thì phụ đề hạ xuống gần đáy video */
+        .player-wrap.hide-ui .subtitle-overlay {
+            bottom: 38px;
         }
         .subtitle-text {
             display: inline-block;
             background: rgba(8, 10, 15, 0.88);
             color: #ffffff;
-            font-size: clamp(1rem, 2.2vw, 1.45rem);
+            font-size: clamp(1.05rem, 2.3vw, 1.5rem);
             font-weight: 600;
             line-height: 1.45;
-            padding: 6px 16px;
+            padding: 7px 18px;
             border-radius: 8px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 2px #000;
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
-            max-width: 85%;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 3px #000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+            max-width: 86%;
             word-break: break-word;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
         }
         .subtitle-menu {
             min-width: 220px;
@@ -2263,6 +2268,8 @@
             // ==========================================
             // SUBTITLE LOGIC (TFlix AI Gemini Subtitles)
             // ==========================================
+            // SUBTITLE LOGIC (TFlix AI Gemini Subtitles)
+            // ==========================================
             const btnSubtitle = document.getElementById('btnSubtitle');
             const selSubtitle = document.getElementById('selSubtitle');
             const btnQuickAiSubtitle = document.getElementById('btnQuickAiSubtitle');
@@ -2270,7 +2277,29 @@
             const subtitleOverlay = document.getElementById('subtitleOverlay');
             const subtitleText = document.getElementById('subtitleText');
 
-            let subtitlesList = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Subtitles ?? new List<CoreLib.Dtos.Subtitle.SubtitleTrackDto>()));
+            function normalizeTrack(raw) {
+                if (!raw) return null;
+                const langCode = (raw.languageCode || raw.LanguageCode || '').toLowerCase();
+                const langName = raw.languageName || raw.LanguageName || (langCode === 'vi' ? 'Tiếng Việt' : 'English');
+                const rawCues = raw.cues || raw.Cues || [];
+                const cues = (Array.isArray(rawCues) ? rawCues : []).map(c => ({
+                    id: c.id || c.Id || 0,
+                    startSeconds: typeof c.startSeconds === 'number' ? c.startSeconds : (c.StartSeconds || 0),
+                    endSeconds: typeof c.endSeconds === 'number' ? c.endSeconds : (c.EndSeconds || 0),
+                    text: c.text || c.Text || ''
+                })).sort((a, b) => a.startSeconds - b.startSeconds);
+
+                return {
+                    id: raw.id || raw.Id || 0,
+                    movieId: raw.movieId || raw.MovieId || 0,
+                    languageCode: langCode,
+                    languageName: langName,
+                    cues: cues
+                };
+            }
+
+            let rawInitialSubtitles = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Subtitles ?? new List<CoreLib.Dtos.Subtitle.SubtitleTrackDto>()));
+            let subtitlesList = Array.isArray(rawInitialSubtitles) ? rawInitialSubtitles.map(normalizeTrack).filter(Boolean) : [];
             let currentSubtitleLang = 'off';
 
             function syncSubtitleUi(lang) {
@@ -2330,6 +2359,10 @@
                     video.appendChild(trackEl);
                 }
 
+                // Cập nhật phụ đề trên overlay ngay lập tức
+                const now = video ? video.currentTime : 0;
+                updateSubtitleDisplay(now);
+
                 if (showToast) {
                     const langName = lang === 'vi' ? 'Tiếng Việt (Gemini AI)' : 'English (Gemini AI)';
                     showQualityToast(`Phụ đề: ${langName}`);
@@ -2350,9 +2383,17 @@
                     return;
                 }
 
-                const currentCue = track.cues.find(c => currentTime >= c.startSeconds && currentTime <= c.endSeconds);
+                // Tìm cue đang phát dựa vào currentTime với một chút dung sai
+                let currentCue = track.cues.find(c => (currentTime + 0.15) >= c.startSeconds && currentTime <= (c.endSeconds + 0.15));
+                if (!currentCue && currentTime < 0.5 && track.cues.length > 0 && track.cues[0].startSeconds <= 2.0) {
+                    // Nếu video vừa mở hoặc ở giây 0, hiển thị cue đầu tiên nếu bắt đầu gần mốc này
+                    currentCue = track.cues[0];
+                }
+
                 if (currentCue && currentCue.text) {
-                    subtitleText.textContent = currentCue.text;
+                    if (subtitleText.textContent !== currentCue.text) {
+                        subtitleText.textContent = currentCue.text;
+                    }
                     subtitleOverlay.classList.remove('d-none');
                 } else {
                     subtitleOverlay.classList.add('d-none');
@@ -2389,9 +2430,12 @@
                     });
 
                     const data = await resp.json();
-                    if (data && data.success && data.tracks && data.tracks.length > 0) {
-                        subtitlesList = data.tracks;
+                    const rawTracks = data?.tracks || data?.Tracks;
+                    if (data && data.success && Array.isArray(rawTracks) && rawTracks.length > 0) {
+                        subtitlesList = rawTracks.map(normalizeTrack).filter(Boolean);
                         setSubtitleTrack(targetLang || 'vi', false);
+                        const cur = video ? video.currentTime : 0;
+                        updateSubtitleDisplay(cur);
                         showQualityToast('✅ Đã tạo phụ đề song ngữ bằng Gemini AI thành công!');
                     } else {
                         showQualityToast(data?.message || 'Không thể tạo phụ đề.');

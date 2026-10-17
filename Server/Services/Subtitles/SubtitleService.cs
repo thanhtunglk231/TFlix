@@ -77,8 +77,13 @@ namespace Server.Services.Subtitles
             // Fallback heuristic nếu Gemini không khả dụng hoặc lỗi
             if (tracks == null || tracks.Count == 0)
             {
-                tracks = GenerateHeuristicSubtitles(request);
-                _logger.LogInformation("Đã tạo phụ đề tự động theo cốt truyện cho {CacheKey}", cacheKey);
+                tracks = SubtitleHelper.GenerateHeuristicTracks(
+                    request.Title,
+                    request.OriginalTitle,
+                    request.Overview,
+                    request.Genres,
+                    request.DurationSeconds ?? 180.0);
+                _logger.LogInformation("Đã tạo phụ đề tự động liên tục theo cốt truyện cho {CacheKey}", cacheKey);
             }
 
             _cache[cacheKey] = tracks;
@@ -119,10 +124,10 @@ namespace Server.Services.Subtitles
 
             if (matchedTrack == null)
             {
-                return "WEBVTT\n\n1\n00:00:01.000 --> 00:00:05.000\n[TFlix Streaming]\n";
+                return "WEBVTT\n\n1\n00:00:00.500 --> 00:00:05.500\n[TFlix Streaming]\n";
             }
 
-            return ConvertTrackToWebVtt(matchedTrack);
+            return SubtitleHelper.ConvertToWebVtt(matchedTrack);
         }
 
         private async Task<List<SubtitleTrackDto>?> GenerateWithGeminiAsync(
