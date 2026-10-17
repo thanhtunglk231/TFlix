@@ -70,12 +70,13 @@ namespace Server.Controllers
 
         // GET: /api/MovieAsset/getall
         [HttpGet("getall")]
-        public async Task<IActionResult> GetAll([FromQuery] int pageSize = 25, [FromQuery] string? cursorOwnerType = null,
-            [FromQuery] long? cursorAssetId = null, [FromQuery] string? ownerType = null)
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10,
+            [FromQuery] string? ownerType = null)
         {
+            page = Math.Max(page, 1);
             pageSize = Math.Clamp(pageSize, 1, 100);
-            var cacheKey = $"tflix:movies:assets:page:{ownerType ?? "ALL"}:{cursorOwnerType ?? "START"}:{cursorAssetId ?? 0}:{pageSize}";
-            var resp = await _cache.GetAsync<CResponseMessage>(cacheKey) ?? await _cMovieAsset.sp_get_all(pageSize, cursorOwnerType, cursorAssetId, ownerType);
+            var cacheKey = $"tflix:movies:assets:page:{ownerType ?? "ALL"}:{page}:{pageSize}";
+            var resp = await _cache.GetAsync<CResponseMessage>(cacheKey) ?? await _cMovieAsset.sp_get_all(page, pageSize, ownerType);
             if (!resp.Success) return StatusCode(500, new { resp.code, resp.message });
             await _cache.SetAsync(cacheKey, resp, TimeSpan.FromMinutes(10));
             return Ok(new { resp.code, resp.message, resp.Data });

@@ -13,12 +13,16 @@
     const loading = document.getElementById('assetLoading');
     const empty = document.getElementById('assetEmpty');
     const tableWrap = document.getElementById('assetTableWrap');
-    const loadMoreButton = document.getElementById('btnLoadMore');
+    const pagination = document.getElementById('assetPagination');
+    const paginationSummary = document.getElementById('assetPaginationSummary');
+    const pageSizeSelect = document.getElementById('assetPageSize');
     const saveButton = document.getElementById('btnSaveAsset');
     const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
     const owners = { MOVIE: [], SERIES: [], EPISODE: [] };
     let assets = [];
-    let cursor = null;
+    let currentPage = 1;
+    let totalPages = 1;
+    let totalCount = 0;
 
     const val = (object, ...keys) => keys.map(key => object?.[key]).find(item => item !== undefined && item !== null);
     const escapeHtml = text => String(text ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
@@ -58,7 +62,7 @@
         loading.classList.add('d-none');
         empty.classList.toggle('d-none', assets.length > 0);
         tableWrap.classList.toggle('d-none', assets.length === 0);
-        loadMoreButton.classList.toggle('d-none', !cursor?.hasMore);
+        renderPagination();
         rows.innerHTML = assets.map((item, index) => {
             const url = val(item, 'url', 'Url');
             const type = String(val(item, 'assetType', 'AssetType') || '').toUpperCase();
@@ -70,6 +74,23 @@
         }).join('');
     }
 
+    function renderPagination() {
+        paginationSummary.textContent = totalCount ? `Trang ${currentPage}/${totalPages} · ${totalCount} media` : '0 media';
+        pagination.innerHTML = '';
+        if (totalPages <= 1) return;
+        const addButton = (label, page, disabled = false, active = false, ariaLabel = '') => {
+            const item = document.createElement('li');
+            item.className = `page-item${disabled ? ' disabled' : ''}${active ? ' active' : ''}`;
+            item.innerHTML = `<button class="page-link" type="button" data-page="${page}" ${disabled ? 'disabled' : ''} ${ariaLabel ? `aria-label="${ariaLabel}"` : ''}>${label}</button>`;
+            pagination.appendChild(item);
+        };
+        addButton('&laquo;', currentPage - 1, currentPage === 1, false, 'Trang trước');
+        const end = Math.min(totalPages, Math.max(5, currentPage + 2));
+        const start = Math.max(1, end - 4);
+        for (let page = start; page <= end; page++) addButton(page, page, false, page === currentPage);
+        addButton('&raquo;', currentPage + 1, currentPage === totalPages, false, 'Trang sau');
+    }
+
     async function loadOwners() {
         if (owners.MOVIE.length || owners.SERIES.length || owners.EPISODE.length) return;
         const json = await fetchJson(app.dataset.ownersUrl);
@@ -79,32 +100,28 @@
         fillOwners();
     }
 
-    async function loadAssets(append = false) {
-        loadMoreButton.disabled = true;
-        if (!append) loading.classList.remove('d-none');
-        let url = `${app.dataset.listUrl}?pageSize=10`;
-        if (append && cursor) url += `&cursorOwnerType=${encodeURIComponent(cursor.ownerType)}&cursorAssetId=${encodeURIComponent(cursor.assetId)}`;
+    async function loadAssets(page = 1) {
+        loading.classList.remove('d-none');
+        tableWrap.classList.add('d-none');
+        const pageSize = Number(pageSizeSelect.value) || 10;
+        const url = `${app.dataset.listUrl}?page=${page}&pageSize=${pageSize}`;
         try {
             const json = await fetchJson(url);
-            const page = val(json.data, 'table', 'Table') || [];
+            const pageItems = val(json.data, 'table', 'Table') || [];
             const metadata = (val(json.data, 'table1', 'Table1') || [])[0];
-            assets = append ? assets.concat(page) : page;
-            cursor = metadata ? {
-                ownerType: val(metadata, 'nextOwnerType', 'NextOwnerType'),
-                assetId: val(metadata, 'nextAssetId', 'NextAssetId'),
-                hasMore: val(metadata, 'hasMore', 'HasMore') === true
-            } : null;
+            assets = pageItems;
+            currentPage = Number(val(metadata, 'page', 'Page')) || 1;
+            totalPages = Number(val(metadata, 'totalPages', 'TotalPages')) || 1;
+            totalCount = Number(val(metadata, 'totalCount', 'TotalCount')) || 0;
             render();
         } finally {
             loading.classList.add('d-none');
-            loadMoreButton.disabled = false;
         }
     }
 
     async function reload() {
-        cursor = null;
         assets = [];
-        try { await loadAssets(false); }
+        try { await loadAssets(currentPage); }
         catch (error) {
             empty.classList.add('d-none');
             tableWrap.classList.add('d-none');
@@ -127,8 +144,14 @@
     });
 
     ownerType.addEventListener('change', () => fillOwners());
-    loadMoreButton.addEventListener('click', async () => {
-        try { await loadAssets(true); } catch (error) { showAlert(error.message); }
+    pagination.addEventListener('click', async event => {
+        const button = event.target.closest('[data-page]');
+        if (!button || button.disabled) return;
+        try { await loadAssets(Number(button.dataset.page)); } catch (error) { showAlert(error.message); }
+    });
+    pageSizeSelect.addEventListener('change', async () => {
+        currentPage = 1;
+        try { await loadAssets(1); } catch (error) { showAlert(error.message); }
     });
 
     rows.addEventListener('click', async event => {
