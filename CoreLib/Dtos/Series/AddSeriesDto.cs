@@ -41,11 +41,13 @@ namespace CoreLib.Dtos.Series
         public DateTime? SeasonAirDate { get; set; }
 
         public string? EpisodesJson { get; set; }
+        public long? CreatedBy { get; set; }
     }
 
     // DTO để update Series (kế thừa AddSeriesDto, bổ sung Id)
     public class UpdateSeriesDto : AddSeriesDto
     {
         public decimal SeriesId { get; set; }
+        public long? UserId { get; set; }
     }
 }

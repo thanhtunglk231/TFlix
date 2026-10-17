@@ -52,20 +52,20 @@
         const query = byId('subscriptionSearch').value.trim().toLowerCase();
         const status = byId('subscriptionStatusFilter').value;
         const filtered = subscriptions.filter(item => {
-            const haystack = [value(item,'EMAIL','Email'), value(item,'FULL_NAME','FullName'), value(item,'PLAN_NAME','PlanName'), value(item,'PLAN_CODE','PlanCode')].join(' ').toLowerCase();
-            return (!query || haystack.includes(query)) && (!status || String(value(item,'STATUS','Status')).toUpperCase() === status);
+            const haystack = [value(item,'EMAIL','Email','email'), value(item,'FULL_NAME','FullName','fullName'), value(item,'PLAN_NAME','PlanName','planName'), value(item,'PLAN_CODE','PlanCode','planCode')].join(' ').toLowerCase();
+            return (!query || haystack.includes(query)) && (!status || String(value(item,'STATUS','Status','status')).toUpperCase() === status);
         });
         byId('subscriptionEmpty').classList.toggle('d-none', filtered.length > 0);
         byId('subscriptionTableWrap').classList.toggle('d-none', filtered.length === 0);
         byId('subscriptionRows').innerHTML = filtered.map(item => {
             const id = value(item,'SUBSCRIPTION_ID','SubscriptionId','subscriptionId');
-            const currentStatus = String(value(item,'STATUS','Status') || 'EXPIRED').toUpperCase();
-            const statusClass = currentStatus === 'ACTIVE' ? 'success' : currentStatus === 'CANCELLED' ? 'secondary' : 'warning';
-            const statusText = currentStatus === 'ACTIVE' ? 'Đang hoạt động' : currentStatus === 'CANCELLED' ? 'Đã hủy' : 'Hết hạn';
+            const currentStatus = String(value(item,'STATUS','Status','status') || 'EXPIRED').toUpperCase();
+            const statusClass = currentStatus === 'ACTIVE' ? 'success' : currentStatus === 'CANCELLED' ? 'secondary' : currentStatus === 'PENDING' ? 'info' : 'warning';
+            const statusText = currentStatus === 'ACTIVE' ? 'Đang hoạt động' : currentStatus === 'CANCELLED' ? 'Đã hủy' : currentStatus === 'PENDING' ? 'Chờ thanh toán' : 'Hết hạn';
             return `<tr>
-                <td class="subscription-user"><strong>${escapeHtml(value(item,'FULL_NAME','FullName') || 'Chưa có tên')}</strong><span>${escapeHtml(value(item,'EMAIL','Email'))}</span></td>
-                <td><strong>${escapeHtml(value(item,'PLAN_NAME','PlanName'))}</strong><div class="small text-info">${escapeHtml(value(item,'PLAN_CODE','PlanCode'))}</div></td>
-                <td class="subscription-period">${formatDate(value(item,'START_AT','StartAt'))}<small>đến ${formatDate(value(item,'END_AT','EndAt'))}</small></td>
+                <td class="subscription-user"><strong>${escapeHtml(value(item,'FULL_NAME','FullName','fullName') || 'Chưa có tên')}</strong><span>${escapeHtml(value(item,'EMAIL','Email','email'))}</span></td>
+                <td><strong>${escapeHtml(value(item,'PLAN_NAME','PlanName','planName'))}</strong><div class="small text-info">${escapeHtml(value(item,'PLAN_CODE','PlanCode','planCode'))}</div></td>
+                <td class="subscription-period">${formatDate(value(item,'START_AT','StartAt','startAt'))}<small>đến ${formatDate(value(item,'END_AT','EndAt','endAt'))}</small></td>
                 <td><span class="badge text-bg-${statusClass}">${statusText}</span></td>
                 <td class="text-end subscription-actions"><button class="btn btn-sm btn-outline-info me-1" data-action="edit" data-id="${id}" aria-label="Sửa đăng ký"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${id}" aria-label="Xóa đăng ký"><i class="bi bi-trash"></i></button></td>
             </tr>`;
@@ -100,11 +100,11 @@
         const item = subscriptions.find(row => String(value(row,'SUBSCRIPTION_ID','SubscriptionId','subscriptionId')) === String(id));
         if (!item) return showToast('Không tìm thấy đăng ký cần sửa.', false);
         byId('subscriptionId').value = id;
-        byId('subscriptionUser').value = value(item,'USER_ID','UserId');
-        byId('subscriptionPlan').value = value(item,'PLAN_ID','PlanId');
-        byId('subscriptionStartAt').value = localInput(value(item,'START_AT','StartAt'));
-        byId('subscriptionEndAt').value = localInput(value(item,'END_AT','EndAt'));
-        byId('subscriptionStatus').value = String(value(item,'STATUS','Status')).toUpperCase();
+        byId('subscriptionUser').value = value(item,'USER_ID','UserId','userId');
+        byId('subscriptionPlan').value = value(item,'PLAN_ID','PlanId','planId');
+        byId('subscriptionStartAt').value = localInput(value(item,'START_AT','StartAt','startAt'));
+        byId('subscriptionEndAt').value = localInput(value(item,'END_AT','EndAt','endAt'));
+        byId('subscriptionStatus').value = String(value(item,'STATUS','Status','status')).toUpperCase();
         byId('subscriptionModalTitle').textContent = 'Cập nhật đăng ký Premium';
         byId('subscriptionFormError').classList.add('d-none'); modal.show();
     }

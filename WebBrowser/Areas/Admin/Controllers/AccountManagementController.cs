@@ -16,11 +16,12 @@ namespace WebBrowser.Areas.Admin.Controllers
             _logger = logger;
         }
 
-        public IActionResult Index() => View();
+        public IActionResult Index() => HasAdminRole() ? View() : Forbid();
 
         [HttpGet]
         public async Task<IActionResult> ManagementData()
         {
+            if (!HasAdminRole()) return Forbid();
             _logger.LogInformation("Admin account management data request started");
             var result = await _adminAccountService.GetManagementDataAsync();
             _logger.LogInformation("Admin account management data request completed with code {Code} and success {Success}", result.code, result.Success);
@@ -31,6 +32,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([FromBody] CreateAdminAccountDto dto)
         {
+            if (!HasAdminRole()) return Forbid();
             if (!ModelState.IsValid)
             {
                 return Content(JsonConvert.SerializeObject(new { Success = false, code = "400", message = "Vui lòng kiểm tra lại thông tin tài khoản." }), "application/json");
@@ -46,6 +48,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Update([FromBody] UpdateAdminAccountDto dto)
         {
+            if (!HasAdminRole()) return Forbid();
             if (!ModelState.IsValid)
             {
                 return Content(JsonConvert.SerializeObject(new { Success = false, code = "400", message = "Vui lòng kiểm tra lại thông tin cập nhật." }), "application/json");
@@ -61,6 +64,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete([FromQuery] long userId)
         {
+            if (!HasAdminRole()) return Forbid();
             if (userId <= 0)
             {
                 return Content(JsonConvert.SerializeObject(new { Success = false, code = "400", message = "ID tài khoản không hợp lệ." }), "application/json");

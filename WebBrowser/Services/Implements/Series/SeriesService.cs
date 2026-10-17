@@ -48,20 +48,20 @@ namespace WebBrowser.Services.Implements.Series
             return resp!;
         }
 
-        public async Task<CResponseMessage> delete_series(decimal id)
+        public async Task<CResponseMessage> delete_series(decimal id, long? userId = null)
         {
             const string url = "/api/Series/delete";
             Console.WriteLine($"[SeriesService] -> delete_series ENTER url={url}, id={id}");
 
-            var resp = await _httpService.PostAsync<CResponseMessage>(url, new { id });
+            var resp = await _httpService.PostAsync<CResponseMessage>(url, new { id, userId });
 
             Console.WriteLine("[SeriesService] <- delete_series EXIT: " + JsonConvert.SerializeObject(resp));
             return resp!;
         }
 
-        public async Task<ApiResponse<SeriesResponseData>> get_all()
+        public async Task<ApiResponse<SeriesResponseData>> get_all(long? userId = null)
         {
-            const string url = "/api/Series/getall";
+            var url = "/api/Series/getall" + (userId.HasValue ? $"?userId={userId.Value}" : string.Empty);
             Console.WriteLine("[SeriesService] -> get_all ENTER url=" + url);
 
             var resp = await _httpService.GetAsync<ApiResponse<SeriesResponseData>>(url);

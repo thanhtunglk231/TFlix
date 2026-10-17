@@ -1041,9 +1041,9 @@ namespace Server.Controllers
         //  GET
         // =========================================================
         [HttpGet("getall")]
-        public IActionResult GetAll()
+        public IActionResult GetAll([FromQuery] long? userId = null)
         {
-            var result = _videoSourceService.get_all();
+            var result = _videoSourceService.get_all(userId);
             return Ok(result);
         }
 
