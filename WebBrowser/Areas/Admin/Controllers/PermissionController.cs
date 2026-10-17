@@ -16,20 +16,17 @@ namespace WebBrowser.Areas.Admin.Controllers
 
         public IActionResult Index()
         {
-            if (!HasAdminRole()) return Forbid();
             return View("/Areas/Admin/Views/Home/Permission.cshtml");
         }
 
         public async Task<IActionResult> Current([FromQuery] string? screenCode)
         {
-            if (!HasAdminRole()) return Forbid();
             var result = await _permissionService.GetCurrentPermissions(screenCode);
             return Content(JsonConvert.SerializeObject(result), "application/json");
         }
 
         public async Task<IActionResult> Matrix()
         {
-            if (!HasAdminRole()) return Forbid();
             var result = await _permissionService.GetMatrix();
             return Content(JsonConvert.SerializeObject(result), "application/json");
         }
@@ -37,7 +34,6 @@ namespace WebBrowser.Areas.Admin.Controllers
         [HttpPost]
         public async Task<IActionResult> SetRolePermission([FromBody] RolePermissionSetDto dto)
         {
-            if (!HasAdminRole()) return Forbid();
             Console.WriteLine("[Admin/PermissionController] SetRolePermission: " + JsonConvert.SerializeObject(dto));
             var result = await _permissionService.SetRolePermission(dto);
             if (result.code == "409")
@@ -51,7 +47,6 @@ namespace WebBrowser.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> UserMatrix([FromQuery] long? userId)
         {
-            if (!HasAdminRole()) return Forbid();
             var result = await _permissionService.GetUserMatrix(userId);
             return Content(JsonConvert.SerializeObject(result), "application/json");
         }
@@ -59,7 +54,6 @@ namespace WebBrowser.Areas.Admin.Controllers
         [HttpPost]
         public async Task<IActionResult> SetUserPermission([FromBody] UserPermissionSetDto dto)
         {
-            if (!HasAdminRole()) return Forbid();
             Console.WriteLine("[Admin/PermissionController] SetUserPermission: " + JsonConvert.SerializeObject(dto));
             var result = await _permissionService.SetUserPermission(dto);
             return Content(JsonConvert.SerializeObject(result), "application/json");

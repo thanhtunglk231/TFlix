@@ -261,9 +261,9 @@ namespace WebBrowser.Services.Implements
         //    return resp!;
         //}
 
-        public async Task<ApiResponse<SourceTableWrapper>> get_all(long? userId = null)
+        public async Task<ApiResponse<SourceTableWrapper>> get_all()
         {
-            var url = "/api/VideoSources/getall" + (userId.HasValue ? $"?userId={userId.Value}" : string.Empty);
+            const string url = "/api/VideoSources/getall";
             _logger.LogInformation("Loading video source list from {ApiPath}", url);
 
             var resp = await _httpService.GetAsync<ApiResponse<SourceTableWrapper>>(url);

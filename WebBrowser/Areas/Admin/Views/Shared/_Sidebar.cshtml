@@ -1,12 +1,5 @@
 @{
     var active = (Func<string, string, bool>)ViewData["isActive"] ?? ((_, __) => false);
-    var adminJson = Context.Session.GetString("AdminCurrentUser");
-    var adminUser = string.IsNullOrWhiteSpace(adminJson)
-        ? null
-        : Newtonsoft.Json.JsonConvert.DeserializeObject<WebBrowser.Models.AuthModels.UserInfo>(adminJson);
-    var canManageAdminAccounts = adminUser?.roles.Any(role =>
-        string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(role, "SUPER_ADMIN", StringComparison.OrdinalIgnoreCase)) == true;
 }
 <aside class="sidebar" id="sidebar" aria-label="Thanh điều hướng quản trị">
     <!-- Brand Box -->
@@ -131,8 +124,6 @@
             </svg>
             <span>Premium theo tài khoản</span>
         </a>
-        @if (canManageAdminAccounts)
-        {
         <a class="sidebar-nav-link @(active("AccountManagement", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="AccountManagement" asp-action="Index">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -151,7 +142,6 @@
             </svg>
             <span>Phân quyền Admin</span>
         </a>
-        }
     </nav>
 
     <!-- Server Status Mini Card at bottom of sidebar -->

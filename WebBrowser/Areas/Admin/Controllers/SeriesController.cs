@@ -16,7 +16,7 @@ namespace WebBrowser.Areas.Admin.Controllers
         public async Task<IActionResult> GetAll()
         {
             Console.WriteLine("[Admin/SeriesController] -> GetAll() ENTER");
-            var result = await _seriesService.get_all(GetOwnershipFilterUserId());
+            var result = await _seriesService.get_all();
             Console.WriteLine("[Admin/SeriesController] <- GetAll() EXIT: " + JsonConvert.SerializeObject(result));
             return Ok(result);
         }
@@ -26,7 +26,6 @@ namespace WebBrowser.Areas.Admin.Controllers
         [HttpPost]
         public async Task<IActionResult> AddSeries([FromBody] AddSeriesDto dto)
         {
-            dto.CreatedBy = GetCurrentAdminUserId();
             Console.WriteLine("[Admin/SeriesController] <- AddSeries() Calling: ");
 
             var result = await _seriesService.add_series(dto);
@@ -38,7 +37,6 @@ namespace WebBrowser.Areas.Admin.Controllers
         [HttpPost]
         public async Task<IActionResult> UpdateSeries([FromBody] UpdateSeriesDto dto)
         {
-            dto.UserId = GetOwnershipFilterUserId();
             Console.WriteLine("[Admin/SeriesController] <- UpdateSeries() Calling: ");
             var result = await _seriesService.uppdate_series(dto);
             return Ok(result);
@@ -51,7 +49,7 @@ namespace WebBrowser.Areas.Admin.Controllers
             Console.WriteLine("[Admin/SeriesController] -> Delete() ENTER, id=" + id);
             if (id <= 0) return BadRequest(new { message = "Invalid id." });
 
-            var result = await _seriesService.delete_series(id, GetOwnershipFilterUserId());
+            var result = await _seriesService.delete_series(id);
             Console.WriteLine("[Admin/SeriesController] <- Delete() EXIT: " + JsonConvert.SerializeObject(result));
             return Ok(result);
         }
