@@ -36,6 +36,7 @@
                 <rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
             </svg>
             <span>Bảng điều khiển</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
     </nav>
 
@@ -54,6 +55,7 @@
                 <line x1="17" y1="7" x2="22" y2="7"></line>
             </svg>
             <span>Kho phim lẻ</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("Series", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="Series" asp-action="Index">
@@ -62,6 +64,7 @@
                 <polyline points="17 2 12 7 7 2"></polyline>
             </svg>
             <span>Phim bộ (Series)</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("Season", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="Season" asp-action="Index">
@@ -71,6 +74,7 @@
                 <polyline points="2 12 12 17 22 12"></polyline>
             </svg>
             <span>Mùa phim (Season)</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("Esopide", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="Esopide" asp-action="Index">
@@ -79,6 +83,7 @@
                 <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"></polygon>
             </svg>
             <span>Tập phim (Episode)</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("VideoSoure", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="VideoSoure" asp-action="Index">
@@ -90,10 +95,30 @@
                 <line x1="8" y1="22" x2="16" y2="22"></line>
             </svg>
             <span>Nguồn phát (Video)</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("VideoHighlight", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="VideoHighlight" asp-action="Index">
             <i class="bi bi-stars"></i><span>Video Highlight AI</span>
+            <span class="sidebar-active-note">Active</span>
+        </a>
+        <a class="sidebar-nav-link @(active("VideoUploadRequest", "Index") ? "active" : "")"
+           asp-area="Admin" asp-controller="VideoUploadRequest" asp-action="Index"
+           title="Duyệt yêu cầu upload video từ thành viên Premium">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>Duyệt quyền Upload</span>
+            <span class="sidebar-active-note">Active</span>
+            <!-- Dấu đỏ đánh dấu có nội dung cần duyệt -->
+            <div class="d-flex align-items-center gap-1 ms-auto" id="sidebarUploadIndicatorWrapper">
+                <span class="sidebar-pending-badge badge rounded-pill d-none" id="sidebarUploadPendingBadge" title="Yêu cầu đang chờ duyệt">
+                    <span id="sidebarUploadPendingCount">0</span>
+                </span>
+                <span class="sidebar-red-dot d-none" id="sidebarUploadRedDot" title="Có yêu cầu upload cần duyệt!"></span>
+            </div>
         </a>
         <a class="sidebar-nav-link @(active("Genres", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="Genres" asp-action="Index">
@@ -102,6 +127,7 @@
                 <line x1="7" y1="7" x2="7.01" y2="7"></line>
             </svg>
             <span>Thể loại phim</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("MovieAsset", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="MovieAsset" asp-action="Index">
@@ -111,6 +137,7 @@
                 <polyline points="21 15 16 10 5 21"></polyline>
             </svg>
             <span>Poster & Backdrop</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
     </nav>
 
@@ -123,6 +150,7 @@
                 <path d="M7 9h10M7 13h6"></path>
             </svg>
             <span>Gói Premium</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("AccountSubscription", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="AccountSubscription" asp-action="Index">
@@ -132,6 +160,7 @@
                 <path d="M19 8l2 2-5 5-3-3 2-2 1 1 3-3z"></path>
             </svg>
             <span>Premium theo tài khoản</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("AccountManagement", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="AccountManagement" asp-action="Index">
@@ -141,6 +170,7 @@
                 <path d="M19 8v6M22 11h-6"></path>
             </svg>
             <span>Quản lý tài khoản</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
         <a class="sidebar-nav-link @(active("Permission", "Index") ? "active" : "")"
            asp-area="Admin" asp-controller="Permission" asp-action="Index">
@@ -150,6 +180,7 @@
                 <path d="M10 11V9a2 2 0 1 1 4 0v2"></path>
             </svg>
             <span>Phân quyền Admin</span>
+            <span class="sidebar-active-note">Active</span>
         </a>
     </nav>
 

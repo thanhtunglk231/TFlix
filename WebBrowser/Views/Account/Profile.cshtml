@@ -6,6 +6,7 @@
     var activeSubscriptions = ViewBag.ActiveSubscriptions as List<CoreLib.Dtos.Payment.SubscriptionStatusDto> ?? [];
     var subscriptionLoadError = ViewBag.SubscriptionLoadError as string;
     var isPremium = subscriptionStatus.IsActive;
+    var uploadRequest = ViewBag.VideoUploadRequest as CoreLib.Dtos.VideoUploadRequest.VideoUploadRequestDto;
     var planName = string.IsNullOrWhiteSpace(subscriptionStatus.PlanName) ? "Gói thường" : subscriptionStatus.PlanName;
     const string fallback = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop";
 }
@@ -134,6 +135,85 @@
         }
     </section>
 
+    @if (isPremium)
+    {
+        <!-- CREATOR HUB / VIDEO UPLOAD REQUEST SECTION (DÀNH CHO PREMIUM) -->
+        <section class="mb-5" aria-labelledby="creatorHubTitle">
+            <div class="rounded-4 p-4 position-relative overflow-hidden" style="background:linear-gradient(135deg, rgba(25, 211, 197, 0.12), rgba(22, 131, 255, 0.06), #17191f); border: 1px solid rgba(25, 211, 197, 0.35);">
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-4">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="rounded-4 d-flex align-items-center justify-content-center p-3 flex-shrink-0" style="background: rgba(25, 211, 197, 0.15); border: 1px solid rgba(25, 211, 197, 0.3); width: 60px; height: 60px;">
+                            <i class="bi bi-camera-reels-fill fs-3" style="color: #19d3c5;"></i>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                <h2 id="creatorHubTitle" class="h4 mb-0 fw-bold">Đặc quyền Creator: Đăng tải Video</h2>
+                                <span class="badge bg-warning text-dark rounded-pill px-2 py-1 small"><i class="bi bi-star-fill me-1"></i>Premium Feature</span>
+                            </div>
+                            <p class="text-secondary mb-0 small" style="max-width: 650px;">
+                                Là thành viên Premium, bạn có thể gửi yêu cầu phê duyệt đến Ban quản trị TFlix để được cấp quyền đăng tải các video, tác phẩm hoặc phim ảnh của mình lên nền tảng.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex-shrink-0">
+                        @if (uploadRequest == null)
+                        {
+                            <button type="button" class="btn btn-info rounded-pill px-4 py-2 text-dark fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#requestUploadModal" style="background: #19d3c5; border: none;">
+                                <i class="bi bi-cloud-arrow-up-fill me-2"></i>Gửi yêu cầu upload video
+                            </button>
+                        }
+                        else if (uploadRequest.Status == "PENDING")
+                        {
+                            <div class="text-lg-end">
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 rounded-pill fs-6 mb-2 d-inline-flex align-items-center">
+                                    <span class="spinner-grow spinner-grow-sm me-2" role="status"></span>
+                                    Đang chờ Admin duyệt
+                                </span>
+                                <div class="text-secondary small">Gửi lúc: @(uploadRequest.CreatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "--")</div>
+                                <button type="button" class="btn btn-link text-decoration-none text-info p-0 small mt-1" data-bs-toggle="modal" data-bs-target="#requestUploadModal">
+                                    <i class="bi bi-pencil me-1"></i>Cập nhật thông tin yêu cầu
+                                </button>
+                            </div>
+                        }
+                        else if (uploadRequest.Status == "APPROVED")
+                        {
+                            <div class="text-lg-end">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fs-6 mb-2 d-inline-flex align-items-center">
+                                    <i class="bi bi-check-circle-fill me-2"></i>Đã được cấp quyền Upload
+                                </span>
+                                <div class="text-success small fw-medium">
+                                    <i class="bi bi-shield-lock-fill me-1"></i>Tài khoản của bạn đã được mở quyền đăng tải video.
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(uploadRequest.AdminNotes))
+                                {
+                                    <div class="text-secondary small mt-1">Phản hồi từ Admin: @uploadRequest.AdminNotes</div>
+                                }
+                            </div>
+                        }
+                        else if (uploadRequest.Status == "REJECTED")
+                        {
+                            <div class="text-lg-end">
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fs-6 mb-2 d-inline-flex align-items-center">
+                                    <i class="bi bi-x-circle-fill me-2"></i>Yêu cầu bị từ chối
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(uploadRequest.AdminNotes))
+                                {
+                                    <div class="text-danger small mt-1">Lý do: @uploadRequest.AdminNotes</div>
+                                }
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-outline-info rounded-pill px-3 py-1 btn-sm" data-bs-toggle="modal" data-bs-target="#requestUploadModal">
+                                        <i class="bi bi-arrow-repeat me-1"></i>Gửi lại yêu cầu
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+
     <section id="favoriteMovies">
         <div class="d-flex align-items-center justify-content-between mb-4">
             <h2 class="h4 mb-0"><i class="bi bi-heart-fill text-danger me-2"></i>Phim yêu thích</h2>
@@ -171,6 +251,46 @@
     </section>
 </div>
 
+@if (isPremium)
+{
+    <!-- Modal Gửi Yêu Cầu Upload Video (Đặt ngoài container để tránh bị modal-backdrop che) -->
+    <div class="modal fade" id="requestUploadModal" tabindex="-1" aria-labelledby="requestUploadModalLabel" aria-hidden="true" style="z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered" style="z-index: 1065;">
+            <div class="modal-content text-light" style="background:#1c1f26; border: 1px solid rgba(255,255,255,.15); box-shadow: 0 10px 40px rgba(0,0,0,.6);">
+                <div class="modal-header border-secondary border-opacity-25">
+                    <h5 class="modal-title d-flex align-items-center gap-2" id="requestUploadModalLabel">
+                        <i class="bi bi-camera-video-fill text-info"></i>
+                        Yêu cầu cấp quyền Upload Video
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="uploadRequestForm">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-body">
+                        <div class="alert alert-dark border-secondary border-opacity-25 mb-3 small text-secondary">
+                            <i class="bi bi-info-circle-fill text-info me-2"></i>
+                            Nhằm bảo đảm an toàn bản quyền và chất lượng nội dung trên TFlix, vui lòng cung cấp lý do hoặc thông tin nội dung bạn dự kiến đăng tải.
+                        </div>
+                        <div class="mb-3">
+                            <label for="requestReason" class="form-label small text-secondary">Lý do / Giới thiệu kênh hoặc nội dung của bạn <span class="text-danger">*</span></label>
+                            <textarea class="form-control text-light border-secondary" id="requestReason" name="reason" rows="4" 
+                                      placeholder="Ví dụ: Tôi là nhà làm phim độc lập / reviewer phim, muốn chia sẻ các video phân tích và phim ngắn chất lượng cao..."
+                                      style="background: #12141a;" required>@(uploadRequest?.Reason)</textarea>
+                        </div>
+                        <div id="requestAlert" class="alert d-none small"></div>
+                    </div>
+                    <div class="modal-footer border-secondary border-opacity-25">
+                        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" id="btnSubmitUploadRequest" class="btn btn-info rounded-pill px-4 text-dark fw-semibold" style="background: #19d3c5; border: none;">
+                            <i class="bi bi-send-fill me-1"></i>Gửi yêu cầu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
 <form id="favoriteTokenForm" class="d-none">@Html.AntiForgeryToken()</form>
 @section Scripts {
 <script>
@@ -182,5 +302,77 @@ document.querySelectorAll('.js-remove-favorite').forEach(button => button.addEve
     const response = await fetch('@Url.Action("ToggleMovie", "Favorite")', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
     if (response.ok) button.closest('.favorite-card')?.remove(); else { button.disabled = false; button.textContent = 'Thử lại'; }
 }));
+
+const modalEl = document.getElementById('requestUploadModal');
+if (modalEl && modalEl.parentNode !== document.body) {
+    document.body.appendChild(modalEl);
+}
+
+// Dọn dẹp backdrop nếu modal đóng
+if (modalEl) {
+    modalEl.addEventListener('hidden.bs.modal', () => {
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+    });
+}
+
+const uploadForm = document.getElementById('uploadRequestForm');
+if (uploadForm) {
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitUploadRequest');
+        const alertBox = document.getElementById('requestAlert');
+        const reasonInput = document.getElementById('requestReason');
+        const reason = reasonInput.value.trim();
+
+        if (!reason) {
+            alertBox.className = 'alert alert-warning small';
+            alertBox.textContent = 'Vui lòng nhập lý do hoặc thông tin nội dung bạn muốn đăng tải.';
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang gửi...';
+        alertBox.classList.add('d-none');
+
+        try {
+            const token = uploadForm.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            const formData = new URLSearchParams();
+            formData.append('reason', reason);
+            if (token) formData.append('__RequestVerificationToken', token);
+
+            const res = await fetch('@Url.Action("RequestUpload", "Account")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            });
+
+            const data = await res.json();
+            if (data && data.success) {
+                alertBox.className = 'alert alert-success small';
+                alertBox.textContent = data.message || 'Gửi yêu cầu thành công! Đang cập nhật trạng thái...';
+                alertBox.classList.remove('d-none');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1200);
+            } else {
+                alertBox.className = 'alert alert-danger small';
+                alertBox.textContent = (data && data.message) ? data.message : 'Có lỗi xảy ra khi gửi yêu cầu.';
+                alertBox.classList.remove('d-none');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Gửi yêu cầu';
+            }
+        } catch (err) {
+            alertBox.className = 'alert alert-danger small';
+            alertBox.textContent = 'Không thể kết nối máy chủ. Vui lòng kiểm tra lại đường truyền.';
+            alertBox.classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Gửi yêu cầu';
+        }
+    });
+}
 </script>
 }

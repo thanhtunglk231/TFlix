@@ -203,6 +203,62 @@
             background: var(--accent-gradient);
         }
 
+        /* Note cho sidebar nav link active */
+        .sidebar-active-note {
+            display: none;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.12rem 0.45rem;
+            border-radius: 6px;
+            background: rgba(25, 211, 197, 0.16);
+            color: #19d3c5;
+            border: 1px solid rgba(25, 211, 197, 0.35);
+            margin-left: auto;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+
+        .sidebar-nav-link.active .sidebar-active-note {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        /* Dấu đỏ đánh dấu có nội dung cần duyệt */
+        .sidebar-red-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #ff4d4f;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.7);
+            animation: pulse-red-dot 1.8s infinite;
+            flex-shrink: 0;
+        }
+
+        @@keyframes pulse-red-dot {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 7px rgba(255, 77, 79, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
+            }
+        }
+
+        .sidebar-pending-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.45rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ff4d4f, #d9363e) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 10px rgba(245, 34, 45, 0.5);
+            flex-shrink: 0;
+        }
+
         /* SVG Icon Utilities */
         .svg-icon {
             display: inline-flex;
@@ -706,6 +762,35 @@
     @await Html.PartialAsync("_Toast")
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Tự động kiểm tra số lượng yêu cầu upload video cần duyệt để hiển thị dấu đỏ trên sidebar
+        (async function checkPendingUploadRequests() {
+            try {
+                const res = await fetch('@Url.Action("GetAll", "VideoUploadRequest", new { area = "Admin", status = "PENDING" })', {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    const items = result.data || [];
+                    const pendingCount = items.length;
+                    const dot = document.getElementById('sidebarUploadRedDot');
+                    const badge = document.getElementById('sidebarUploadPendingBadge');
+                    const countText = document.getElementById('sidebarUploadPendingCount');
+
+                    if (pendingCount > 0) {
+                        if (dot) dot.classList.remove('d-none');
+                        if (badge) badge.classList.remove('d-none');
+                        if (countText) countText.textContent = pendingCount > 99 ? '99+' : pendingCount;
+                    } else {
+                        if (dot) dot.classList.add('d-none');
+                        if (badge) badge.classList.add('d-none');
+                    }
+                }
+            } catch (e) {
+                // Không hiển thị lỗi nếu chưa đăng nhập hoặc mạng gián đoạn
+            }
+        })();
+    </script>
     @RenderSection("Scripts", required: false)
 </body>
 </html>

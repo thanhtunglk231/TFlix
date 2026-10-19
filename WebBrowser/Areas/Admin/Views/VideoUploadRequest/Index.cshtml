@@ -1,0 +1,155 @@
+@{
+    Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Duyệt quyền Upload Video · Admin";
+}
+
+<main id="videoUploadRequestPage"
+      data-list-url="@Url.Action("GetAll", "VideoUploadRequest", new { area = "Admin" })"
+      data-review-url="@Url.Action("Review", "VideoUploadRequest", new { area = "Admin" })">
+    @Html.AntiForgeryToken()
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h3 class="mb-1"><i class="bi bi-cloud-arrow-up text-info me-2"></i>Duyệt quyền Upload Video</h3>
+            <p class="text-secondary mb-0">Xem xét và phê duyệt quyền đăng tải video cho người dùng Premium.</p>
+        </div>
+        <button type="button" class="btn btn-outline-light" id="btnReloadRequests">
+            <i class="bi bi-arrow-clockwise me-1"></i>Tải lại
+        </button>
+    </div>
+
+    <section class="card" style="background:#1c1f26; border:1px solid rgba(255,255,255,.08); border-radius:12px;">
+        <div class="card-body border-bottom border-secondary border-opacity-25 p-3">
+            <div class="row g-2">
+                <div class="col-lg-8">
+                    <label class="visually-hidden" for="requestSearch">Tìm kiếm</label>
+                    <input id="requestSearch" class="form-control text-light" style="background:#12141a; border-color:rgba(255,255,255,.1);" placeholder="Tìm theo tên người dùng, email hoặc lý do..." />
+                </div>
+                <div class="col-lg-4">
+                    <label class="visually-hidden" for="requestStatusFilter">Trạng thái</label>
+                    <select id="requestStatusFilter" class="form-select text-light" style="background:#12141a; border-color:rgba(255,255,255,.1);">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="PENDING" selected>Đang chờ duyệt</option>
+                        <option value="APPROVED">Đã phê duyệt</option>
+                        <option value="REJECTED">Đã từ chối</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div id="requestLoading" class="text-center py-5">
+                <div class="spinner-border text-info" role="status"><span class="visually-hidden">Đang tải</span></div>
+                <div class="text-secondary mt-2">Đang tải dữ liệu...</div>
+            </div>
+            <div id="requestError" class="alert alert-danger m-3 d-none" role="alert"></div>
+            <div id="requestEmpty" class="text-center py-5 d-none">
+                <i class="bi bi-inbox fs-1 text-secondary"></i>
+                <p class="mt-2 mb-0 text-secondary">Không có yêu cầu upload video nào phù hợp.</p>
+            </div>
+            <div class="table-responsive d-none" id="requestTableWrap">
+                <table class="table table-hover align-middle mb-0 text-light" style="border-color: rgba(255,255,255,.06);">
+                    <thead style="background: rgba(255,255,255,.02);">
+                        <tr>
+                            <th class="ps-3" style="width: 60px;">ID</th>
+                            <th>Người dùng</th>
+                            <th>Gói dịch vụ</th>
+                            <th>Lý do yêu cầu</th>
+                            <th>Ngày gửi</th>
+                            <th>Trạng thái</th>
+                            <th>Phản hồi Admin</th>
+                            <th class="text-end pe-3">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestRows"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Modal Xét Duyệt Yêu Cầu -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalTitle" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered" style="z-index: 1065;">
+        <div class="modal-content text-light" style="background:#1c1f26; border: 1px solid rgba(255,255,255,.1);">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="reviewModalTitle">
+                    <i class="bi bi-check-circle-fill text-info"></i>
+                    Xét duyệt quyền Upload Video
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <form id="reviewForm">
+                <div class="modal-body">
+                    <input type="hidden" id="reviewRequestId" />
+                    
+                    <div class="mb-3 p-3 rounded-3" style="background:#12141a; border: 1px solid rgba(255,255,255,.06);">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-secondary small">Người dùng:</span>
+                            <span class="fw-medium text-info" id="reviewUserName">--</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-secondary small">Email:</span>
+                            <span class="text-light small" id="reviewUserEmail">--</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-secondary small">Gói Premium:</span>
+                            <span class="badge bg-warning text-dark" id="reviewPlanName">--</span>
+                        </div>
+                        <div class="border-top border-secondary border-opacity-25 pt-2">
+                            <div class="text-secondary small mb-1">Lý do từ người dùng:</div>
+                            <div class="text-light small p-2 rounded" style="background: rgba(255,255,255,.04);" id="reviewUserReason">--</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-medium">Quyết định phê duyệt *</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="reviewStatusRadio" id="statusApprove" value="APPROVED" checked>
+                                <label class="form-check-label text-success fw-medium" for="statusApprove">
+                                    <i class="bi bi-check-circle me-1"></i>Cho phép Upload (Duyệt)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="reviewStatusRadio" id="statusReject" value="REJECTED">
+                                <label class="form-check-label text-danger fw-medium" for="statusReject">
+                                    <i class="bi bi-x-circle me-1"></i>Từ chối yêu cầu
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reviewAdminNotes" class="form-label text-secondary small">Phản hồi / Ghi chú cho người dùng</label>
+                        <textarea class="form-control text-light" id="reviewAdminNotes" rows="3"
+                                  placeholder="Nhập lý do duyệt hoặc lý do từ chối để người dùng nắm rõ..."
+                                  style="background: #12141a; border-color: rgba(255,255,255,.1);"></textarea>
+                    </div>
+
+                    <div id="reviewFormError" class="alert alert-danger mt-2 mb-0 d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer border-secondary border-opacity-25">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4" id="btnSubmitReview">
+                        <i class="bi bi-check-lg me-1"></i>Xác nhận xét duyệt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="requestToast" class="toast align-items-center text-light bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastMessage"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Đóng"></button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/admin/video-upload-request.js" asp-append-version="true"></script>
+}
