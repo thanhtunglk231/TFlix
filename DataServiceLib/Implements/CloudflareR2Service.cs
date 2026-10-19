@@ -223,6 +223,7 @@ namespace DataServiceLib.Implements
                 ".mp4" => "video/mp4",
                 ".webm" => "video/webm",
                 ".mkv" => "video/x-matroska",
+                ".vtt" => "text/vtt; charset=utf-8",
                 _ => "application/octet-stream"
             };
         }

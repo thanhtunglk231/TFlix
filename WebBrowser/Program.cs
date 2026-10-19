@@ -56,6 +56,8 @@ builder.Services.AddScoped<WebBrowser.Services.Interfaces.IVideoSoureService,
                            WebBrowser.Services.Implements.VideoSoureService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IVideoHighlightService,
                            WebBrowser.Services.Implements.VideoHighlightService>();
+builder.Services.AddScoped<WebBrowser.Services.Interfaces.ISubtitleService,
+                           WebBrowser.Services.Implements.SubtitleService>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IEpisodeAsset,
                            EpisodeAsset>();
 builder.Services.AddScoped<WebBrowser.Services.Interfaces.IMovieAssetService,

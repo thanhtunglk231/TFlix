@@ -1,6 +1,9 @@
 using System.Threading;
 using System.Threading.Tasks;
+using System.Security.Claims;
 using CoreLib.Dtos.Subtitle;
+using DataServiceLib.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Server.Services.Subtitles;
 
@@ -11,10 +14,103 @@ namespace Server.Controllers
     public class SubtitlesController : ControllerBase
     {
         private readonly ISubtitleService _subtitleService;
+        private readonly ICSubtitle _repository;
+        private readonly ISubtitleGenerator _generator;
+        private readonly IBrowserSubtitleJobService _browserJobs;
 
-        public SubtitlesController(ISubtitleService subtitleService)
+        public SubtitlesController(ISubtitleService subtitleService, ICSubtitle repository, ISubtitleGenerator generator,
+            IBrowserSubtitleJobService browserJobs)
         {
             _subtitleService = subtitleService;
+            _repository = repository;
+            _generator = generator;
+            _browserJobs = browserJobs;
+        }
+
+        private string OwnerId => User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub") ?? User.Identity?.Name ?? "unknown-admin";
+
+        [HttpPost("browser-jobs")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> StartBrowserJob([FromBody] BrowserSubtitleJobRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            try { return Ok(await _browserJobs.StartAsync(request, OwnerId, cancellationToken)); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpGet("browser-hls")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> DownloadBrowserHlsFile([FromQuery] long sourceId, [FromQuery] string url,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var file = await _browserJobs.DownloadHlsFileAsync(sourceId, url, cancellationToken);
+                return File(file.Content, file.ContentType);
+            }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpGet("browser-jobs/{jobId:guid}")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> GetBrowserJob(Guid jobId, CancellationToken cancellationToken)
+        {
+            var job = await _browserJobs.GetAsync(jobId, OwnerId, cancellationToken);
+            return job is null ? NotFound() : Ok(job);
+        }
+
+        [HttpPost("browser-jobs/{jobId:guid}/chunks/{chunkIndex:int}")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        [RequestSizeLimit(14 * 1024 * 1024)]
+        public async Task<IActionResult> UploadBrowserChunk(Guid jobId, int chunkIndex,
+            [FromForm] double offsetSeconds, [FromForm] double durationSeconds, [FromForm] IFormFile audio,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return Ok(await _browserJobs.ProcessChunkAsync(jobId, chunkIndex, offsetSeconds,
+                    durationSeconds, audio, OwnerId, cancellationToken));
+            }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPost("browser-jobs/{jobId:guid}/complete")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> CompleteBrowserJob(Guid jobId, CancellationToken cancellationToken)
+        {
+            try { return Ok(await _browserJobs.CompleteAsync(jobId, OwnerId, cancellationToken)); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpGet("browser-jobs/{jobId:guid}/draft")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> GetDraft(Guid jobId, CancellationToken cancellationToken) =>
+            Ok(await _browserJobs.GetDraftAsync(jobId, OwnerId, cancellationToken));
+
+        [HttpPost("browser-jobs/{jobId:guid}/draft")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> UpdateDraft(Guid jobId, [FromBody] UpdateSubtitleDraftDto request,
+            CancellationToken cancellationToken) =>
+            Ok(await _browserJobs.UpdateDraftAsync(jobId, request, OwnerId, cancellationToken));
+
+        [HttpPost("browser-jobs/{jobId:guid}/approve")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> Approve(Guid jobId, CancellationToken cancellationToken) =>
+            Ok(await _browserJobs.ApproveAsync(jobId, OwnerId, cancellationToken));
+
+        [HttpGet("source/{sourceId:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetBySource(long sourceId) => Ok(await _repository.GetBySourceAsync(sourceId));
+
+        [HttpPost("generate/{sourceId:long}")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> GenerateForSource(long sourceId, CancellationToken cancellationToken)
+        {
+            var result = await _generator.GenerateAsync(sourceId, cancellationToken);
+            return result.Success ? Ok(result) : StatusCode(result.code == "400" ? 400 : 500, result);
         }
 
         [HttpPost("generate")]

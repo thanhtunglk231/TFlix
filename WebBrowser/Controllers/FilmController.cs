@@ -293,24 +293,21 @@ namespace WebBrowser.Controllers
                 _logger.LogError(ex, "Lỗi khi lấy thông tin đánh giá phim {MovieId}", id);
             }
 
+            // Phụ đề chỉ được tạo trong Admin và tải theo từng VideoSource.
             List<SubtitleTrackDto> subtitles = new();
-            try
+            var subtitlesBySource = new Dictionary<long, List<CoreLib.Dtos.Subtitle.SubtitleDto>>();
+            foreach (var source in sources)
             {
-                var durationSec = (movie.DurationMin ?? 120) * 60.0;
-                var subResp = await _subtitleService.GetSubtitlesAsync(
-                    id,
-                    currentEpisodeId,
-                    movie.title ?? movie.OriginalTitle,
-                    movie.OverviewText,
-                    durationSec);
-                if (subResp?.Success == true && subResp.Tracks != null)
+                try
                 {
-                    subtitles = subResp.Tracks;
+                    var subtitleResponse = await _subtitleService.GetBySourceAsync(source.SourceId);
+                    var items = subtitleResponse?.Data?.Table ?? new();
+                    if (items.Count > 0) subtitlesBySource[source.SourceId] = items;
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Lỗi tải phụ đề ban đầu cho ContentId={ContentId}", id);
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Không thể tải phụ đề cho SourceId={SourceId}", source.SourceId);
+                }
             }
 
             return View("Index", new WatchViewModel
@@ -319,6 +316,7 @@ namespace WebBrowser.Controllers
                 Content = movie,
                 Episodes = episodes,
                 Sources = sources,
+                SubtitlesBySource = subtitlesBySource,
                 CurrentEpisodeId = currentEpisodeId,
                 EpisodeLoadError = episodeLoadError,
                 IsPremiumContent = isPremiumContent,
@@ -737,24 +735,6 @@ namespace WebBrowser.Controllers
                 IsPremium = info.isPrem,
                 status = "PUBLISHED"
             };
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetSubtitles(long id, long? episodeId = null, string? title = null, string? overview = null, double? duration = null)
-        {
-            var res = await _subtitleService.GetSubtitlesAsync(id, episodeId, title, overview, duration);
-            return Json(res ?? new GenerateSubtitleResponseDto { Success = false, Message = "Không thể lấy danh sách phụ đề." });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> GenerateSubtitles([FromBody] GenerateSubtitleRequestDto request)
-        {
-            if (request == null)
-            {
-                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ." });
-            }
-            var res = await _subtitleService.GenerateSubtitlesAsync(request);
-            return Json(res ?? new GenerateSubtitleResponseDto { Success = false, Message = "Không thể tạo phụ đề bằng Gemini." });
         }
 
         [HttpGet]

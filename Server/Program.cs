@@ -141,8 +141,15 @@ builder.Services.AddScoped<ICSeries, CSeries>();
 
 builder.Services.AddScoped<ICVideoSoure, CVideoSoure>();
 builder.Services.AddScoped<ICVideoHighlight, CVideoHighlight>();
+builder.Services.AddScoped<ICSubtitle, CSubtitle>();
 builder.Services.AddScoped<Server.Services.VideoHighlights.IVideoHighlightGenerator,
     Server.Services.VideoHighlights.VideoHighlightGenerator>();
+builder.Services.AddScoped<Server.Services.Subtitles.ISubtitleGenerator,
+    Server.Services.Subtitles.SubtitleGenerator>();
+builder.Services.AddScoped<Server.Services.Subtitles.IGeminiSubtitleService,
+    Server.Services.Subtitles.GeminiSubtitleService>();
+builder.Services.AddScoped<Server.Services.Subtitles.IBrowserSubtitleJobService,
+    Server.Services.Subtitles.BrowserSubtitleJobService>();
 
 // =====================================================
 // VIDEO TRANSCODING

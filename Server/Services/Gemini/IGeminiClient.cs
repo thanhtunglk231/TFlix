@@ -14,5 +14,7 @@ namespace Server.Services.Gemini
             CancellationToken cancellationToken = default);
         Task<string?> GenerateWithImagesAsync(string prompt, IReadOnlyList<byte[]> jpegImages,
             CancellationToken cancellationToken = default);
+        Task<string?> GenerateWithAudioAsync(string prompt, byte[] audio, string mimeType,
+            CancellationToken cancellationToken = default);
     }
 }

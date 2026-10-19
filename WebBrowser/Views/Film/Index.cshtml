@@ -1022,6 +1022,10 @@
                                         <option value="-1">Auto</option>
                                     </select>
 
+                                    <select id="selSubtitleInPlayer" class="opts-pill" title="Chọn phụ đề" aria-label="Chọn phụ đề">
+                                        <option value="off">CC Tắt</option>
+                                    </select>
+
                                     <!-- Speed -->
                                     <select id="selSpeed" class="opts-pill" title="Tốc độ phát">
                                         @foreach (var s in speeds)
@@ -1042,17 +1046,9 @@
                                             <li class="dropdown-header text-uppercase small text-white-50 px-3 py-1">Tùy chọn phụ đề</li>
                                             <li><a class="dropdown-item active d-flex align-items-center justify-content-between sub-track-item" href="javascript:void(0)" data-lang="off"><span>Tắt phụ đề</span><i class="bi bi-check2 sub-check"></i></a></li>
                                             <li><hr class="dropdown-divider border-secondary opacity-25"></li>
-                                            <li class="dropdown-header text-uppercase small text-info px-3 py-1 d-flex align-items-center gap-1">
-                                                <i class="bi bi-stars"></i> Phụ đề Gemini AI
-                                            </li>
-                                            <li><a class="dropdown-item d-flex align-items-center justify-content-between sub-track-item" href="javascript:void(0)" data-lang="vi"><span>Tiếng Việt (AI)</span><i class="bi bi-check2 sub-check d-none"></i></a></li>
-                                            <li><a class="dropdown-item d-flex align-items-center justify-content-between sub-track-item" href="javascript:void(0)" data-lang="en"><span>Tiếng Anh (AI)</span><i class="bi bi-check2 sub-check d-none"></i></a></li>
-                                            <li><hr class="dropdown-divider border-secondary opacity-25"></li>
-                                            <li>
-                                                <button type="button" class="dropdown-item text-info d-flex align-items-center gap-2" id="btnRegenerateAiSubtitles">
-                                                    <i class="bi bi-magic"></i> <span>Tạo lại bằng Gemini AI</span>
-                                                </button>
-                                            </li>
+                                            <li class="dropdown-header text-uppercase small text-info px-3 py-1">Phụ đề</li>
+                                            <li><a class="dropdown-item d-flex align-items-center justify-content-between sub-track-item" href="javascript:void(0)" data-lang="vi"><span>Tiếng Việt</span><i class="bi bi-check2 sub-check d-none"></i></a></li>
+                                            <li><a class="dropdown-item d-flex align-items-center justify-content-between sub-track-item" href="javascript:void(0)" data-lang="en"><span>Tiếng Anh</span><i class="bi bi-check2 sub-check d-none"></i></a></li>
                                         </ul>
                                     </div>
 
@@ -1131,13 +1127,9 @@
                             </span>
                             <select id="selSubtitle" class="opts-pill" title="Lựa chọn phụ đề hiển thị">
                                 <option value="off">Tắt phụ đề</option>
-                                <option value="vi">Tiếng Việt (AI Gemini)</option>
-                                <option value="en">English (AI Gemini)</option>
+                                <option value="vi">Tiếng Việt</option>
+                                <option value="en">English</option>
                             </select>
-                            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1.5 small" id="btnQuickAiSubtitle" title="Tạo hoặc cập nhật phụ đề bằng Gemini AI">
-                                <i class="bi bi-stars"></i>
-                                <span class="d-none d-sm-inline">Tạo phụ đề AI</span>
-                            </button>
                         </div>
                     </div>
                 }
@@ -1549,6 +1541,7 @@
         const currentUserName = @Json.Serialize(currentUserName);
         const currentUserAvatar = @Json.Serialize(currentUserAvatar);
         const allSources = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Sources));
+        const subtitlesBySource = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.SubtitlesBySource));
 
         function sourceValue(source, ...names) {
             for (const name of names) {
@@ -1578,6 +1571,7 @@
         const video = document.getElementById('video');
         const selQuality = document.getElementById('selQuality');
         const selQualityInPlayer = document.getElementById('selQualityInPlayer');
+        const selSubtitleInPlayer = document.getElementById('selSubtitleInPlayer');
         const selServer = document.getElementById('selServer');
         const qualityToast = document.getElementById('qualityToast');
         const qualityToastText = document.getElementById('qualityToastText');
@@ -1587,6 +1581,40 @@
         const premiumPlayerGate = document.getElementById('premiumPlayerGate');
         const premiumPlayerMessage = document.getElementById('premiumPlayerMessage');
         const playerControls = document.getElementById('playerControls');
+
+        function subtitleValue(item, ...names) {
+            for (const name of names) if (item && item[name] !== undefined && item[name] !== null) return item[name];
+            return null;
+        }
+
+        function updateSubtitlesForSource(rawUrl) {
+            if (!video || !selSubtitleInPlayer) return;
+            [...video.querySelectorAll('track[kind="subtitles"]')].forEach(track => track.remove());
+            selSubtitleInPlayer.innerHTML = '<option value="off">CC Tắt</option>';
+            const source = allSources.find(item => sourceValue(item, 'stream_url', 'streamUrl', 'StreamUrl', 'streaM_URL') === rawUrl);
+            const sourceId = sourceValue(source, 'source_id', 'sourceId', 'SourceId', 'sourcE_ID');
+            const items = subtitlesBySource[String(sourceId)] || subtitlesBySource[sourceId] || [];
+            items.forEach((item, index) => {
+                const language = String(subtitleValue(item, 'languageCode', 'LanguageCode', 'language_code') || '').toLowerCase();
+                const url = subtitleValue(item, 'url', 'Url');
+                if (!url) return;
+                const label = language === 'vi' ? 'Tiếng Việt' : language === 'en' ? 'English' : language.toUpperCase();
+                const track = document.createElement('track');
+                track.kind = 'subtitles'; track.srclang = language; track.label = label; track.src = url;
+                video.appendChild(track);
+                const option = document.createElement('option');
+                option.value = String(index); option.textContent = 'CC ' + label;
+                selSubtitleInPlayer.appendChild(option);
+            });
+            selSubtitleInPlayer.disabled = items.length === 0;
+            selSubtitleInPlayer.title = items.length ? 'Chọn phụ đề' : 'Nguồn này chưa có phụ đề';
+        }
+
+        selSubtitleInPlayer?.addEventListener('change', event => {
+            const selected = event.target.value;
+            [...video.textTracks].forEach((track, index) => track.mode = selected !== 'off' && index === Number(selected) ? 'showing' : 'disabled');
+            showQualityToast(selected === 'off' ? 'Đã tắt phụ đề' : `Phụ đề: ${event.target.options[event.target.selectedIndex].text.replace('CC ', '')}`);
+        });
 
         function showPlayerLoading() {
             if (!playerLoading || !premiumPlayerGate?.classList.contains('d-none')) return;
@@ -1792,6 +1820,7 @@
                 hidePremiumGate();
                 showPlayerLoading();
                 localStorage.setItem(movieKey + ":server", rawUrl);
+                updateSubtitlesForSource(rawUrl);
 
                 if (video.hlsInstance) {
                     video.hlsInstance.destroy();
@@ -2272,8 +2301,6 @@
             // ==========================================
             const btnSubtitle = document.getElementById('btnSubtitle');
             const selSubtitle = document.getElementById('selSubtitle');
-            const btnQuickAiSubtitle = document.getElementById('btnQuickAiSubtitle');
-            const btnRegenerateAiSubtitles = document.getElementById('btnRegenerateAiSubtitles');
             const subtitleOverlay = document.getElementById('subtitleOverlay');
             const subtitleText = document.getElementById('subtitleText');
 
@@ -2341,7 +2368,8 @@
 
                 let track = subtitlesList.find(t => (t.languageCode || '').toLowerCase() === lang.toLowerCase());
                 if (!track || !track.cues || track.cues.length === 0) {
-                    generateSubtitlesWithAi(false, lang);
+                    syncSubtitleUi('off');
+                    showQualityToast(`Nguồn phim chưa có phụ đề ${lang === 'vi' ? 'Tiếng Việt' : 'Tiếng Anh'}.`);
                     return;
                 }
 
@@ -2364,7 +2392,7 @@
                 updateSubtitleDisplay(now);
 
                 if (showToast) {
-                    const langName = lang === 'vi' ? 'Tiếng Việt (Gemini AI)' : 'English (Gemini AI)';
+                    const langName = lang === 'vi' ? 'Tiếng Việt' : 'English';
                     showQualityToast(`Phụ đề: ${langName}`);
                 }
             }
@@ -2400,61 +2428,6 @@
                 }
             }
 
-            async function generateSubtitlesWithAi(force = true, targetLang = 'vi') {
-                const btns = [btnQuickAiSubtitle, btnRegenerateAiSubtitles].filter(Boolean);
-                btns.forEach(b => {
-                    b.disabled = true;
-                    b.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>Gemini AI đang tạo...</span>';
-                });
-
-                showQualityToast('✨ Gemini AI đang phân tích và tạo phụ đề Tiếng Việt & English...');
-
-                try {
-                    const payload = {
-                        movieId: movieId,
-                        episodeId: currentEp > 0 ? currentEp : null,
-                        title: @Json.Serialize(movieTitle),
-                        originalTitle: @Json.Serialize(originalTitle),
-                        overview: @Json.Serialize(description),
-                        genres: @Json.Serialize(movieGenres),
-                        durationSeconds: (video && video.duration > 0) ? video.duration : (@((Model.Content.DurationMin ?? 120) * 60)),
-                        forceRegenerate: force
-                    };
-
-                    const resp = await fetch('/Film/GenerateSubtitles', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    const data = await resp.json();
-                    const rawTracks = data?.tracks || data?.Tracks;
-                    if (data && data.success && Array.isArray(rawTracks) && rawTracks.length > 0) {
-                        subtitlesList = rawTracks.map(normalizeTrack).filter(Boolean);
-                        setSubtitleTrack(targetLang || 'vi', false);
-                        const cur = video ? video.currentTime : 0;
-                        updateSubtitleDisplay(cur);
-                        showQualityToast('✅ Đã tạo phụ đề song ngữ bằng Gemini AI thành công!');
-                    } else {
-                        showQualityToast(data?.message || 'Không thể tạo phụ đề.');
-                    }
-                } catch (err) {
-                    console.warn('Lỗi tạo phụ đề bằng Gemini AI:', err);
-                    showQualityToast('Không thể kết nối đến dịch vụ tạo phụ đề AI.');
-                } finally {
-                    if (btnQuickAiSubtitle) {
-                        btnQuickAiSubtitle.disabled = false;
-                        btnQuickAiSubtitle.innerHTML = '<i class="bi bi-stars"></i> <span class="d-none d-sm-inline">Tạo phụ đề AI</span>';
-                    }
-                    if (btnRegenerateAiSubtitles) {
-                        btnRegenerateAiSubtitles.disabled = false;
-                        btnRegenerateAiSubtitles.innerHTML = '<i class="bi bi-magic"></i> <span>Tạo lại bằng Gemini AI</span>';
-                    }
-                }
-            }
-
             function toggleSubtitleShortcut() {
                 if (currentSubtitleLang === 'off') {
                     setSubtitleTrack('vi');
@@ -2477,20 +2450,6 @@
             if (selSubtitle) {
                 selSubtitle.addEventListener('change', () => {
                     setSubtitleTrack(selSubtitle.value);
-                });
-            }
-
-            if (btnQuickAiSubtitle) {
-                btnQuickAiSubtitle.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    generateSubtitlesWithAi(true, currentSubtitleLang === 'off' ? 'vi' : currentSubtitleLang);
-                });
-            }
-
-            if (btnRegenerateAiSubtitles) {
-                btnRegenerateAiSubtitles.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    generateSubtitlesWithAi(true, 'vi');
                 });
             }
 

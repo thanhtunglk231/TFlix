@@ -10,6 +10,7 @@ namespace WebBrowser.Models.Film
         public PreviewItem Content { get; set; } = new();
         public List<EpisodeItem> Episodes { get; set; } = new();
         public List<SourceItem> Sources { get; set; } = new();
+        public Dictionary<long, List<CoreLib.Dtos.Subtitle.SubtitleDto>> SubtitlesBySource { get; set; } = new();
         public long? CurrentEpisodeId { get; set; }
         public string? EpisodeLoadError { get; set; }
         public bool IsPremiumContent { get; set; }

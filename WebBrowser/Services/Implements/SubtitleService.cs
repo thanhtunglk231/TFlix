@@ -1,6 +1,11 @@
 using System;
 using System.Threading.Tasks;
+using System.Globalization;
+using System.Net.Http.Headers;
 using CoreLib.Dtos.Subtitle;
+using CoreLib.Models;
+using WebBrowser.Models;
+using WebBrowser.Models.Subtitle;
 using WebBrowser.Services.HttpSevice.Interfaces;
 using WebBrowser.Services.Interfaces;
 
@@ -14,6 +19,44 @@ namespace WebBrowser.Services.Implements
         {
             _http = http;
         }
+
+        public Task<ApiResponse<SubtitleTableWrapper>> GetBySourceAsync(long sourceId) =>
+            _http.GetAsync<ApiResponse<SubtitleTableWrapper>>($"/api/Subtitles/source/{sourceId}");
+
+        public Task<CResponseMessage> GenerateAsync(long sourceId) =>
+            _http.PostLongRunningAsync<CResponseMessage>($"/api/Subtitles/generate/{sourceId}", new { });
+
+        public Task<BrowserSubtitleJobDto> StartBrowserJobAsync(BrowserSubtitleJobRequestDto request) =>
+            _http.PostAsync<BrowserSubtitleJobDto>("/api/Subtitles/browser-jobs", request);
+
+        public Task<BrowserSubtitleJobDto> GetBrowserJobAsync(Guid jobId) =>
+            _http.GetAsync<BrowserSubtitleJobDto>($"/api/Subtitles/browser-jobs/{jobId}");
+
+        public async Task<BrowserSubtitleChunkResultDto> UploadBrowserChunkAsync(Guid jobId, int chunkIndex,
+            double offsetSeconds, double durationSeconds, IFormFile audio)
+        {
+            using var form = new MultipartFormDataContent();
+            await using var stream = audio.OpenReadStream();
+            using var audioContent = new StreamContent(stream);
+            audioContent.Headers.ContentType = new MediaTypeHeaderValue(audio.ContentType ?? "audio/mpeg");
+            form.Add(audioContent, "audio", audio.FileName);
+            form.Add(new StringContent(offsetSeconds.ToString(CultureInfo.InvariantCulture)), "offsetSeconds");
+            form.Add(new StringContent(durationSeconds.ToString(CultureInfo.InvariantCulture)), "durationSeconds");
+            return await _http.PostMultipartAsync<BrowserSubtitleChunkResultDto>(
+                $"/api/Subtitles/browser-jobs/{jobId}/chunks/{chunkIndex}", form);
+        }
+
+        public Task<BrowserSubtitleJobDto> CompleteBrowserJobAsync(Guid jobId) =>
+            _http.PostAsync<BrowserSubtitleJobDto>($"/api/Subtitles/browser-jobs/{jobId}/complete", new { });
+
+        public Task<SubtitleDraftDto> GetDraftAsync(Guid jobId) =>
+            _http.GetAsync<SubtitleDraftDto>($"/api/Subtitles/browser-jobs/{jobId}/draft");
+
+        public Task<SubtitleDraftDto> UpdateDraftAsync(Guid jobId, UpdateSubtitleDraftDto request) =>
+            _http.PostAsync<SubtitleDraftDto>($"/api/Subtitles/browser-jobs/{jobId}/draft", request);
+
+        public Task<BrowserSubtitleJobDto> ApproveAsync(Guid jobId) =>
+            _http.PostLongRunningAsync<BrowserSubtitleJobDto>($"/api/Subtitles/browser-jobs/{jobId}/approve", new { });
 
         public async Task<GenerateSubtitleResponseDto?> GetSubtitlesAsync(
             long? movieId,

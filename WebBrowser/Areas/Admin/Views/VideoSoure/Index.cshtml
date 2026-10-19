@@ -19,6 +19,16 @@
     var urlUpdate = Url.Action("Update", "VideoSoure", new { area = "Admin" });
     var urlDelete = Url.Action("Delete", "VideoSoure", new { area = "Admin" });
     var urlGenerateHighlight = Url.Action("Generate", "VideoHighlight", new { area = "Admin" });
+    var urlGenerateSubtitle = Url.Action("Generate", "Subtitle", new { area = "Admin" });
+    var urlStartSubtitleJob = Url.Action("StartBrowserJob", "Subtitle", new { area = "Admin" });
+    var urlGetSubtitleJob = Url.Action("GetBrowserJob", "Subtitle", new { area = "Admin" });
+    var urlUploadSubtitleChunk = Url.Action("UploadBrowserChunk", "Subtitle", new { area = "Admin" });
+    var urlCompleteSubtitleJob = Url.Action("CompleteBrowserJob", "Subtitle", new { area = "Admin" });
+    var urlProxySubtitleHls = Url.Action("ProxyHlsFile", "Subtitle", new { area = "Admin" });
+    var urlSubtitleRequestToken = Url.Action("RequestToken", "Subtitle", new { area = "Admin" });
+    var urlGetSubtitleDraft = Url.Action("GetDraft", "Subtitle", new { area = "Admin" });
+    var urlUpdateSubtitleDraft = Url.Action("UpdateDraft", "Subtitle", new { area = "Admin" });
+    var urlApproveSubtitle = Url.Action("Approve", "Subtitle", new { area = "Admin" });
 
     // Nguồn dữ liệu tham chiếu
     var urlGetAllMovies = Url.Action("GetAll", "Movie", new { area = "Admin" });
@@ -155,6 +165,7 @@
     }
 
     #highlightConfirmModal,
+    #subtitleConfirmModal,
     #uploadResultModal {
         z-index: 1305 !important;
     }
@@ -337,6 +348,43 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="modal fade" id="subtitleConfirmModal" tabindex="-1" aria-labelledby="subtitleConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="subtitleConfirmTitle"><i class="bi bi-badge-cc text-info me-2"></i>Xác nhận tạo phụ đề</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+        <div class="modal-body">
+            <p class="mb-2">Gemini sẽ nhận dạng lời thoại và tạo phụ đề Tiếng Việt, Tiếng Anh cho nguồn video này.</p>
+            <div class="alert alert-info mb-3">Quá trình có thể mất vài phút tùy thời lượng phim.</div>
+            <div class="d-none" id="subtitleProgressPanel" role="status" aria-live="polite">
+                <div class="d-flex justify-content-between gap-2 mb-2">
+                    <span class="small" id="subtitleProgressDetail">Đang chuẩn bị...</span>
+                    <span class="small fw-semibold text-info" id="subtitleProgressText">0%</span>
+                </div>
+                <div class="progress" role="progressbar" aria-label="Tiến trình tạo phụ đề" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" id="subtitleProgressBar" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="d-none mt-3" id="subtitleDraftPanel">
+                <div class="alert alert-warning py-2" id="subtitleApprovalStatus">Chưa duyệt — phụ đề chưa hiển thị ở trang xem phim.</div>
+                <div class="ratio ratio-16x9 bg-black mb-3" style="max-height:360px">
+                    <video id="subtitlePreviewVideo" controls playsinline></video>
+                    <div class="position-absolute start-50 bottom-0 translate-middle-x text-center text-white fw-semibold px-3 py-2 mb-4 rounded bg-dark bg-opacity-75" id="subtitlePreviewText" style="width:max-content;max-width:90%;height:auto;top:auto"></div>
+                </div>
+                <div class="d-flex gap-2 mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-info subtitle-preview-lang active" data-lang="vi">Tiếng Việt</button>
+                    <button type="button" class="btn btn-sm btn-outline-info subtitle-preview-lang" data-lang="en">English</button>
+                </div>
+                <div class="table-responsive" style="max-height:360px;overflow:auto">
+                    <table class="table table-dark table-sm align-middle">
+                        <thead class="sticky-top"><tr><th>#</th><th style="width:110px">Bắt đầu</th><th style="width:110px">Kết thúc</th><th>Tiếng Việt</th><th>English</th><th></th></tr></thead>
+                        <tbody id="subtitleCueEditor"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" id="btnCancelSubtitle" data-bs-dismiss="modal">Hủy</button><button type="button" class="btn btn-outline-info d-none" id="btnSaveSubtitleDraft">Lưu chỉnh sửa</button><button type="button" class="btn btn-success d-none" id="btnApproveSubtitle"><i class="bi bi-check-circle me-1"></i>Duyệt phụ đề</button><button type="button" class="btn btn-info" id="btnConfirmGenerateSubtitle">Bắt đầu tạo</button></div>
+    </div></div>
 </div>
 
 <div class="modal fade" id="highlightConfirmModal" tabindex="-1" aria-labelledby="highlightConfirmTitle" aria-hidden="true">
@@ -605,6 +653,15 @@
                         </div>
                     </div>
 
+                    <div class="col-12 mt-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="AutoGenerateVietnameseSubtitle" />
+                            <label class="form-check-label" for="AutoGenerateVietnameseSubtitle">
+                                Tự động tạo phụ đề Tiếng Việt và Tiếng Anh sau khi lưu nguồn HLS
+                            </label>
+                        </div>
+                        <div class="form-text">Âm thanh được tách bằng FFmpeg trong trình duyệt, chia từng đoạn và gửi Gemini để dịch.</div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer d-flex justify-content-between">
@@ -612,6 +669,9 @@
                     <i class="bi bi-trash me-1"></i>Xóa nguồn này
                 </button>
                 <div class="d-flex gap-2 ms-auto">
+                    <button type="button" class="btn btn-outline-info d-none" id="btnGenerateSubtitle">
+                        <i class="bi bi-badge-cc me-1"></i>Tạo phụ đề VI/EN bằng Gemini
+                    </button>
                     <button type="button" class="btn btn-outline-warning d-none" id="btnGenerateHighlight">
                         <i class="bi bi-stars me-1"></i>Tạo 3 highlight bằng Gemini
                     </button>
@@ -640,6 +700,7 @@
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js"></script>
 
     <!-- Select2 cho dropdown có tìm kiếm -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -665,6 +726,16 @@
             update:  '@urlUpdate',
             deleteSource: '@urlDelete',
             generateHighlight: '@urlGenerateHighlight',
+            generateSubtitle: '@urlGenerateSubtitle',
+            startSubtitleJob: '@urlStartSubtitleJob',
+            getSubtitleJob: '@urlGetSubtitleJob',
+            uploadSubtitleChunk: '@urlUploadSubtitleChunk',
+            completeSubtitleJob: '@urlCompleteSubtitleJob',
+            proxySubtitleHls: '@urlProxySubtitleHls',
+            subtitleRequestToken: '@urlSubtitleRequestToken',
+            getSubtitleDraft: '@urlGetSubtitleDraft',
+            updateSubtitleDraft: '@urlUpdateSubtitleDraft',
+            approveSubtitle: '@urlApproveSubtitle',
             movies:  '@urlGetAllMovies',
             eps:     '@urlGetAllEpisodes'
           };
@@ -683,8 +754,12 @@
           const previewModal   = bootstrap.Modal.getOrCreateInstance(previewModalEl);
           const uploadResultModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('uploadResultModal'));
           const highlightConfirmModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('highlightConfirmModal'));
+          const subtitleConfirmModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('subtitleConfirmModal'));
 
           document.getElementById('highlightConfirmModal').addEventListener('show.bs.modal', () => {
+            setTimeout(() => document.querySelector('.modal-backdrop:last-of-type')?.classList.add('highlight-popup-backdrop'));
+          });
+          document.getElementById('subtitleConfirmModal').addEventListener('show.bs.modal', () => {
             setTimeout(() => document.querySelector('.modal-backdrop:last-of-type')?.classList.add('highlight-popup-backdrop'));
           });
           document.getElementById('uploadResultModal').addEventListener('show.bs.modal', () => {
@@ -705,6 +780,11 @@
           let browserHlsUploadActive = false;
           let pendingHighlightSourceId = 0;
           let highlightProgressTimer = null;
+          let subtitleProgressTimer = null;
+          let currentSubtitleDraftJobId = null;
+          let currentSubtitleDraft = [];
+          let subtitlePreviewLanguage = 'vi';
+          let subtitlePreviewHls = null;
 
           function reportVideoSourceClientError(eventName, detail){
             const antiForgeryToken = $('input[name="__RequestVerificationToken"]').first().val();
@@ -761,6 +841,87 @@
               .toggleClass('progress-bar-striped', value > 0 && value < 100)
               .toggleClass('progress-bar-animated', processing || (value > 0 && value < 100))
               .parent().attr('aria-valuenow', value);
+          }
+
+          function updateSubtitleProgress(detail, percent, processing=true){
+            const value = Math.max(0, Math.min(100, Math.round(percent || 0)));
+            $('#subtitleProgressPanel').removeClass('d-none');
+            $('#subtitleProgressDetail').text(detail || 'Đang xử lý...');
+            $('#subtitleProgressText').text(`${value}%`);
+            $('#subtitleProgressBar')
+              .css('width', `${value}%`)
+              .toggleClass('progress-bar-striped progress-bar-animated', processing && value < 100)
+              .toggleClass('bg-info', processing && value < 100)
+              .toggleClass('bg-success', !processing && value === 100)
+              .toggleClass('bg-danger', !processing && value < 100)
+              .parent().attr('aria-valuenow', value);
+          }
+
+          function resetSubtitleProgress(){
+            $('#subtitleProgressPanel').addClass('d-none');
+            $('#subtitleProgressBar').css('width', '0%').removeClass('bg-success bg-danger').addClass('bg-info progress-bar-striped progress-bar-animated');
+            $('#subtitleProgressText').text('0%');
+            $('#subtitleProgressDetail').text('Đang chuẩn bị...');
+            $('#btnCancelSubtitle').prop('disabled', false);
+            $('#subtitleDraftPanel,#btnSaveSubtitleDraft,#btnApproveSubtitle').addClass('d-none');
+            $('#btnConfirmGenerateSubtitle').removeClass('d-none');
+            currentSubtitleDraftJobId = null;
+            currentSubtitleDraft = [];
+          }
+
+          function renderSubtitleDraft(){
+            const body = $('#subtitleCueEditor').empty();
+            currentSubtitleDraft.forEach((cue, index) => {
+              body.append(`<tr data-index="${index}">
+                <td><button type="button" class="btn btn-sm btn-link text-info p-0 subtitle-seek" data-time="${Number(cue.startSeconds)||0}">${index + 1}</button></td>
+                <td><input type="number" min="0" step="0.001" class="form-control form-control-sm cue-start" value="${Number(cue.startSeconds||0).toFixed(3)}"></td>
+                <td><input type="number" min="0" step="0.001" class="form-control form-control-sm cue-end" value="${Number(cue.endSeconds||0).toFixed(3)}"></td>
+                <td><textarea class="form-control form-control-sm cue-vi" rows="2"></textarea></td>
+                <td><textarea class="form-control form-control-sm cue-en" rows="2"></textarea></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger cue-delete" title="Xóa đoạn"><i class="bi bi-trash"></i></button></td>
+              </tr>`);
+              const row = body.children().last();
+              row.find('.cue-vi').val(cue.vi || '');
+              row.find('.cue-en').val(cue.en || '');
+            });
+          }
+
+          function collectSubtitleDraft(){
+            return $('#subtitleCueEditor tr').map(function(){
+              return {
+                startSeconds: Number($(this).find('.cue-start').val()),
+                endSeconds: Number($(this).find('.cue-end').val()),
+                vi: $(this).find('.cue-vi').val().trim(),
+                en: $(this).find('.cue-en').val().trim()
+              };
+            }).get();
+          }
+
+          function setupSubtitlePreview(streamUrl, sourceId){
+            const video = document.getElementById('subtitlePreviewVideo');
+            const proxied = subtitleHlsProxyUrl(sourceId, streamUrl);
+            subtitlePreviewHls?.destroy(); subtitlePreviewHls = null;
+            if(window.Hls?.isSupported()){
+              subtitlePreviewHls = new Hls();
+              subtitlePreviewHls.loadSource(proxied);
+              subtitlePreviewHls.attachMedia(video);
+            } else { video.src = proxied; }
+            video.ontimeupdate = () => {
+              const cue = currentSubtitleDraft.find(item => video.currentTime >= item.startSeconds && video.currentTime <= item.endSeconds);
+              $('#subtitlePreviewText').text(cue ? (subtitlePreviewLanguage === 'en' ? cue.en : cue.vi) : '');
+            };
+          }
+
+          async function showSubtitleDraft(jobId){
+            const draft = await $.get(urls.getSubtitleDraft, { jobId });
+            currentSubtitleDraftJobId = jobId;
+            currentSubtitleDraft = draft.cues || draft.Cues || [];
+            renderSubtitleDraft();
+            setupSubtitlePreview(draft.streamUrl || draft.StreamUrl, draft.sourceId || draft.SourceId);
+            $('#subtitleDraftPanel,#btnSaveSubtitleDraft,#btnApproveSubtitle').removeClass('d-none');
+            $('#btnConfirmGenerateSubtitle').addClass('d-none');
+            $('#btnCancelSubtitle').prop('disabled', false).text('Đóng');
+            $('#subtitleApprovalStatus').removeClass('alert-success').addClass('alert-warning').text('Chưa duyệt — phụ đề chưa hiển thị ở trang xem phim.');
           }
 
           function resetInlineUploadProgress(){
@@ -1030,6 +1191,7 @@
 
             $('#btnDeleteCurrentSource').addClass('d-none').data('id', '').data('url', '');
             $('#btnGenerateHighlight').addClass('d-none').data('id', '');
+            $('#btnGenerateSubtitle').addClass('d-none').data('id', '');
 
             $('#SourceType').val('movie');
             toggleTypeUI();
@@ -1073,6 +1235,7 @@
 
             $('#btnDeleteCurrentSource').removeClass('d-none').data('id', id).data('url', streamUrl);
             $('#btnGenerateHighlight').removeClass('d-none').data('id', id);
+            $('#btnGenerateSubtitle').removeClass('d-none').data('id', id);
 
             $('#File').val('').prop('disabled', false);
             resumeFileState = null;
@@ -1866,6 +2029,186 @@
             });
           }
 
+          function subtitleRequestError(xhr, fallback){
+            return xhr?.responseJSON?.message || xhr?.responseJSON?.Message || xhr?.responseText || fallback;
+          }
+
+          async function getFreshSubtitleRequestToken(){
+            const response = await fetch(urls.subtitleRequestToken, {
+              method: 'GET', credentials: 'same-origin', cache: 'no-store'
+            });
+            if(!response.ok) throw new Error('Phiên đăng nhập Admin đã hết hạn. Vui lòng đăng nhập lại.');
+            const data = await response.json();
+            if(!data?.requestToken) throw new Error('Không tạo được mã bảo vệ cho yêu cầu phụ đề.');
+            return data.requestToken;
+          }
+
+          function resolveHlsUri(value, baseUrl){
+            return new URL(value.trim().replace(/^['"]|['"]$/g, ''), baseUrl).toString();
+          }
+
+          function subtitleHlsProxyUrl(sourceId, fileUrl){
+            return `${urls.proxySubtitleHls}?sourceId=${encodeURIComponent(sourceId)}&url=${encodeURIComponent(fileUrl)}`;
+          }
+
+          async function fetchHlsResource(url, sourceId){
+            const response = await fetch(subtitleHlsProxyUrl(sourceId, url), { credentials: 'same-origin' });
+            if(!response.ok) throw new Error(`Không tải được HLS (${response.status}): ${url}`);
+            return response;
+          }
+
+          async function fetchHlsText(url, sourceId){
+            const response = await fetchHlsResource(url, sourceId);
+            return await response.text();
+          }
+
+          async function readHlsMediaPlaylist(streamUrl, sourceId){
+            let playlistUrl = streamUrl;
+            let text = await fetchHlsText(playlistUrl, sourceId);
+            if(!text.trimStart().startsWith('#EXTM3U')) throw new Error('Nguồn đã lưu không phải playlist HLS hợp lệ.');
+            if(text.includes('#EXT-X-STREAM-INF')){
+              const lines = text.split(/\r?\n/);
+              const variants = [];
+              for(let index=0; index<lines.length; index++){
+                if(!lines[index].startsWith('#EXT-X-STREAM-INF')) continue;
+                const bandwidth = Number(lines[index].match(/BANDWIDTH=(\d+)/)?.[1] || 0);
+                const uri = lines.slice(index + 1).find(line => line.trim() && !line.trim().startsWith('#'));
+                if(uri) variants.push({ bandwidth, url: resolveHlsUri(uri, playlistUrl) });
+              }
+              if(!variants.length) throw new Error('Master playlist không có rendition hợp lệ.');
+              variants.sort((a,b) => b.bandwidth - a.bandwidth);
+              playlistUrl = variants[0].url;
+              text = await fetchHlsText(playlistUrl, sourceId);
+            }
+            if(text.includes('#EXT-X-KEY') && !text.includes('METHOD=NONE'))
+              throw new Error('Playlist HLS đang mã hóa. Trình duyệt chưa thể trích âm thanh từ nguồn này.');
+
+            const lines = text.split(/\r?\n/);
+            const mapMatch = text.match(/#EXT-X-MAP:.*URI="([^"]+)"/);
+            const mapUrl = mapMatch ? resolveHlsUri(mapMatch[1], playlistUrl) : null;
+            const segments = [];
+            let pendingDuration = 0;
+            for(const rawLine of lines){
+              const line = rawLine.trim();
+              if(line.startsWith('#EXTINF:')) pendingDuration = Number.parseFloat(line.slice(8)) || 0;
+              else if(line && !line.startsWith('#') && pendingDuration > 0){
+                segments.push({ url: resolveHlsUri(line, playlistUrl), duration: pendingDuration });
+                pendingDuration = 0;
+              }
+            }
+            if(!segments.length) throw new Error('Media playlist không có segment âm thanh/video.');
+            const chunks = [];
+            let offset = 0, current = [], duration = 0;
+            for(const segment of segments){
+              if(current.length && duration + segment.duration > 180){
+                chunks.push({ offset, duration, segments: current, mapUrl, sourceId });
+                offset += duration; current = []; duration = 0;
+              }
+              current.push(segment); duration += segment.duration;
+            }
+            if(current.length) chunks.push({ offset, duration, segments: current, mapUrl, sourceId });
+            return chunks;
+          }
+
+          async function downloadSubtitleChunkBytes(chunk){
+            const urlsToFetch = [...(chunk.mapUrl ? [chunk.mapUrl] : []), ...chunk.segments.map(item => item.url)];
+            const parts = [];
+            let total = 0;
+            for(const url of urlsToFetch){
+              const response = await fetchHlsResource(url, chunk.sourceId);
+              const bytes = new Uint8Array(await response.arrayBuffer());
+              parts.push(bytes); total += bytes.length;
+            }
+            const combined = new Uint8Array(total);
+            let position = 0;
+            for(const part of parts){ combined.set(part, position); position += part.length; }
+            return combined;
+          }
+
+          async function extractSubtitleAudio(ffmpeg, chunk, chunkIndex){
+            const inputName = `subtitle-input-${chunkIndex}.${chunk.mapUrl ? 'mp4' : 'ts'}`;
+            const outputName = `subtitle-audio-${chunkIndex}.mp3`;
+            try {
+              await ffmpeg.writeFile(inputName, await downloadSubtitleChunkBytes(chunk));
+              const exitCode = await ffmpeg.exec(['-i', inputName, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '32k', '-f', 'mp3', outputName]);
+              if(exitCode !== 0) throw new Error(`FFmpeg không thể trích âm thanh (mã ${exitCode}).`);
+              const audio = await ffmpeg.readFile(outputName);
+              return new File([audio.buffer], outputName, { type: 'audio/mpeg' });
+            } finally {
+              try { await ffmpeg.deleteFile(inputName); } catch {}
+              try { await ffmpeg.deleteFile(outputName); } catch {}
+            }
+          }
+
+          async function generateVietnameseSubtitleInBrowser(sourceId, forceRegenerate=false){
+            const streamUrl = ($('#StreamUrl').val() || '').trim();
+            if(!sourceId || !streamUrl.toLowerCase().includes('.m3u8')){
+              throw new Error('Cần lưu một Stream URL HLS (.m3u8) trước khi tạo phụ đề.');
+            }
+            let anti = await getFreshSubtitleRequestToken();
+            updateInlineUploadProgress('Đang đọc HLS', 'Đang tải playlist và chia video thành các đoạn khoảng 3 phút...', 2, true);
+            updateSubtitleProgress('Đang đọc playlist HLS...', 2);
+            const chunks = await readHlsMediaPlaylist(streamUrl, sourceId);
+            updateSubtitleProgress(`Đã chia video thành ${chunks.length} đoạn. Đang khởi tạo tác vụ...`, 4);
+            const job = await $.ajax({
+              url: urls.startSubtitleJob, type: 'POST', contentType: 'application/json',
+              data: JSON.stringify({ sourceId, totalChunks: chunks.length, forceRegenerate }),
+              headers: anti ? { 'RequestVerificationToken': anti } : {}
+            });
+            const jobId = job.jobId || job.JobId;
+            const completed = new Set(job.completedChunks || job.CompletedChunks || []);
+            if(completed.size) updateSubtitleProgress(`Tiếp tục tác vụ: đã hoàn thành ${completed.size}/${chunks.length} đoạn.`, Math.round((completed.size / chunks.length) * 90));
+            const ffmpeg = await ensureBrowserFfmpeg();
+            for(let index=0; index<chunks.length; index++){
+              if(completed.has(index)) continue;
+              const percent = Math.max(3, Math.round((index / chunks.length) * 90));
+              updateInlineUploadProgress('Đang tạo phụ đề Tiếng Việt', `Đoạn ${index + 1}/${chunks.length}: tách âm thanh trong trình duyệt...`, percent, true);
+              updateSubtitleProgress(`Đoạn ${index + 1}/${chunks.length}: đang tách âm thanh...`, percent);
+              const audio = await extractSubtitleAudio(ffmpeg, chunks[index], index);
+              const form = new FormData();
+              form.append('audio', audio);
+              form.append('offsetSeconds', String(chunks[index].offset));
+              form.append('durationSeconds', String(chunks[index].duration));
+              anti = await getFreshSubtitleRequestToken();
+              await $.ajax({
+                url: `${urls.uploadSubtitleChunk}?jobId=${encodeURIComponent(jobId)}&chunkIndex=${index}`,
+                type: 'POST', data: form, processData: false, contentType: false,
+                headers: anti ? { 'RequestVerificationToken': anti } : {}
+              });
+              updateInlineUploadProgress('Đang tạo phụ đề Tiếng Việt', `Gemini đã xử lý đoạn ${index + 1}/${chunks.length}.`, Math.round(((index + 1) / chunks.length) * 90), true);
+              updateSubtitleProgress(`Gemini đã xử lý đoạn ${index + 1}/${chunks.length}.`, Math.round(((index + 1) / chunks.length) * 90));
+            }
+            updateSubtitleProgress('Đang ghép WebVTT và lưu phụ đề...', 95);
+            anti = await getFreshSubtitleRequestToken();
+            const result = await $.ajax({
+              url: `${urls.completeSubtitleJob}?jobId=${encodeURIComponent(jobId)}`, type: 'POST',
+              headers: anti ? { 'RequestVerificationToken': anti } : {}
+            });
+            updateInlineUploadProgress('Hoàn tất', result.message || result.Message || 'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.', 100, false);
+            updateSubtitleProgress(result.message || result.Message || 'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.', 100, false);
+            return result;
+          }
+
+          function responseSourceId(response, fallback){
+            const data = response?.data || response?.Data || response;
+            return Number(data?.sourceId || data?.SourceId || data?.id || data?.Id || fallback || 0);
+          }
+
+          function autoGenerateSubtitleAfterSave(response, fallbackId){
+            if(!$('#AutoGenerateVietnameseSubtitle').is(':checked')) return;
+            const sourceId = responseSourceId(response, fallbackId);
+            if(!sourceId){ showToast('Đã lưu nguồn nhưng không đọc được SourceId để tạo phụ đề.', false); return; }
+            generateVietnameseSubtitleInBrowser(sourceId).then(async result => {
+              await showSubtitleDraft(result.jobId || result.JobId);
+              subtitleConfirmModal.show();
+              showToast('Đã tạo bản nháp. Vui lòng kiểm tra và nhấn Duyệt phụ đề.', true, 6000);
+            }).catch(error => {
+              const message = error?.responseJSON?.message || error?.message || 'Không thể tạo phụ đề.';
+              updateInlineUploadProgress('Tạo phụ đề thất bại', message, 0, false);
+              showUploadResultPopup(false, 'Tạo phụ đề thất bại', message);
+            });
+          }
+
           // ===== Save (Add/Update) =====
           function save(){
             const anti = $('input[name="__RequestVerificationToken"]').val();
@@ -1952,6 +2295,7 @@
                 success(res){
                   const ok = res && (res.success===true || res.code==="200" || res.Success===true);
                   if (ok){
+                    autoGenerateSubtitleAfterSave(res, null);
                     loadAll();
                     closeSourceAndShowUploadResult(true, 'Upload thành công', 'Nguồn video đã được upload và lưu thành công.');
                   } else {
@@ -2011,6 +2355,7 @@
                 success(res){
                   const ok = res && (res.success===true || res.code==="200" || res.Success===true);
                   if (ok){
+                    autoGenerateSubtitleAfterSave(res, Number(id));
                     loadAll();
                     closeSourceAndShowUploadResult(true, 'Cập nhật thành công', 'Nguồn video đã được cập nhật thành công.');
                   } else {
@@ -2077,7 +2422,92 @@
             }
             highlightConfirmModal.show();
           });
+          $('#btnGenerateSubtitle').on('click', function(){
+            const sourceId = Number($(this).data('id'));
+            if(!sourceId){ showToast('Không tìm thấy Video Source để tạo phụ đề.', false); return; }
+            resetSubtitleProgress();
+            $('#btnConfirmGenerateSubtitle').data('id', sourceId);
+            subtitleConfirmModal.show();
+          });
+          $('#btnConfirmGenerateSubtitle').on('click', function(){
+            const sourceId = Number($(this).data('id'));
+            const button = $('#btnGenerateSubtitle');
+            if(!sourceId) return;
+            $('#btnConfirmGenerateSubtitle').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang xử lý...');
+            $('#btnCancelSubtitle').prop('disabled', true);
+            updateSubtitleProgress('Đang chuẩn bị playlist HLS...', 1);
+            button.prop('disabled',true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang tạo phụ đề...');
+            generateVietnameseSubtitleInBrowser(sourceId, true)
+              .then(async res=>{
+                const message=res?.message||res?.Message||'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.';
+                updateSubtitleProgress(message, 100, false);
+                await showSubtitleDraft(res.jobId || res.JobId);
+              })
+              .catch(error=>{
+                const message=error?.responseJSON?.message||error?.message||'Không tạo được phụ đề.';
+                updateInlineUploadProgress('Không thể tạo phụ đề',message,0,false);
+                updateSubtitleProgress(message, 0, false);
+                $('#btnCancelSubtitle').prop('disabled', false).text('Đóng');
+              })
+              .finally(()=> {
+                $('#btnConfirmGenerateSubtitle').prop('disabled', false).html('<i class="bi bi-arrow-clockwise me-1"></i>Thử lại');
+                button.prop('disabled',false).html('<i class="bi bi-badge-cc me-1"></i>Tạo phụ đề Tiếng Việt và Tiếng Anh bằng Gemini');
+              });
+          });
 
+          $('#subtitleCueEditor').on('click', '.subtitle-seek', function(){
+            const video = document.getElementById('subtitlePreviewVideo');
+            video.currentTime = Number($(this).data('time')) || 0;
+            video.play().catch(()=>{});
+          }).on('click', '.cue-delete', function(){
+            $(this).closest('tr').remove();
+          });
+
+          $('.subtitle-preview-lang').on('click', function(){
+            subtitlePreviewLanguage = $(this).data('lang');
+            $('.subtitle-preview-lang').removeClass('active');
+            $(this).addClass('active');
+            document.getElementById('subtitlePreviewVideo')?.dispatchEvent(new Event('timeupdate'));
+          });
+
+          $('#btnSaveSubtitleDraft').on('click', async function(){
+            if(!currentSubtitleDraftJobId) return;
+            try {
+              const anti = await getFreshSubtitleRequestToken();
+              const result = await $.ajax({
+                url: `${urls.updateSubtitleDraft}?jobId=${encodeURIComponent(currentSubtitleDraftJobId)}`,
+                type: 'POST', contentType: 'application/json', data: JSON.stringify({ cues: collectSubtitleDraft() }),
+                headers: { 'RequestVerificationToken': anti }
+              });
+              currentSubtitleDraft = result.cues || result.Cues || [];
+              renderSubtitleDraft();
+              showToast('Đã lưu chỉnh sửa. Phụ đề vẫn chưa được duyệt.', true);
+            } catch(error){ showToast(error?.responseJSON?.message || error?.message || 'Không lưu được bản nháp.', false, 7000); }
+          });
+
+          $('#btnApproveSubtitle').on('click', async function(){
+            if(!currentSubtitleDraftJobId) return;
+            const button = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang duyệt...');
+            try {
+              const anti = await getFreshSubtitleRequestToken();
+              await $.ajax({
+                url: `${urls.updateSubtitleDraft}?jobId=${encodeURIComponent(currentSubtitleDraftJobId)}`,
+                type: 'POST', contentType: 'application/json', data: JSON.stringify({ cues: collectSubtitleDraft() }),
+                headers: { 'RequestVerificationToken': anti }
+              });
+              const approveToken = await getFreshSubtitleRequestToken();
+              const result = await $.ajax({
+                url: `${urls.approveSubtitle}?jobId=${encodeURIComponent(currentSubtitleDraftJobId)}`,
+                type: 'POST', headers: { 'RequestVerificationToken': approveToken }
+              });
+              const message = result.message || result.Message || 'Đã duyệt và xuất bản phụ đề.';
+              $('#subtitleApprovalStatus').removeClass('alert-warning').addClass('alert-success').text(message);
+              updateSubtitleProgress(message, 100, false);
+              button.addClass('d-none'); $('#btnSaveSubtitleDraft').addClass('d-none');
+              showToast(message, true, 5000);
+            } catch(error){ showToast(error?.responseJSON?.message || error?.message || 'Không duyệt được phụ đề.', false, 7000); }
+            finally { button.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>Duyệt phụ đề'); }
+          });
           $('#btnConfirmGenerateHighlight').on('click', function(){
             const sourceId = pendingHighlightSourceId;
             const button = $('#btnGenerateHighlight');

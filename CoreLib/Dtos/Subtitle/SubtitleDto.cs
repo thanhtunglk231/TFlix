@@ -4,6 +4,73 @@ using System.Text.Json.Serialization;
 
 namespace CoreLib.Dtos.Subtitle
 {
+    public sealed class SubtitleDto
+    {
+        public long SubtitleId { get; set; }
+        public long SourceId { get; set; }
+        public string LanguageCode { get; set; } = string.Empty;
+        public string Format { get; set; } = "VTT";
+        public string Url { get; set; } = string.Empty;
+        public bool IsDefault { get; set; }
+    }
+
+    public sealed class CreateSubtitleDto
+    {
+        public long SourceId { get; set; }
+        public string LanguageCode { get; set; } = string.Empty;
+        public string Format { get; set; } = "VTT";
+        public string Url { get; set; } = string.Empty;
+        public bool IsDefault { get; set; }
+    }
+
+    public sealed class GeminiSourceSubtitleCue
+    {
+        public double StartSeconds { get; set; }
+        public double EndSeconds { get; set; }
+        public string Vi { get; set; } = string.Empty;
+        public string En { get; set; } = string.Empty;
+    }
+
+    public sealed class BrowserSubtitleJobRequestDto
+    {
+        public long SourceId { get; set; }
+        public int TotalChunks { get; set; }
+        public bool ForceRegenerate { get; set; }
+    }
+
+    public sealed class BrowserSubtitleJobDto
+    {
+        public Guid JobId { get; set; }
+        public long SourceId { get; set; }
+        public string Status { get; set; } = "Pending";
+        public int TotalChunks { get; set; }
+        public List<int> CompletedChunks { get; set; } = new();
+        public string? Message { get; set; }
+        public string? SubtitleUrl { get; set; }
+    }
+
+    public sealed class BrowserSubtitleChunkResultDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public int ChunkIndex { get; set; }
+        public int CueCount { get; set; }
+    }
+
+    public sealed class SubtitleDraftDto
+    {
+        public Guid JobId { get; set; }
+        public long SourceId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string StreamUrl { get; set; } = string.Empty;
+        public List<GeminiSourceSubtitleCue> Cues { get; set; } = new();
+    }
+
+    public sealed class UpdateSubtitleDraftDto
+    {
+        public List<GeminiSourceSubtitleCue> Cues { get; set; } = new();
+    }
+
     public sealed class SubtitleCueDto
     {
         [JsonPropertyName("index")]

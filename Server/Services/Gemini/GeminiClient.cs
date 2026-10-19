@@ -48,6 +48,31 @@ namespace Server.Services.Gemini
 
         public bool IsConfigured => !string.IsNullOrWhiteSpace(_apiKey);
 
+        public async Task<string?> GenerateWithAudioAsync(string prompt, byte[] audio, string mimeType,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured || audio.Length == 0) return null;
+            var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
+                ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
+            var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-2.5-flash" : _options.Model;
+            var payload = JsonSerializer.Serialize(new
+            {
+                contents = new[] { new { role = "user", parts = new object[] {
+                    new { text = prompt }, new { inline_data = new { mime_type = mimeType, data = Convert.ToBase64String(audio) } }
+                } } },
+                generationConfig = new { temperature = 0.1, maxOutputTokens = 8192, responseMimeType = "application/json" }
+            });
+            using var response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Gemini subtitle generation failed: {Body}", await response.Content.ReadAsStringAsync(cancellationToken));
+                return null;
+            }
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            return document.RootElement.GetProperty("candidates")[0].GetProperty("content")
+                .GetProperty("parts")[0].GetProperty("text").GetString();
+        }
+
         public async Task<string?> GenerateWithImagesAsync(string prompt, IReadOnlyList<byte[]> jpegImages,
             CancellationToken cancellationToken = default)
         {
