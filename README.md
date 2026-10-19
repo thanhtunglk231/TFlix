@@ -79,7 +79,8 @@ Hệ thống cung cấp trải nghiệm giải trí điện ảnh chuẩn rạp 
 ### 4. Quản Lý Upload & Chuyển Đổi Media (Video Upload & HLS)
 > Hệ thống xử lý video chuyên dụng, tích hợp Cloudflare R2 Storage và mã hóa chuẩn streaming.
 
-![Admin Media Upload](docs/images/05_admin_media_upload.png)
+<img width="1894" height="944" alt="image" src="https://github.com/user-attachments/assets/4a6dae7d-67da-4d16-ad99-8ca78aee4a8a" />
+
 
 ---
 
