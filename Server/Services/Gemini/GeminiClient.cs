@@ -52,25 +52,58 @@ namespace Server.Services.Gemini
             CancellationToken cancellationToken = default)
         {
             if (!IsConfigured || audio.Length == 0) return null;
-            var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
-                ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
-            var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-2.5-flash" : _options.Model;
-            var payload = JsonSerializer.Serialize(new
+            try
             {
-                contents = new[] { new { role = "user", parts = new object[] {
-                    new { text = prompt }, new { inline_data = new { mime_type = mimeType, data = Convert.ToBase64String(audio) } }
-                } } },
-                generationConfig = new { temperature = 0.1, maxOutputTokens = 8192, responseMimeType = "application/json" }
-            });
-            using var response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+                var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
+                    ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
+                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.8-flash" : _options.Model;
+                var payload = JsonSerializer.Serialize(new
+                {
+                    contents = new[] { new { role = "user", parts = new object[] {
+                        new { text = prompt }, new { inline_data = new { mime_type = mimeType, data = Convert.ToBase64String(audio) } }
+                    } } },
+                    generationConfig = new { temperature = 0.1, maxOutputTokens = 8192, responseMimeType = "application/json" }
+                });
+                var response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    if ((int)response.StatusCode == StatusCodes.Status404NotFound
+                        && errorBody.Contains("no longer available", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(model, "gemini-3.8-flash", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogWarning(
+                            "Configured Gemini audio model {Model} is unavailable; retrying with gemini-3.8-flash.",
+                            model);
+                        response.Dispose();
+                        model = "gemini-3.8-flash";
+                        response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
+                    }
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                        _logger.LogError("Gemini subtitle generation failed for model {Model}: {Body}", model, errorBody);
+                        response.Dispose();
+                        return null;
+                    }
+                }
+                var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                response.Dispose();
+                using var document = JsonDocument.Parse(responseBody);
+                return document.RootElement.GetProperty("candidates")[0].GetProperty("content")
+                    .GetProperty("parts")[0].GetProperty("text").GetString();
+            }
+            catch (OperationCanceledException)
             {
-                _logger.LogError("Gemini subtitle generation failed: {Body}", await response.Content.ReadAsStringAsync(cancellationToken));
+                _logger.LogWarning("Gemini audio transcription timed out after {Timeout} seconds.", _options.TimeoutSeconds);
                 return null;
             }
-            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-            return document.RootElement.GetProperty("candidates")[0].GetProperty("content")
-                .GetProperty("parts")[0].GetProperty("text").GetString();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error calling Gemini audio transcription.");
+                return null;
+            }
         }
 
         public async Task<string?> GenerateWithImagesAsync(string prompt, IReadOnlyList<byte[]> jpegImages,
@@ -79,7 +112,7 @@ namespace Server.Services.Gemini
             if (!IsConfigured || jpegImages.Count == 0) return null;
             var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
                 ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
-            var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-2.5-flash" : _options.Model;
+            var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.8-flash" : _options.Model;
             var parts = new List<object> { new { text = prompt } };
             parts.AddRange(jpegImages.Select(image => (object)new
             {

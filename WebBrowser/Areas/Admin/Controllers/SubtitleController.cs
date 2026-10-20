@@ -32,6 +32,18 @@ public sealed class SubtitleController : AdminBaseController
     public async Task<IActionResult> ProxyHlsFile(long sourceId, string url, CancellationToken cancellationToken)
     {
         if (sourceId <= 0 || string.IsNullOrWhiteSpace(url)) return BadRequest("Thông tin file HLS không hợp lệ.");
+
+        // Giải mã và trích xuất URL gốc nếu bị bọc proxy lặp
+        while (url.Contains("ProxyHlsFile", StringComparison.OrdinalIgnoreCase) && url.Contains("url=", StringComparison.OrdinalIgnoreCase))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(url, @"[?&]url=([^&]+)");
+            if (match.Success)
+            {
+                url = Uri.UnescapeDataString(match.Groups[1].Value);
+            }
+            else break;
+        }
+
         var apiBaseUrl = _configuration["PathStrings:Url"]
             ?? throw new InvalidOperationException("Chưa cấu hình Server API URL.");
         var requestUrl = new Uri(new Uri(apiBaseUrl),
@@ -46,28 +58,32 @@ public sealed class SubtitleController : AdminBaseController
         var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
         if (url.Contains(".m3u8", StringComparison.OrdinalIgnoreCase))
         {
-            var playlistUri = new Uri(url);
-            var lines = System.Text.Encoding.UTF8.GetString(content).Split('\n');
-            for (var index = 0; index < lines.Length; index++)
+            var rawM3u8 = System.Text.Encoding.UTF8.GetString(content);
+            var baseUrl = url.Substring(0, url.LastIndexOf('/') + 1);
+            var lines = rawM3u8.Split('\n');
+            var sb = new System.Text.StringBuilder();
+
+            foreach (var rawLine in lines)
             {
-                var line = lines[index].TrimEnd('\r');
-                if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith('#'))
+                var line = rawLine.TrimEnd('\r');
+                var trimmed = line.Trim();
+                if (!string.IsNullOrEmpty(trimmed) && !trimmed.StartsWith("#"))
                 {
-                    var absolute = new Uri(playlistUri, line).ToString();
-                    lines[index] = Url.Action(nameof(ProxyHlsFile), "Subtitle", new { area = "Admin", sourceId, url = absolute })!;
+                    var fullSegmentUrl = trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                        ? trimmed
+                        : baseUrl + trimmed;
+                    var proxiedUrl = Url.Action("ProxyHlsFile", "Subtitle", new { area = "Admin", sourceId, url = fullSegmentUrl }, Request.Scheme);
+                    sb.AppendLine(proxiedUrl ?? fullSegmentUrl);
                 }
-                else if (line.StartsWith("#EXT-X-MAP:", StringComparison.OrdinalIgnoreCase))
+                else
                 {
-                    lines[index] = System.Text.RegularExpressions.Regex.Replace(line, "URI=\"([^\"]+)\"", match =>
-                    {
-                        var absolute = new Uri(playlistUri, match.Groups[1].Value).ToString();
-                        var proxy = Url.Action(nameof(ProxyHlsFile), "Subtitle", new { area = "Admin", sourceId, url = absolute });
-                        return $"URI=\"{proxy}\"";
-                    });
+                    sb.AppendLine(line);
                 }
             }
-            return Content(string.Join('\n', lines), "application/vnd.apple.mpegurl", System.Text.Encoding.UTF8);
+            Response.Headers["Access-Control-Allow-Origin"] = "*";
+            return Content(sb.ToString(), "application/vnd.apple.mpegurl", System.Text.Encoding.UTF8);
         }
+        Response.Headers["Access-Control-Allow-Origin"] = "*";
         return File(content, contentType);
     }
 
@@ -81,7 +97,11 @@ public sealed class SubtitleController : AdminBaseController
         Ok(await _service.StartBrowserJobAsync(request));
 
     [HttpGet]
-    public async Task<IActionResult> GetBrowserJob(Guid jobId) => Ok(await _service.GetBrowserJobAsync(jobId));
+    public async Task<IActionResult> GetBrowserJob(Guid jobId)
+    {
+        if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
+        return Ok(await _service.GetBrowserJobAsync(jobId));
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -97,16 +117,30 @@ public sealed class SubtitleController : AdminBaseController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CompleteBrowserJob(Guid jobId) =>
-        Ok(await _service.CompleteBrowserJobAsync(jobId));
+    public async Task<IActionResult> CompleteBrowserJob(Guid jobId)
+    {
+        if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
+        return Ok(await _service.CompleteBrowserJobAsync(jobId));
+    }
 
     [HttpGet]
-    public async Task<IActionResult> GetDraft(Guid jobId) => Ok(await _service.GetDraftAsync(jobId));
+    public async Task<IActionResult> GetDraft(Guid jobId)
+    {
+        if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
+        return Ok(await _service.GetDraftAsync(jobId));
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateDraft(Guid jobId, [FromBody] UpdateSubtitleDraftDto request) =>
-        Ok(await _service.UpdateDraftAsync(jobId, request));
+    public async Task<IActionResult> UpdateDraft(Guid jobId, [FromBody] UpdateSubtitleDraftDto request)
+    {
+        if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
+        return Ok(await _service.UpdateDraftAsync(jobId, request));
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Approve(Guid jobId) => Ok(await _service.ApproveAsync(jobId));
+    public async Task<IActionResult> Approve(Guid jobId)
+    {
+        if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
+        return Ok(await _service.ApproveAsync(jobId));
+    }
 }

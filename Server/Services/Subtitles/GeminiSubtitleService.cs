@@ -44,8 +44,8 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
             for (var attempt = 1; attempt <= 3; attempt++)
             {
                 var json = await _gemini.GenerateWithAudioAsync(prompt, audio, mimeType, cancellationToken);
-                var cues = ParseAndValidate(json, timelineOffsetSeconds, chunkDurationSeconds);
-                if (cues.Count > 0) return cues;
+                var (success, cues) = ParseAndValidate(json, timelineOffsetSeconds, chunkDurationSeconds);
+                if (success) return cues;
                 if (attempt < 3) await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), cancellationToken);
             }
             throw new InvalidOperationException("Gemini không trả về phụ đề hợp lệ cho audio chunk.");
@@ -56,14 +56,16 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
         }
     }
 
-    private List<GeminiSourceSubtitleCue> ParseAndValidate(string? json, double offset, double duration)
+    private (bool Success, List<GeminiSourceSubtitleCue> Cues) ParseAndValidate(string? json, double offset, double duration)
     {
-        if (string.IsNullOrWhiteSpace(json)) return new();
+        if (string.IsNullOrWhiteSpace(json)) return (false, new());
         try
         {
             json = json.Replace("```json", "", StringComparison.OrdinalIgnoreCase).Replace("```", "").Trim();
             var raw = JsonSerializer.Deserialize<List<GeminiSourceSubtitleCue>>(json,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (raw == null) return (false, new());
+
             var result = new List<GeminiSourceSubtitleCue>();
             double previousEnd = offset;
             foreach (var cue in raw.OrderBy(item => item.StartSeconds))
@@ -82,12 +84,12 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
                 });
                 previousEnd = end;
             }
-            return result;
+            return (true, result);
         }
         catch (Exception exception)
         {
-            _logger.LogWarning(exception, "Gemini subtitle response was not valid JSON.");
-            return new();
+            _logger.LogWarning(exception, "Gemini subtitle response was not valid JSON: {Json}", json);
+            return (false, new());
         }
     }
 

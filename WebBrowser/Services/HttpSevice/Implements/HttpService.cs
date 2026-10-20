@@ -171,6 +171,33 @@
 
                     var json = await response.Content.ReadAsStringAsync();
 
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorMsg = string.IsNullOrWhiteSpace(json)
+                            ? $"Lỗi API: {(int)response.StatusCode} {response.ReasonPhrase}"
+                            : json;
+                        Log($"Error: {errorMsg}");
+
+                        if (typeof(T) == typeof(CResponseMessage))
+                        {
+                            try
+                            {
+                                var resp = JsonConvert.DeserializeObject<CResponseMessage>(json);
+                                if (resp != null) return (T)(object)resp;
+                            }
+                            catch { }
+
+                            return (T)(object)new CResponseMessage
+                            {
+                                Success = false,
+                                code = ((int)response.StatusCode).ToString(),
+                                message = errorMsg
+                            };
+                        }
+
+                        throw new HttpRequestException(errorMsg, null, response.StatusCode);
+                    }
+
                     var result = JsonConvert.DeserializeObject<T>(json);
                     Log($"POST Deserialized -> {typeof(T).Name}");
                     return result!;
@@ -190,7 +217,7 @@
                         };
                     }
 
-                    return default!;
+                    throw;
                 }
             }
 
@@ -206,10 +233,37 @@
                     var json = await response.Content.ReadAsStringAsync();
                     Log($"Long-running POST Status: {(int)response.StatusCode} {response.StatusCode}");
 
-                    var result = JsonConvert.DeserializeObject<T>(json);
                     if (!response.IsSuccessStatusCode)
-                        _logger.LogWarning("Long-running HTTP POST {Url} returned status {StatusCode}", url, (int)response.StatusCode);
+                    {
+                        _logger.LogWarning("Long-running HTTP POST {Url} returned status {StatusCode}: {Json}", url, (int)response.StatusCode, json);
 
+                        var errorMsg = string.IsNullOrWhiteSpace(json)
+                            ? $"Lỗi API: {(int)response.StatusCode} {response.ReasonPhrase}"
+                            : json;
+
+                        if (typeof(CResponseMessage).IsAssignableFrom(typeof(T)))
+                        {
+                            try
+                            {
+                                var resp = JsonConvert.DeserializeObject<T>(json);
+                                if (resp != null) return resp;
+                            }
+                            catch { }
+
+                            var fallback = Activator.CreateInstance<T>();
+                            if (fallback is CResponseMessage msg)
+                            {
+                                msg.Success = false;
+                                msg.code = ((int)response.StatusCode).ToString();
+                                msg.message = errorMsg;
+                            }
+                            return fallback;
+                        }
+
+                        throw new HttpRequestException(errorMsg, null, response.StatusCode);
+                    }
+
+                    var result = JsonConvert.DeserializeObject<T>(json);
                     return result!;
                 }
                 catch (Exception ex)
@@ -227,7 +281,7 @@
                         return fallback;
                     }
 
-                    return default!;
+                    throw;
                 }
             }
 

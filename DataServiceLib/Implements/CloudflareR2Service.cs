@@ -81,7 +81,11 @@ namespace DataServiceLib.Implements
                 {
                     Content = new ByteArrayContent(bytes)
                 };
-                request.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                if (!MediaTypeHeaderValue.TryParse(contentType, out var parsedContentType))
+                {
+                    parsedContentType = new MediaTypeHeaderValue("application/octet-stream");
+                }
+                request.Content.Headers.ContentType = parsedContentType;
 
                 try
                 {

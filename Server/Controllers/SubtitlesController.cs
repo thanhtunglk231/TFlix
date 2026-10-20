@@ -87,19 +87,31 @@ namespace Server.Controllers
 
         [HttpGet("browser-jobs/{jobId:guid}/draft")]
         [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
-        public async Task<IActionResult> GetDraft(Guid jobId, CancellationToken cancellationToken) =>
-            Ok(await _browserJobs.GetDraftAsync(jobId, OwnerId, cancellationToken));
+        public async Task<IActionResult> GetDraft(Guid jobId, CancellationToken cancellationToken)
+        {
+            try { return Ok(await _browserJobs.GetDraftAsync(jobId, OwnerId, cancellationToken)); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
 
         [HttpPost("browser-jobs/{jobId:guid}/draft")]
         [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
         public async Task<IActionResult> UpdateDraft(Guid jobId, [FromBody] UpdateSubtitleDraftDto request,
-            CancellationToken cancellationToken) =>
-            Ok(await _browserJobs.UpdateDraftAsync(jobId, request, OwnerId, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            try { return Ok(await _browserJobs.UpdateDraftAsync(jobId, request, OwnerId, cancellationToken)); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
 
         [HttpPost("browser-jobs/{jobId:guid}/approve")]
         [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
-        public async Task<IActionResult> Approve(Guid jobId, CancellationToken cancellationToken) =>
-            Ok(await _browserJobs.ApproveAsync(jobId, OwnerId, cancellationToken));
+        public async Task<IActionResult> Approve(Guid jobId, CancellationToken cancellationToken)
+        {
+            try { return Ok(await _browserJobs.ApproveAsync(jobId, OwnerId, cancellationToken)); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
 
         [HttpGet("source/{sourceId:long}")]
         [AllowAnonymous]

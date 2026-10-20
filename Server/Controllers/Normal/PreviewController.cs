@@ -1,4 +1,4 @@
-﻿using CoreLib.Dtos.Preview;
+using CoreLib.Dtos.Preview;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -34,11 +34,9 @@ namespace Server.Controllers.Normal
         [HttpGet("GetPreview")]
         public async Task<IActionResult> preview([FromQuery] GETCONTENTByID movie)
         {
-            Console.WriteLine("=== [Preview] Incoming Query ===");
-            Console.WriteLine($"movie.id   = {movie?.id}");
-            Console.WriteLine($"movie.kind = {movie?.kind}");
-
-            var cacheKey = $"tflix:movies:content:{movie.kind?.Trim().ToLowerInvariant()}:{movie.id}";
+            if (movie == null) return BadRequest("Thiếu thông tin truy vấn.");
+            var kind = string.IsNullOrWhiteSpace(movie.kind) ? "movie" : movie.kind.Trim().ToLowerInvariant();
+            var cacheKey = $"tflix:movies:content:{kind}:{movie.id}";
             var result = await _cache.GetAsync<CResponseMessage>(cacheKey) ?? _preView.GET_CONTENT_BY_ID(movie);
             if (result.Success)
                 await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10));

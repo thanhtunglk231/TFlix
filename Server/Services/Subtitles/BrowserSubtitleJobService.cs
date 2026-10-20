@@ -33,6 +33,16 @@ public sealed class BrowserSubtitleJobService : IBrowserSubtitleJobService
     public async Task<(byte[] Content, string ContentType)> DownloadHlsFileAsync(long sourceId, string fileUrl,
         CancellationToken cancellationToken)
     {
+        while (fileUrl.Contains("ProxyHlsFile", StringComparison.OrdinalIgnoreCase) && fileUrl.Contains("url=", StringComparison.OrdinalIgnoreCase))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(fileUrl, @"[?&]url=([^&]+)");
+            if (match.Success)
+            {
+                fileUrl = Uri.UnescapeDataString(match.Groups[1].Value);
+            }
+            else break;
+        }
+
         var sourceUri = new Uri(GetSourceUrl(sourceId), UriKind.Absolute);
         if (!Uri.TryCreate(fileUrl, UriKind.Absolute, out var requestedUri)
             || requestedUri.Scheme != Uri.UriSchemeHttps
@@ -252,7 +262,7 @@ public sealed class BrowserSubtitleJobService : IBrowserSubtitleJobService
         var bytes = new UTF8Encoding(false).GetBytes(BuildVtt(cues, languageCode));
         await using var stream = new MemoryStream(bytes);
         var file = new FormFile(stream, 0, bytes.Length, "file", $"{languageCode}.vtt")
-            { Headers = new HeaderDictionary(), ContentType = "text/vtt; charset=utf-8" };
+            { Headers = new HeaderDictionary(), ContentType = "text/vtt" };
         var url = await _r2.UploadFileAsync(file, GetSubtitleObjectPath(manifest.StreamUrl, manifest.SourceId, languageCode))
             ?? throw new InvalidOperationException($"Không upload được phụ đề {languageCode.ToUpperInvariant()} lên Cloudflare R2.");
         var saved = await _subtitles.UpsertAsync(new CreateSubtitleDto

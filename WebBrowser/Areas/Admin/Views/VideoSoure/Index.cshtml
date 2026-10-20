@@ -899,13 +899,48 @@
 
           function setupSubtitlePreview(streamUrl, sourceId){
             const video = document.getElementById('subtitlePreviewVideo');
-            const proxied = subtitleHlsProxyUrl(sourceId, streamUrl);
+            if (!video) return;
+            video.pause();
             subtitlePreviewHls?.destroy(); subtitlePreviewHls = null;
-            if(window.Hls?.isSupported()){
+            video.removeAttribute('src');
+            video.load();
+
+            const isHls = typeof streamUrl === 'string' && (streamUrl.includes('.m3u8') || streamUrl.includes('/hls/'));
+            if(isHls && window.Hls?.isSupported()){
               subtitlePreviewHls = new Hls();
+              const proxied = subtitleHlsProxyUrl(sourceId, streamUrl);
+              let directRetried = false;
+              function attachSubEvents(inst) {
+                inst.on(Hls.Events.ERROR, function(event, data) {
+                  if (data.fatal) {
+                    console.warn('[Subtitle Preview HLS Error]', data);
+                    if (!directRetried) {
+                      directRetried = true;
+                      inst.destroy();
+                      subtitlePreviewHls = new Hls();
+                      attachSubEvents(subtitlePreviewHls);
+                      subtitlePreviewHls.loadSource(streamUrl);
+                      subtitlePreviewHls.attachMedia(video);
+                    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                      inst.recoverMediaError();
+                    } else {
+                      inst.destroy();
+                      video.src = streamUrl;
+                      video.load();
+                    }
+                  }
+                });
+              }
+              attachSubEvents(subtitlePreviewHls);
               subtitlePreviewHls.loadSource(proxied);
               subtitlePreviewHls.attachMedia(video);
-            } else { video.src = proxied; }
+            } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
+              video.src = subtitleHlsProxyUrl(sourceId, streamUrl);
+              video.load();
+            } else {
+              video.src = streamUrl;
+              video.load();
+            }
             video.ontimeupdate = () => {
               const cue = currentSubtitleDraft.find(item => video.currentTime >= item.startSeconds && video.currentTime <= item.endSeconds);
               $('#subtitlePreviewText').text(cue ? (subtitlePreviewLanguage === 'en' ? cue.en : cue.vi) : '');
@@ -913,6 +948,11 @@
           }
 
           async function showSubtitleDraft(jobId){
+            if (!jobId || jobId === '00000000-0000-0000-0000-000000000000') {
+              console.warn('[Subtitle] showSubtitleDraft called with empty or invalid jobId:', jobId);
+              showToast('Mã tác vụ phụ đề không hợp lệ.', false);
+              return;
+            }
             const draft = await $.get(urls.getSubtitleDraft, { jobId });
             currentSubtitleDraftJobId = jobId;
             currentSubtitleDraft = draft.cues || draft.Cues || [];
@@ -2044,11 +2084,27 @@
           }
 
           function resolveHlsUri(value, baseUrl){
-            return new URL(value.trim().replace(/^['"]|['"]$/g, ''), baseUrl).toString();
+            const clean = value.trim().replace(/^['"]|['"]$/g, '');
+            if (clean.includes('ProxyHlsFile') && clean.includes('url=')) {
+              try {
+                const parsed = new URL(clean, window.location.origin);
+                const target = parsed.searchParams.get('url');
+                if (target) return target;
+              } catch {}
+            }
+            return new URL(clean, baseUrl).toString();
           }
 
           function subtitleHlsProxyUrl(sourceId, fileUrl){
-            return `${urls.proxySubtitleHls}?sourceId=${encodeURIComponent(sourceId)}&url=${encodeURIComponent(fileUrl)}`;
+            let target = fileUrl;
+            if (typeof target === 'string' && target.includes('ProxyHlsFile') && target.includes('url=')) {
+              try {
+                const parsed = new URL(target, window.location.origin);
+                const extracted = parsed.searchParams.get('url');
+                if (extracted) target = extracted;
+              } catch {}
+            }
+            return `${urls.proxySubtitleHls}?sourceId=${encodeURIComponent(sourceId)}&url=${encodeURIComponent(target)}`;
           }
 
           async function fetchHlsResource(url, sourceId){
@@ -2165,16 +2221,34 @@
               updateInlineUploadProgress('Đang tạo phụ đề Tiếng Việt', `Đoạn ${index + 1}/${chunks.length}: tách âm thanh trong trình duyệt...`, percent, true);
               updateSubtitleProgress(`Đoạn ${index + 1}/${chunks.length}: đang tách âm thanh...`, percent);
               const audio = await extractSubtitleAudio(ffmpeg, chunks[index], index);
-              const form = new FormData();
-              form.append('audio', audio);
-              form.append('offsetSeconds', String(chunks[index].offset));
-              form.append('durationSeconds', String(chunks[index].duration));
-              anti = await getFreshSubtitleRequestToken();
-              await $.ajax({
-                url: `${urls.uploadSubtitleChunk}?jobId=${encodeURIComponent(jobId)}&chunkIndex=${index}`,
-                type: 'POST', data: form, processData: false, contentType: false,
-                headers: anti ? { 'RequestVerificationToken': anti } : {}
-              });
+              let chunkUploaded = false;
+              let chunkError = null;
+              for(let attempt = 1; attempt <= 3; attempt++){
+                try {
+                  const form = new FormData();
+                  form.append('audio', audio);
+                  form.append('offsetSeconds', String(chunks[index].offset));
+                  form.append('durationSeconds', String(chunks[index].duration));
+                  anti = await getFreshSubtitleRequestToken();
+                  await $.ajax({
+                    url: `${urls.uploadSubtitleChunk}?jobId=${encodeURIComponent(jobId)}&chunkIndex=${index}`,
+                    type: 'POST', data: form, processData: false, contentType: false,
+                    headers: anti ? { 'RequestVerificationToken': anti } : {}
+                  });
+                  chunkUploaded = true;
+                  break;
+                } catch(e) {
+                  chunkError = e;
+                  console.warn(`[Subtitle] Chunk ${index} thất bại lần ${attempt}/3:`, e);
+                  if (attempt < 3) {
+                    updateSubtitleProgress(`Đoạn ${index + 1}/${chunks.length}: đang thử lại (lần ${attempt + 1})...`, percent);
+                    await new Promise(r => setTimeout(r, 1500));
+                  }
+                }
+              }
+              if(!chunkUploaded){
+                throw chunkError || new Error(`Lỗi upload đoạn ${index + 1}/${chunks.length}`);
+              }
               updateInlineUploadProgress('Đang tạo phụ đề Tiếng Việt', `Gemini đã xử lý đoạn ${index + 1}/${chunks.length}.`, Math.round(((index + 1) / chunks.length) * 90), true);
               updateSubtitleProgress(`Gemini đã xử lý đoạn ${index + 1}/${chunks.length}.`, Math.round(((index + 1) / chunks.length) * 90));
             }
@@ -2184,6 +2258,10 @@
               url: `${urls.completeSubtitleJob}?jobId=${encodeURIComponent(jobId)}`, type: 'POST',
               headers: anti ? { 'RequestVerificationToken': anti } : {}
             });
+            const completedJobId = result?.jobId || result?.JobId;
+            if(!completedJobId || completedJobId === '00000000-0000-0000-0000-000000000000'){
+              throw new Error(result?.message || result?.Message || 'Không thể hoàn tất tạo phụ đề.');
+            }
             updateInlineUploadProgress('Hoàn tất', result.message || result.Message || 'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.', 100, false);
             updateSubtitleProgress(result.message || result.Message || 'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.', 100, false);
             return result;
@@ -2199,9 +2277,14 @@
             const sourceId = responseSourceId(response, fallbackId);
             if(!sourceId){ showToast('Đã lưu nguồn nhưng không đọc được SourceId để tạo phụ đề.', false); return; }
             generateVietnameseSubtitleInBrowser(sourceId).then(async result => {
-              await showSubtitleDraft(result.jobId || result.JobId);
-              subtitleConfirmModal.show();
-              showToast('Đã tạo bản nháp. Vui lòng kiểm tra và nhấn Duyệt phụ đề.', true, 6000);
+              const resJobId = result?.jobId || result?.JobId;
+              if (resJobId && resJobId !== '00000000-0000-0000-0000-000000000000') {
+                await showSubtitleDraft(resJobId);
+                subtitleConfirmModal.show();
+                showToast('Đã tạo bản nháp. Vui lòng kiểm tra và nhấn Duyệt phụ đề.', true, 6000);
+              } else {
+                showToast('Tạo phụ đề hoàn tất nhưng không nhận được mã tác vụ hợp lệ.', false);
+              }
             }).catch(error => {
               const message = error?.responseJSON?.message || error?.message || 'Không thể tạo phụ đề.';
               updateInlineUploadProgress('Tạo phụ đề thất bại', message, 0, false);
@@ -2372,18 +2455,69 @@
           }
 
           // ===== Preview modal =====
+          let previewPlayerHls = null;
           $tbody.on('click', '.btn-preview', function(){
             const url = $(this).data('url');
             const id  = $(this).data('id');
             const video = document.getElementById('previewPlayer');
-            video.pause(); video.src = url; video.load();
+            video.pause();
+            previewPlayerHls?.destroy();
+            previewPlayerHls = null;
+            video.removeAttribute('src');
+            video.load();
+
+            const isHls = typeof url === 'string' && (url.includes('.m3u8') || url.includes('/hls/'));
+            if (isHls && window.Hls && Hls.isSupported()) {
+              previewPlayerHls = new Hls();
+              const proxied = subtitleHlsProxyUrl(id, url);
+              let directRetried = false;
+              function attachPreviewEvents(inst) {
+                inst.on(Hls.Events.MANIFEST_PARSED, function() {
+                  video.play().catch(()=>{});
+                });
+                inst.on(Hls.Events.ERROR, function(event, data) {
+                  if (data.fatal) {
+                    console.warn('[Preview HLS Error]', data);
+                    if (!directRetried) {
+                      directRetried = true;
+                      inst.destroy();
+                      previewPlayerHls = new Hls();
+                      attachPreviewEvents(previewPlayerHls);
+                      previewPlayerHls.loadSource(url);
+                      previewPlayerHls.attachMedia(video);
+                    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                      inst.recoverMediaError();
+                    } else {
+                      inst.destroy();
+                      video.src = url;
+                      video.load();
+                      setTimeout(()=> video.play().catch(()=>{}), 200);
+                    }
+                  }
+                });
+              }
+              attachPreviewEvents(previewPlayerHls);
+              previewPlayerHls.loadSource(proxied);
+              previewPlayerHls.attachMedia(video);
+            } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
+              video.src = subtitleHlsProxyUrl(id, url);
+              video.load();
+              setTimeout(()=> video.play().catch(()=>{}), 200);
+            } else {
+              video.src = url;
+              video.load();
+              setTimeout(()=> video.play().catch(()=>{}), 200);
+            }
             $('#previewMeta').text(`Source #${id} — ${url}`);
             previewModal.show();
-            setTimeout(()=> video.play().catch(()=>{}), 200);
           });
           previewModalEl.addEventListener('hidden.bs.modal', ()=>{
+            previewPlayerHls?.destroy();
+            previewPlayerHls = null;
             const video = document.getElementById('previewPlayer');
-            video.pause(); video.removeAttribute('src'); video.load();
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
           });
 
             function toggleInputMode() {
@@ -2439,9 +2573,12 @@
             button.prop('disabled',true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang tạo phụ đề...');
             generateVietnameseSubtitleInBrowser(sourceId, true)
               .then(async res=>{
-                const message=res?.message||res?.Message||'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.';
-                updateSubtitleProgress(message, 100, false);
-                await showSubtitleDraft(res.jobId || res.JobId);
+                const targetJobId = res?.jobId || res?.JobId;
+                if(targetJobId && targetJobId !== '00000000-0000-0000-0000-000000000000') {
+                  await showSubtitleDraft(targetJobId);
+                } else {
+                  showToast(message || 'Không tìm thấy bản nháp phụ đề.', false);
+                }
               })
               .catch(error=>{
                 const message=error?.responseJSON?.message||error?.message||'Không tạo được phụ đề.';
