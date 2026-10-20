@@ -765,6 +765,9 @@
           document.getElementById('uploadResultModal').addEventListener('show.bs.modal', () => {
             setTimeout(() => document.querySelector('.modal-backdrop:last-of-type')?.classList.add('highlight-popup-backdrop'));
           });
+          document.getElementById('sourceModal').addEventListener('show.bs.modal', () => {
+            $('#btnSave').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
+          });
 
           let cache = [];     // current server page
           let movieLookupRequest = null;
@@ -778,6 +781,7 @@
           let browserFfmpegLoaded = false;
           let browserHlsUploadPaused = false;
           let browserHlsUploadActive = false;
+          let browserHlsPackagingActive = false;
           let pendingHighlightSourceId = 0;
           let highlightProgressTimer = null;
           let subtitleProgressTimer = null;
@@ -1229,6 +1233,7 @@
             $('#modeFile').prop('checked', true);
             toggleInputMode();
 
+            $('#btnSave').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
             $('#btnDeleteCurrentSource').addClass('d-none').data('id', '').data('url', '');
             $('#btnGenerateHighlight').addClass('d-none').data('id', '');
             $('#btnGenerateSubtitle').addClass('d-none').data('id', '');
@@ -1249,6 +1254,7 @@
             $('#modalTitle').text('Sửa nguồn');
             $('#frmSource')[0].reset();
             $('#SourceId').val(gv(it,'sourceId','SourceId','sourcE_ID')||'');
+            $('#btnSave').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
 
             const movieId     = gv(it,'movieId','MovieId','moviE_ID');
             const episodeId   = gv(it,'episodeId','EpisodeId','episodE_ID');
@@ -1481,6 +1487,7 @@
             ]);
             browserFfmpeg = new FFmpeg();
             browserFfmpeg.on('progress', ({ progress }) => {
+              if (!browserHlsPackagingActive) return;
               const packagingPercent = Math.max(0, Math.min(100, Math.round((progress || 0) * 100)));
               const totalPercent = Math.round(packagingPercent * 0.65);
               showUploadProgress(
@@ -1679,6 +1686,7 @@
             const createdFiles = [];
 
             try {
+              browserHlsPackagingActive = true;
               const ffmpeg = await ensureBrowserFfmpeg();
               showUploadProgress(
                 'Đang đọc MP4 trên máy của bạn',
@@ -1741,6 +1749,7 @@
               showToast(message, false, 9000);
               showUploadResultPopup(false, 'Xử lý HLS thất bại', message);
             } finally {
+              browserHlsPackagingActive = false;
               if(browserFfmpeg){
                 for(const fileName of [...new Set(createdFiles)]){
                   try { await browserFfmpeg.deleteFile(fileName); } catch { }
@@ -2197,74 +2206,78 @@
           }
 
           async function generateVietnameseSubtitleInBrowser(sourceId, forceRegenerate=false){
-            const streamUrl = ($('#StreamUrl').val() || '').trim();
-            if(!sourceId || !streamUrl.toLowerCase().includes('.m3u8')){
-              throw new Error('Cần lưu một Stream URL HLS (.m3u8) trước khi tạo phụ đề.');
-            }
-            let anti = await getFreshSubtitleRequestToken();
-            updateInlineUploadProgress('Đang đọc HLS', 'Đang tải playlist và chia video thành các đoạn khoảng 3 phút...', 2, true);
-            updateSubtitleProgress('Đang đọc playlist HLS...', 2);
-            const chunks = await readHlsMediaPlaylist(streamUrl, sourceId);
-            updateSubtitleProgress(`Đã chia video thành ${chunks.length} đoạn. Đang khởi tạo tác vụ...`, 4);
-            const job = await $.ajax({
-              url: urls.startSubtitleJob, type: 'POST', contentType: 'application/json',
-              data: JSON.stringify({ sourceId, totalChunks: chunks.length, forceRegenerate }),
-              headers: anti ? { 'RequestVerificationToken': anti } : {}
-            });
-            const jobId = job.jobId || job.JobId;
-            const completed = new Set(job.completedChunks || job.CompletedChunks || []);
-            if(completed.size) updateSubtitleProgress(`Tiếp tục tác vụ: đã hoàn thành ${completed.size}/${chunks.length} đoạn.`, Math.round((completed.size / chunks.length) * 90));
-            const ffmpeg = await ensureBrowserFfmpeg();
-            for(let index=0; index<chunks.length; index++){
-              if(completed.has(index)) continue;
-              const percent = Math.max(3, Math.round((index / chunks.length) * 90));
-              updateInlineUploadProgress('Đang tạo phụ đề Tiếng Việt', `Đoạn ${index + 1}/${chunks.length}: tách âm thanh trong trình duyệt...`, percent, true);
-              updateSubtitleProgress(`Đoạn ${index + 1}/${chunks.length}: đang tách âm thanh...`, percent);
-              const audio = await extractSubtitleAudio(ffmpeg, chunks[index], index);
-              let chunkUploaded = false;
-              let chunkError = null;
-              for(let attempt = 1; attempt <= 3; attempt++){
-                try {
-                  const form = new FormData();
-                  form.append('audio', audio);
-                  form.append('offsetSeconds', String(chunks[index].offset));
-                  form.append('durationSeconds', String(chunks[index].duration));
-                  anti = await getFreshSubtitleRequestToken();
-                  await $.ajax({
-                    url: `${urls.uploadSubtitleChunk}?jobId=${encodeURIComponent(jobId)}&chunkIndex=${index}`,
-                    type: 'POST', data: form, processData: false, contentType: false,
-                    headers: anti ? { 'RequestVerificationToken': anti } : {}
-                  });
-                  chunkUploaded = true;
-                  break;
-                } catch(e) {
-                  chunkError = e;
-                  console.warn(`[Subtitle] Chunk ${index} thất bại lần ${attempt}/3:`, e);
-                  if (attempt < 3) {
-                    updateSubtitleProgress(`Đoạn ${index + 1}/${chunks.length}: đang thử lại (lần ${attempt + 1})...`, percent);
-                    await new Promise(r => setTimeout(r, 1500));
+            try {
+              const streamUrl = ($('#StreamUrl').val() || '').trim();
+              if(!sourceId || !streamUrl.toLowerCase().includes('.m3u8')){
+                throw new Error('Cần lưu một Stream URL HLS (.m3u8) trước khi tạo phụ đề.');
+              }
+              let anti = await getFreshSubtitleRequestToken();
+              updateInlineUploadProgress('Đang đọc HLS', 'Đang tải playlist và chia video thành các đoạn khoảng 3 phút...', 2, true);
+              updateSubtitleProgress('Đang đọc playlist HLS...', 2);
+              const chunks = await readHlsMediaPlaylist(streamUrl, sourceId);
+              updateSubtitleProgress(`Đã chia video thành ${chunks.length} đoạn. Đang khởi tạo tác vụ...`, 4);
+              const job = await $.ajax({
+                url: urls.startSubtitleJob, type: 'POST', contentType: 'application/json',
+                data: JSON.stringify({ sourceId, totalChunks: chunks.length, forceRegenerate }),
+                headers: anti ? { 'RequestVerificationToken': anti } : {}
+              });
+              const jobId = job.jobId || job.JobId;
+              const completed = new Set(job.completedChunks || job.CompletedChunks || []);
+              if(completed.size) updateSubtitleProgress(`Tiếp tục tác vụ: đã hoàn thành ${completed.size}/${chunks.length} đoạn.`, Math.round((completed.size / chunks.length) * 90));
+              const ffmpeg = await ensureBrowserFfmpeg();
+              for(let index=0; index<chunks.length; index++){
+                if(completed.has(index)) continue;
+                const percent = Math.max(3, Math.round((index / chunks.length) * 90));
+                updateInlineUploadProgress('Đang tạo phụ đề Tiếng Việt', `Đoạn ${index + 1}/${chunks.length}: tách âm thanh trong trình duyệt...`, percent, true);
+                updateSubtitleProgress(`Đoạn ${index + 1}/${chunks.length}: đang tách âm thanh...`, percent);
+                const audio = await extractSubtitleAudio(ffmpeg, chunks[index], index);
+                let chunkUploaded = false;
+                let chunkError = null;
+                for(let attempt = 1; attempt <= 3; attempt++){
+                  try {
+                    const form = new FormData();
+                    form.append('audio', audio);
+                    form.append('offsetSeconds', String(chunks[index].offset));
+                    form.append('durationSeconds', String(chunks[index].duration));
+                    anti = await getFreshSubtitleRequestToken();
+                    await $.ajax({
+                      url: `${urls.uploadSubtitleChunk}?jobId=${encodeURIComponent(jobId)}&chunkIndex=${index}`,
+                      type: 'POST', data: form, processData: false, contentType: false,
+                      headers: anti ? { 'RequestVerificationToken': anti } : {}
+                    });
+                    chunkUploaded = true;
+                    break;
+                  } catch(e) {
+                    chunkError = e;
+                    console.warn(`[Subtitle] Chunk ${index} thất bại lần ${attempt}/3:`, e);
+                    if (attempt < 3) {
+                      updateSubtitleProgress(`Đoạn ${index + 1}/${chunks.length}: đang thử lại (lần ${attempt + 1})...`, percent);
+                      await new Promise(r => setTimeout(r, 1500));
+                    }
                   }
                 }
+                if(!chunkUploaded){
+                  throw chunkError || new Error(`Lỗi upload đoạn ${index + 1}/${chunks.length}`);
+                }
+                updateInlineUploadProgress('Đang tạo phụ đề Tiếng Việt', `Gemini đã xử lý đoạn ${index + 1}/${chunks.length}.`, Math.round(((index + 1) / chunks.length) * 90), true);
+                updateSubtitleProgress(`Gemini đã xử lý đoạn ${index + 1}/${chunks.length}.`, Math.round(((index + 1) / chunks.length) * 90));
               }
-              if(!chunkUploaded){
-                throw chunkError || new Error(`Lỗi upload đoạn ${index + 1}/${chunks.length}`);
+              updateSubtitleProgress('Đang ghép WebVTT và lưu phụ đề...', 95);
+              anti = await getFreshSubtitleRequestToken();
+              const result = await $.ajax({
+                url: `${urls.completeSubtitleJob}?jobId=${encodeURIComponent(jobId)}`, type: 'POST',
+                headers: anti ? { 'RequestVerificationToken': anti } : {}
+              });
+              const completedJobId = result?.jobId || result?.JobId;
+              if(!completedJobId || completedJobId === '00000000-0000-0000-0000-000000000000'){
+                throw new Error(result?.message || result?.Message || 'Không thể hoàn tất tạo phụ đề.');
               }
-              updateInlineUploadProgress('Đang tạo phụ đề Tiếng Việt', `Gemini đã xử lý đoạn ${index + 1}/${chunks.length}.`, Math.round(((index + 1) / chunks.length) * 90), true);
-              updateSubtitleProgress(`Gemini đã xử lý đoạn ${index + 1}/${chunks.length}.`, Math.round(((index + 1) / chunks.length) * 90));
+              updateInlineUploadProgress('Hoàn tất', result.message || result.Message || 'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.', 100, false);
+              updateSubtitleProgress(result.message || result.Message || 'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.', 100, false);
+              return result;
+            } finally {
+              $('#btnSave').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
             }
-            updateSubtitleProgress('Đang ghép WebVTT và lưu phụ đề...', 95);
-            anti = await getFreshSubtitleRequestToken();
-            const result = await $.ajax({
-              url: `${urls.completeSubtitleJob}?jobId=${encodeURIComponent(jobId)}`, type: 'POST',
-              headers: anti ? { 'RequestVerificationToken': anti } : {}
-            });
-            const completedJobId = result?.jobId || result?.JobId;
-            if(!completedJobId || completedJobId === '00000000-0000-0000-0000-000000000000'){
-              throw new Error(result?.message || result?.Message || 'Không thể hoàn tất tạo phụ đề.');
-            }
-            updateInlineUploadProgress('Hoàn tất', result.message || result.Message || 'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.', 100, false);
-            updateSubtitleProgress(result.message || result.Message || 'Đã tạo thành công phụ đề Tiếng Việt và Tiếng Anh.', 100, false);
-            return result;
           }
 
           function responseSourceId(response, fallback){
@@ -2289,6 +2302,8 @@
               const message = error?.responseJSON?.message || error?.message || 'Không thể tạo phụ đề.';
               updateInlineUploadProgress('Tạo phụ đề thất bại', message, 0, false);
               showUploadResultPopup(false, 'Tạo phụ đề thất bại', message);
+            }).finally(() => {
+              $('#btnSave').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
             });
           }
 
@@ -2371,6 +2386,7 @@
               });
 
               showLoading();
+              $('#btnSave').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...');
               $.ajax({
                 url: addUrl, type: 'POST',
                 data: fd, processData: false, contentType: false,
@@ -2392,7 +2408,10 @@
                   showToast(message, false);
                   showUploadResultPopup(false, 'Upload thất bại', message);
                 },
-                complete(){ hideLoading(); }
+                complete(){
+                  hideLoading();
+                  $('#btnSave').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
+                }
               });
 
             } else {
@@ -2420,6 +2439,7 @@
 
               // Update metadata / StreamUrl
               showLoading();
+              $('#btnSave').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...');
               const updateData = new FormData();
               if (fileObj) updateData.append('File', fileObj);
               Object.entries(payload).forEach(([k,v])=>{
@@ -2449,7 +2469,10 @@
                 error(xhr){
                   showToast(xhr?.responseJSON?.message || xhr?.responseText || "Lỗi khi cập nhật.", false);
                 },
-                complete(){ hideLoading(); }
+                complete(){
+                  hideLoading();
+                  $('#btnSave').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu');
+                }
               });
             }
           }
