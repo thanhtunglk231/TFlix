@@ -74,6 +74,11 @@ namespace Server.Controllers
             }
             catch (UnauthorizedAccessException) { return Forbid(); }
             catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+            catch (System.OperationCanceledException)
+            {
+                return StatusCode(Microsoft.AspNetCore.Http.StatusCodes.Status408RequestTimeout,
+                    new { message = "Yêu cầu xử lý audio chunk đã hết thời gian chờ hoặc bị hủy." });
+            }
         }
 
         [HttpPost("browser-jobs/{jobId:guid}/complete")]

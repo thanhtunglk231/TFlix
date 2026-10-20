@@ -43,10 +43,15 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
 
             for (var attempt = 1; attempt <= 3; attempt++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var json = await _gemini.GenerateWithAudioAsync(prompt, audio, mimeType, cancellationToken);
                 var (success, cues) = ParseAndValidate(json, timelineOffsetSeconds, chunkDurationSeconds);
                 if (success) return cues;
-                if (attempt < 3) await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), cancellationToken);
+                if (attempt < 3)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), cancellationToken);
+                }
             }
             throw new InvalidOperationException("Gemini không trả về phụ đề hợp lệ cho audio chunk.");
         }

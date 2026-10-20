@@ -2243,6 +2243,7 @@
                     await $.ajax({
                       url: `${urls.uploadSubtitleChunk}?jobId=${encodeURIComponent(jobId)}&chunkIndex=${index}`,
                       type: 'POST', data: form, processData: false, contentType: false,
+                      timeout: 180000,
                       headers: anti ? { 'RequestVerificationToken': anti } : {}
                     });
                     chunkUploaded = true;

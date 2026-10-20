@@ -56,7 +56,7 @@ namespace Server.Services.Gemini
             {
                 var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
                     ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
-                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.8-flash" : _options.Model;
+                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.5-flash" : _options.Model;
                 var payload = JsonSerializer.Serialize(new
                 {
                     contents = new[] { new { role = "user", parts = new object[] {
@@ -64,40 +64,12 @@ namespace Server.Services.Gemini
                     } } },
                     generationConfig = new { temperature = 0.1, maxOutputTokens = 8192, responseMimeType = "application/json" }
                 });
-                var response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                    if ((int)response.StatusCode == StatusCodes.Status404NotFound
-                        && errorBody.Contains("no longer available", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(model, "gemini-3.8-flash", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _logger.LogWarning(
-                            "Configured Gemini audio model {Model} is unavailable; retrying with gemini-3.8-flash.",
-                            model);
-                        response.Dispose();
-                        model = "gemini-3.8-flash";
-                        response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
-                    }
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                        _logger.LogError("Gemini subtitle generation failed for model {Model}: {Body}", model, errorBody);
-                        response.Dispose();
-                        return null;
-                    }
-                }
-                var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                response.Dispose();
-                using var document = JsonDocument.Parse(responseBody);
-                return document.RootElement.GetProperty("candidates")[0].GetProperty("content")
-                    .GetProperty("parts")[0].GetProperty("text").GetString();
+                return await ExecuteWithFallbackAsync(baseUrl, model, payload, "AudioTranscription", cancellationToken);
             }
             catch (OperationCanceledException)
             {
-                _logger.LogWarning("Gemini audio transcription timed out after {Timeout} seconds.", _options.TimeoutSeconds);
-                return null;
+                _logger.LogWarning("Gemini audio transcription was cancelled or timed out after {Timeout} seconds.", _options.TimeoutSeconds);
+                throw;
             }
             catch (Exception ex)
             {
@@ -110,49 +82,33 @@ namespace Server.Services.Gemini
             CancellationToken cancellationToken = default)
         {
             if (!IsConfigured || jpegImages.Count == 0) return null;
-            var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
-                ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
-            var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.8-flash" : _options.Model;
-            var parts = new List<object> { new { text = prompt } };
-            parts.AddRange(jpegImages.Select(image => (object)new
+            try
             {
-                inline_data = new { mime_type = "image/jpeg", data = Convert.ToBase64String(image) }
-            }));
-            var payload = JsonSerializer.Serialize(new
-            {
-                contents = new[] { new { role = "user", parts } },
-                generationConfig = new { temperature = 0.2, maxOutputTokens = 2048, responseMimeType = "application/json" }
-            });
-            var response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                if ((int)response.StatusCode == StatusCodes.Status404NotFound
-                    && errorBody.Contains("no longer available", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(model, "gemini-3.8-flash", StringComparison.OrdinalIgnoreCase))
+                var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
+                    ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
+                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.5-flash" : _options.Model;
+                var parts = new List<object> { new { text = prompt } };
+                parts.AddRange(jpegImages.Select(image => (object)new
                 {
-                    _logger.LogWarning(
-                        "Configured Gemini highlight model {Model} is unavailable; retrying with gemini-3.8-flash.",
-                        model);
-                    response.Dispose();
-                    model = "gemini-3.8-flash";
-                    response = await SendRequestAsync(baseUrl, model, payload, cancellationToken);
-                }
-
-                if (!response.IsSuccessStatusCode)
+                    inline_data = new { mime_type = "image/jpeg", data = Convert.ToBase64String(image) }
+                }));
+                var payload = JsonSerializer.Serialize(new
                 {
-                    errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                    _logger.LogError(
-                        "Gemini highlight analysis failed for model {Model}: {Body}", model, errorBody);
-                    response.Dispose();
-                    return null;
-                }
+                    contents = new[] { new { role = "user", parts } },
+                    generationConfig = new { temperature = 0.2, maxOutputTokens = 2048, responseMimeType = "application/json" }
+                });
+                return await ExecuteWithFallbackAsync(baseUrl, model, payload, "HighlightAnalysis", cancellationToken);
             }
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            response.Dispose();
-            using var document = JsonDocument.Parse(responseBody);
-            return document.RootElement.GetProperty("candidates")[0].GetProperty("content")
-                .GetProperty("parts")[0].GetProperty("text").GetString();
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Gemini highlight analysis was cancelled or timed out after {Timeout} seconds.", _options.TimeoutSeconds);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error calling Gemini highlight analysis.");
+                return null;
+            }
         }
 
         public async Task<string?> GenerateContentAsync(
@@ -173,9 +129,8 @@ namespace Server.Services.Gemini
                     ? "https://generativelanguage.googleapis.com/v1beta"
                     : _options.BaseUrl.TrimEnd('/');
 
-                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.8-flash" : _options.Model;
+                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.5-flash" : _options.Model;
 
-                // Xây dựng payload contents
                 var contents = new List<object>();
 
                 if (history != null)
@@ -196,7 +151,6 @@ namespace Server.Services.Gemini
                     }
                 }
 
-                // Thêm prompt hiện tại
                 contents.Add(new
                 {
                     role = "user",
@@ -222,68 +176,93 @@ namespace Server.Services.Gemini
                     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                 });
 
-                var response = await SendRequestAsync(baseUrl, model, jsonPayload, cancellationToken);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var statusCode = (int)response.StatusCode;
-                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                    if (statusCode == StatusCodes.Status404NotFound
-                        && errorBody.Contains("no longer available", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(model, "gemini-3.8-flash", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _logger.LogWarning(
-                            "Configured Gemini model {Model} is unavailable; retrying with gemini-3.8-flash.",
-                            model);
-                        response.Dispose();
-                        model = "gemini-3.8-flash";
-                        response = await SendRequestAsync(baseUrl, model, jsonPayload, cancellationToken);
-                    }
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        statusCode = (int)response.StatusCode;
-                        errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                        _logger.LogError(
-                            "Gemini API call failed for model {Model} with StatusCode {StatusCode}: {ErrorBody}",
-                            model,
-                            statusCode,
-                            errorBody);
-                        response.Dispose();
-                        return null;
-                    }
-                }
-
-                var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
-                response.Dispose();
-                using var doc = JsonDocument.Parse(responseString);
-
-                if (doc.RootElement.TryGetProperty("candidates", out var candidates) &&
-                    candidates.GetArrayLength() > 0)
-                {
-                    var firstCandidate = candidates[0];
-                    if (firstCandidate.TryGetProperty("content", out var contentElem) &&
-                        contentElem.TryGetProperty("parts", out var parts) &&
-                        parts.GetArrayLength() > 0)
-                    {
-                        var text = parts[0].GetProperty("text").GetString();
-                        return text;
-                    }
-                }
-
-                _logger.LogWarning("Gemini API response did not contain text candidates.");
-                return null;
+                return await ExecuteWithFallbackAsync(baseUrl, model, jsonPayload, "ChatbotGeneration", cancellationToken);
             }
             catch (OperationCanceledException)
             {
                 _logger.LogWarning("Gemini API call was cancelled or timed out after {Timeout} seconds.", _options.TimeoutSeconds);
-                return null;
+                throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected exception during Gemini API call.");
                 return null;
             }
+        }
+
+        private IEnumerable<string> GetCandidateModels(string? preferredModel)
+        {
+            var candidates = new List<string>();
+            if (!string.IsNullOrWhiteSpace(preferredModel))
+            {
+                candidates.Add(preferredModel.Trim());
+            }
+            candidates.Add("gemini-3.5-flash");
+            candidates.Add("gemini-3.5-flash-lite");
+            candidates.Add("gemini-3.8-flash");
+
+            return candidates.Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private async Task<string?> ExecuteWithFallbackAsync(
+            string baseUrl,
+            string? preferredModel,
+            string jsonPayload,
+            string operationName,
+            CancellationToken cancellationToken)
+        {
+            var models = GetCandidateModels(preferredModel);
+            string lastError = string.Empty;
+
+            foreach (var model in models)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    using var response = await SendRequestAsync(baseUrl, model, jsonPayload, cancellationToken);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                        using var document = JsonDocument.Parse(responseBody);
+                        if (document.RootElement.TryGetProperty("candidates", out var candidates) &&
+                            candidates.GetArrayLength() > 0)
+                        {
+                            var firstCandidate = candidates[0];
+                            if (firstCandidate.TryGetProperty("content", out var contentElem) &&
+                                contentElem.TryGetProperty("parts", out var parts) &&
+                                parts.GetArrayLength() > 0)
+                            {
+                                return parts[0].GetProperty("text").GetString();
+                            }
+                        }
+                        _logger.LogWarning("Gemini model {Model} response for {Op} did not contain text candidates.", model, operationName);
+                        continue;
+                    }
+
+                    var statusCode = (int)response.StatusCode;
+                    lastError = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                    _logger.LogWarning(
+                        "Gemini {Op} failed for model {Model} with status {Status}: {Body}. Trying next candidate model if available.",
+                        operationName, model, statusCode, lastError);
+
+                    if (statusCode == 400 && !lastError.Contains("model", StringComparison.OrdinalIgnoreCase))
+                    {
+                        break;
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Exception calling Gemini {Op} on model {Model}. Trying next candidate.", operationName, model);
+                }
+            }
+
+            _logger.LogError("All Gemini candidate models failed for {Op}. Last error: {LastError}", operationName, lastError);
+            return null;
         }
 
         private async Task<HttpResponseMessage> SendRequestAsync(

@@ -112,7 +112,14 @@ public sealed class SubtitleController : AdminBaseController
     {
         if (jobId == Guid.Empty || chunkIndex < 0 || audio is null || audio.Length == 0)
             return BadRequest(new { message = "Audio chunk hoặc thông tin tác vụ không hợp lệ." });
-        return Ok(await _service.UploadBrowserChunkAsync(jobId, chunkIndex, offsetSeconds, durationSeconds, audio));
+        try
+        {
+            return Ok(await _service.UploadBrowserChunkAsync(jobId, chunkIndex, offsetSeconds, durationSeconds, audio));
+        }
+        catch (HttpRequestException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost]
@@ -120,27 +127,55 @@ public sealed class SubtitleController : AdminBaseController
     public async Task<IActionResult> CompleteBrowserJob(Guid jobId)
     {
         if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
-        return Ok(await _service.CompleteBrowserJobAsync(jobId));
+        try
+        {
+            return Ok(await _service.CompleteBrowserJobAsync(jobId));
+        }
+        catch (HttpRequestException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet]
     public async Task<IActionResult> GetDraft(Guid jobId)
     {
         if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
-        return Ok(await _service.GetDraftAsync(jobId));
+        try
+        {
+            return Ok(await _service.GetDraftAsync(jobId));
+        }
+        catch (HttpRequestException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateDraft(Guid jobId, [FromBody] UpdateSubtitleDraftDto request)
     {
         if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
-        return Ok(await _service.UpdateDraftAsync(jobId, request));
+        try
+        {
+            return Ok(await _service.UpdateDraftAsync(jobId, request));
+        }
+        catch (HttpRequestException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Approve(Guid jobId)
     {
         if (jobId == Guid.Empty) return BadRequest(new { message = "Mã tác vụ không hợp lệ." });
-        return Ok(await _service.ApproveAsync(jobId));
+        try
+        {
+            return Ok(await _service.ApproveAsync(jobId));
+        }
+        catch (HttpRequestException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }
