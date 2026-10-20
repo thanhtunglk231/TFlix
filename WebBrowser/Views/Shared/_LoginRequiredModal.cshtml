@@ -1,0 +1,26 @@
+@* Views/Shared/_LoginRequiredModal.cshtml *@
+<div class="modal fade tflix-modal" id="loginRequiredModal" tabindex="-1" aria-labelledby="loginModalTitle" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered" style="z-index: 1065;">
+        <div class="modal-content shadow-lg border border-secondary border-opacity-25" style="background: #17191f; color: #ffffff;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="loginModalTitle">
+                    <i class="bi bi-shield-lock-fill text-warning fs-4"></i>
+                    <span class="fw-bold">Yêu cầu đăng nhập</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-white-50 mb-0" style="line-height: 1.6;">
+                    Bạn cần đăng nhập tài khoản TFlix để thưởng thức bộ phim này với chất lượng cao nhất, lưu vào danh sách xem sau và tham gia thảo luận.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Để sau</button>
+                <a class="btn btn-primary px-3 d-inline-flex align-items-center gap-2" id="modalLoginBtn" href="/Auth">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Đăng nhập ngay</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

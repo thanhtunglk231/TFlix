@@ -533,32 +533,6 @@
 <!-- QUICK VIEW MODAL COMPONENT -->
 @await Html.PartialAsync("_QuickViewModal")
 
-<!-- LOGIN REQUIRED MODAL -->
-<div class="modal fade tflix-modal" id="loginRequiredModal" tabindex="-1" aria-labelledby="loginModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title d-flex align-items-center gap-2" id="loginModalTitle">
-                    <i class="bi bi-shield-lock-fill text-warning fs-4"></i>
-                    <span>Yêu cầu đăng nhập</span>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
-            </div>
-            <div class="modal-body py-4">
-                <p class="text-muted mb-0">
-                    Bạn cần đăng nhập tài khoản TFlix để thưởng thức bộ phim này với chất lượng cao nhất và lưu vào danh sách xem sau.
-                </p>
-            </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn-tflix-glass" data-bs-dismiss="modal">Để sau</button>
-                <a class="btn-tflix-primary" asp-controller="Auth" asp-action="Index">
-                    <i class="bi bi-person-fill"></i> Đăng nhập ngay
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- TOAST NOTIFICATION CONTAINER -->
 <div class="tflix-toast-container" id="toastContainer" aria-live="polite"></div>
 <form id="favoriteTokenForm" class="d-none">@Html.AntiForgeryToken()</form>
@@ -589,23 +563,10 @@
         };
 
         // Modal triggers
-        window.showLoginModal = function() {
-            const qvModal = document.getElementById('quickViewModal');
-            if (qvModal && typeof bootstrap !== 'undefined') {
-                const qvInst = bootstrap.Modal.getInstance(qvModal);
-                if (qvInst) qvInst.hide();
+        function showLoginModal(targetUrl) {
+            if (typeof window.showLoginModal === 'function') {
+                window.showLoginModal(targetUrl);
             }
-            if (typeof window.closeRatingPopover === 'function') {
-                window.closeRatingPopover();
-            }
-            const modalEl = document.getElementById('loginRequiredModal');
-            if (modalEl && typeof bootstrap !== 'undefined') {
-                bootstrap.Modal.getOrCreateInstance(modalEl).show();
-            }
-        };
-
-        function showLoginModal() {
-            window.showLoginModal();
         }
 
         function toSeoSlug(value) {
@@ -629,12 +590,13 @@
             const kind = el.dataset.kind || 'MOVIE';
             const title = el.dataset.title || 'noi-dung';
             if (!id) return;
+            const prefix = String(kind).toUpperCase() === 'SERIES' ? '/phim-bo/' : '/phim/';
+            const targetUrl = `${prefix}${toSeoSlug(title)}-${encodeURIComponent(id)}`;
             if (!isLoggedIn) {
-                showLoginModal();
+                window.showLoginModal(targetUrl);
                 return;
             }
-            const prefix = String(kind).toUpperCase() === 'SERIES' ? '/phim-bo/' : '/phim/';
-            window.location.href = `${prefix}${toSeoSlug(title)}-${encodeURIComponent(id)}`;
+            window.location.href = targetUrl;
         }
 
         // Quick View Modal
@@ -686,7 +648,7 @@
                     if (!window.isLoggedIn) {
                         e.preventDefault();
                         e.stopPropagation();
-                        window.showLoginModal();
+                        window.showLoginModal(modalWatchBtn.href);
                         return false;
                     }
                 };

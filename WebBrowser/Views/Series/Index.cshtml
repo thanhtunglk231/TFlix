@@ -637,7 +637,7 @@
             if (!targetUrl) return;
 
             if (!isLoggedIn) {
-                window.location.href = '/Auth?returnUrl=' + encodeURIComponent(targetUrl);
+                window.showLoginModal(targetUrl);
             } else {
                 window.location.href = targetUrl;
             }

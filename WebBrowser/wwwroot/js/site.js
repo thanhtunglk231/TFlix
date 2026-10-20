@@ -918,3 +918,42 @@ if (document.readyState === 'loading') {
     }
 }
 
+// =========================================================================
+// MODAL STACKING & LOGIN REQUIRED MODAL HANDLER
+// =========================================================================
+// Tự động di chuyển mọi modal ra trực tiếp document.body khi mở
+// để triệt tiêu hoàn toàn lỗi CSS Stacking Context (tránh backdrop che phủ modal)
+document.addEventListener('show.bs.modal', function (event) {
+    const modal = event.target;
+    if (modal && modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+});
+
+window.showLoginModal = function (targetUrl) {
+    const qvModal = document.getElementById('quickViewModal');
+    if (qvModal && typeof bootstrap !== 'undefined') {
+        const qvInst = bootstrap.Modal.getInstance(qvModal);
+        if (qvInst) qvInst.hide();
+    }
+    if (typeof window.closeRatingPopover === 'function') {
+        window.closeRatingPopover();
+    }
+    const modalEl = document.getElementById('loginRequiredModal');
+    if (modalEl) {
+        if (targetUrl) {
+            const loginBtn = document.getElementById('modalLoginBtn') || modalEl.querySelector('a[href*="/Auth"]');
+            if (loginBtn) {
+                loginBtn.href = '/Auth?returnUrl=' + encodeURIComponent(targetUrl);
+            }
+        }
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+    }
+};
+
+
