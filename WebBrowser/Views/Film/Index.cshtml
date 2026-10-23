@@ -1435,7 +1435,7 @@
                 <div class="tflix-panel-body p-3">
                     <div class="vstack gap-3" id="suggestedMoviesList">
                         <!-- Loaded dynamically or rendered with high-quality presets -->
-                        <a href="/Movies" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
+                        <a href="/Movies" data-movie-card="true" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
                             <img src="https://images.unsplash.com/photo-1563089145-599997674d42?w=300&auto=format&fit=crop" class="rounded-2" width="70" height="95" style="object-fit: cover;" />
                             <div class="d-flex flex-column justify-content-center">
                                 <span class="badge mb-1" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; width: fit-content; font-size: 0.68rem;">4K VIP</span>
@@ -1445,7 +1445,7 @@
                             </div>
                         </a>
 
-                        <a href="/Movies" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
+                        <a href="/Movies" data-movie-card="true" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
                             <img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=300&auto=format&fit=crop" class="rounded-2" width="70" height="95" style="object-fit: cover;" />
                             <div class="d-flex flex-column justify-content-center">
                                 <span class="badge mb-1" style="background: rgba(22, 131, 255, 0.15); color: #60a5fa; width: fit-content; font-size: 0.68rem;">FULL HD</span>
@@ -1455,7 +1455,7 @@
                             </div>
                         </a>
 
-                        <a href="/Movies" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
+                        <a href="/Movies" data-movie-card="true" class="d-flex gap-3 text-decoration-none text-light p-2 rounded-3 hover-card" style="border: 1px solid var(--border-subtle); background: #161920;">
                             <img src="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&auto=format&fit=crop" class="rounded-2" width="70" height="95" style="object-fit: cover;" />
                             <div class="d-flex flex-column justify-content-center">
                                 <span class="badge mb-1" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; width: fit-content; font-size: 0.68rem;">4K VIP</span>
@@ -1553,12 +1553,30 @@
 
         function guardAuth(action) {
             if (!isLoggedIn) {
-                const el = document.getElementById('loginRequiredModal');
-                const m = bootstrap.Modal.getOrCreateInstance(el);
-                m.show();
+                if (typeof window.showLoginModal === 'function') {
+                    window.showLoginModal(window.location.href);
+                } else {
+                    const el = document.getElementById('loginRequiredModal');
+                    if (el) {
+                        const loginBtn = document.getElementById('modalLoginBtn') || el.querySelector('a[href*="/Auth"]');
+                        if (loginBtn) loginBtn.href = '/Auth?returnUrl=' + encodeURIComponent(window.location.href);
+                        bootstrap.Modal.getOrCreateInstance(el).show();
+                    }
+                }
                 return false;
             }
             return typeof action === 'function' ? (action(), true) : true;
+        }
+
+        // Tự động hiển thị popup yêu cầu đăng nhập nếu người dùng truy cập trực tiếp trang xem phim khi chưa đăng nhập
+        if (!isLoggedIn) {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                    if (typeof window.showLoginModal === 'function') {
+                        window.showLoginModal(window.location.href);
+                    }
+                }, 400);
+            });
         }
 
         // ==========================================

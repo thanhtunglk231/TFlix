@@ -56,6 +56,23 @@ namespace DataServiceLib.Implements
             if (file == null || file.Length == 0)
                 return null;
 
+            await using var stream = file.OpenReadStream();
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            var bytes = memoryStream.ToArray();
+
+            var contentType = string.IsNullOrWhiteSpace(file.ContentType)
+                ? GetContentType(file.FileName)
+                : file.ContentType;
+
+            return await UploadBytesAsync(bytes, objectPath, contentType);
+        }
+
+        public async Task<string?> UploadBytesAsync(byte[] bytes, string objectPath, string contentType)
+        {
+            if (bytes == null || bytes.Length == 0)
+                return null;
+
             if (!_isConfigured)
                 return null;
 
@@ -65,15 +82,6 @@ namespace DataServiceLib.Implements
             objectPath = NormalizeObjectPath(objectPath);
             var encodedPath = EncodeObjectPath(objectPath);
             var requestPath = $"/{_bucketName}/{encodedPath}";
-
-            await using var stream = file.OpenReadStream();
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-            var bytes = memoryStream.ToArray();
-
-            var contentType = string.IsNullOrWhiteSpace(file.ContentType)
-                ? GetContentType(file.FileName)
-                : file.ContentType;
 
             for (var attempt = 1; attempt <= UploadMaxAttempts; attempt++)
             {

@@ -592,7 +592,7 @@
             if (!id) return;
             const prefix = String(kind).toUpperCase() === 'SERIES' ? '/phim-bo/' : '/phim/';
             const targetUrl = `${prefix}${toSeoSlug(title)}-${encodeURIComponent(id)}`;
-            if (!isLoggedIn) {
+            if (!window.isLoggedIn) {
                 window.showLoginModal(targetUrl);
                 return;
             }
@@ -653,7 +653,18 @@
                     }
                 };
             }
-            document.getElementById('modalDetailBtn').href = `${isSeries ? '/phim-bo/' : '/phim/'}${slug}-${encodeURIComponent(id)}`;
+            const modalDetailBtn = document.getElementById('modalDetailBtn');
+            if (modalDetailBtn) {
+                modalDetailBtn.href = `${isSeries ? '/phim-bo/' : '/phim/'}${slug}-${encodeURIComponent(id)}`;
+                modalDetailBtn.onclick = function(e) {
+                    if (!window.isLoggedIn) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.showLoginModal(modalDetailBtn.href);
+                        return false;
+                    }
+                };
+            }
             
             const favBtn = document.getElementById('modalFavBtn');
             const isFav = localStorage.getItem(`tflix_fav_${id}`) === 'true';

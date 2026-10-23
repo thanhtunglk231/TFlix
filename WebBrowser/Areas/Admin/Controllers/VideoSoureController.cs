@@ -1,9 +1,11 @@
+using CoreLib.Dtos.GeminiImage;
 using CoreLib.Dtos.VideSoure;
 using CoreLib.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
+using WebBrowser.Services.HttpSevice.Interfaces;
 using WebBrowser.Services.Interfaces;
 
 namespace WebBrowser.Areas.Admin.Controllers
@@ -13,13 +15,19 @@ namespace WebBrowser.Areas.Admin.Controllers
     {
         private const long MaxVideoUploadBytes = 1024L * 1024 * 1024;
         private readonly IVideoSoureService _videoSoureService;
+        private readonly IHttpService _httpService;
         private readonly ILogger<VideoSoureController> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private static readonly ConcurrentDictionary<Guid, BrowserHlsCompletionJob> BrowserHlsCompletionJobs = new();
 
-        public VideoSoureController(IVideoSoureService videoSoureService, ILogger<VideoSoureController> logger, IServiceScopeFactory scopeFactory)
+        public VideoSoureController(
+            IVideoSoureService videoSoureService,
+            IHttpService httpService,
+            ILogger<VideoSoureController> logger,
+            IServiceScopeFactory scopeFactory)
         {
             _videoSoureService = videoSoureService;
+            _httpService = httpService;
             _logger = logger;
             _scopeFactory = scopeFactory;
         }
@@ -366,6 +374,82 @@ namespace WebBrowser.Areas.Admin.Controllers
 
             var result = await _videoSoureService.Delete_video_source(effectiveId);
             return Ok(result);
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> GenerateGeminiImage([FromBody] GeminiGenerateImageRequestDto dto)
+        {
+            try
+            {
+                var result = await _httpService.PostLongRunningAsync<GeminiGenerateImageResponseDto>("/api/GeminiImage/generate", dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi gọi API tạo ảnh bằng Gemini.");
+                return Ok(new GeminiGenerateImageResponseDto
+                {
+                    Success = false,
+                    ErrorMessage = "Lỗi kết nối tới Server API tạo ảnh: " + ex.Message
+                });
+            }
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> EnhanceGeminiPrompt([FromBody] GeminiEnhancePromptRequestDto dto)
+        {
+            try
+            {
+                var result = await _httpService.PostLongRunningAsync<GeminiEnhancePromptResponseDto>("/api/GeminiImage/enhance-prompt", dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi gọi API tối ưu prompt bằng Gemini.");
+                return Ok(new GeminiEnhancePromptResponseDto
+                {
+                    Success = false,
+                    ErrorMessage = "Lỗi kết nối tới Server API tối ưu prompt: " + ex.Message
+                });
+            }
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> SaveGeminiAsset([FromBody] GeminiSaveAssetRequestDto dto)
+        {
+            try
+            {
+                var result = await _httpService.PostLongRunningAsync<object>("/api/GeminiImage/save-asset", dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi gọi API lưu asset từ Gemini.");
+                return StatusCode(500, new { success = false, message = "Lỗi kết nối tới Server API lưu asset: " + ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> AutoGenerateAndBind([FromBody] GeminiAutoBindRequestDto dto)
+        {
+            try
+            {
+                var result = await _httpService.PostLongRunningAsync<GeminiAutoBindResponseDto>("/api/GeminiImage/auto-generate-and-bind", dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi gọi API tự động tạo và gắn ảnh AI cho phim.");
+                return StatusCode(500, new GeminiAutoBindResponseDto
+                {
+                    Success = false,
+                    Message = "Lỗi kết nối tới Server API tự động tạo ảnh: " + ex.Message
+                });
+            }
         }
     }
 }

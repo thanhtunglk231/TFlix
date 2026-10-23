@@ -1121,9 +1121,18 @@
         const currentUserName = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(currentUserName));
         const currentUserAvatar = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(currentUserAvatar));
 
-        function showLoginModal() {
+        function showLoginModal(targetUrl) {
+            const url = targetUrl || window.location.pathname + window.location.search;
+            if (typeof window.showLoginModal === 'function') {
+                window.showLoginModal(url);
+                return;
+            }
             const el = document.getElementById('loginRequiredModal');
             if (!el) return;
+            const loginBtn = document.getElementById('modalLoginBtn') || el.querySelector('a[href*="/Auth"]');
+            if (loginBtn) {
+                loginBtn.href = '/Auth?returnUrl=' + encodeURIComponent(url);
+            }
             if (window.bootstrap && bootstrap.Modal) {
                 bootstrap.Modal.getOrCreateInstance(el).show();
             } else {
@@ -1139,18 +1148,24 @@
             if (!isLoggedIn) {
                 e.preventDefault();
                 e.stopPropagation();
-                showLoginModal();
+                showLoginModal(btn.getAttribute('href') || window.location.href);
             }
         });
 
-        // Click trên thẻ phim gợi ý để chuyển đến trang chi tiết (loại trừ click sao, link, nút xem)
+        // Click trên thẻ phim gợi ý để chuyển đến trang chi tiết (loại trừ click sao, nút xem)
         $(document).on('click', '.preview-catalog-card', function (e) {
-            if ($(e.target).closest('.card-rating-tag, .card-quick-rating, .tflix-rating-popover, .btnWatch, a').length) {
+            if ($(e.target).closest('.card-rating-tag, .card-quick-rating, .tflix-rating-popover, .btnWatch').length) {
                 return;
             }
-            const targetUrl = $(this).data('url');
+            e.preventDefault();
+            e.stopPropagation();
+            const targetUrl = $(this).data('url') || $(this).find('a').attr('href');
             if (targetUrl) {
-                window.location.href = targetUrl;
+                if (!isLoggedIn) {
+                    showLoginModal(targetUrl);
+                } else {
+                    window.location.href = targetUrl;
+                }
             }
         });
 

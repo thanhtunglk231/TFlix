@@ -939,13 +939,15 @@ window.showLoginModal = function (targetUrl) {
     if (typeof window.closeRatingPopover === 'function') {
         window.closeRatingPopover();
     }
-    const modalEl = document.getElementById('loginRequiredModal');
+    let modalEl = document.getElementById('loginRequiredModal');
+    if (!modalEl && typeof createGlobalLoginModal === 'function') {
+        modalEl = createGlobalLoginModal();
+    }
     if (modalEl) {
-        if (targetUrl) {
-            const loginBtn = document.getElementById('modalLoginBtn') || modalEl.querySelector('a[href*="/Auth"]');
-            if (loginBtn) {
-                loginBtn.href = '/Auth?returnUrl=' + encodeURIComponent(targetUrl);
-            }
+        const effectiveTarget = targetUrl || (window.location.pathname + window.location.search);
+        const loginBtn = document.getElementById('modalLoginBtn') || modalEl.querySelector('a[href*="/Auth"]');
+        if (loginBtn) {
+            loginBtn.href = '/Auth?returnUrl=' + encodeURIComponent(effectiveTarget);
         }
         if (modalEl.parentElement !== document.body) {
             document.body.appendChild(modalEl);
@@ -955,5 +957,86 @@ window.showLoginModal = function (targetUrl) {
         }
     }
 };
+
+// =========================================================================
+// UNIVERSAL MOVIE CARD & STREAMING ACTIONS AUTHENTICATION INTERCEPTOR
+// =========================================================================
+document.addEventListener('click', function (e) {
+    // Nếu người dùng đã đăng nhập thì cho phép điều hướng bình thường
+    if (window.isLoggedIn === true) return;
+
+    // Không can thiệp nếu nhấn vào modal hoặc các nút bên trong popup đăng nhập
+    if (e.target.closest('#loginRequiredModal, .modal-footer, .btn-close, [data-bs-dismiss="modal"]')) {
+        return;
+    }
+
+    // Không can thiệp vào các nút đánh giá sao và yêu thích (đã có handler riêng)
+    if (e.target.closest('.card-rating-tag, .card-quick-rating, .card-stars-widget, .tflix-rating-popover, .btn-card-star, .popover-star-btn, .btn-card-fav')) {
+        return;
+    }
+
+    // 1. Kiểm tra nếu nhấn vào Thẻ phim (Movie Card trên Home, Preview, Xem phim, Kho phim, Tìm kiếm...)
+    const movieCard = e.target.closest('.movie-card-item, .movie-card, .series-card, .preview-catalog-card, .ai-movie-card, .film-card, [data-movie-card="true"]');
+    if (movieCard) {
+        // Cho phép nút Xem nhanh (Quick View) mở popup xem sơ lược nếu có
+        if (e.target.closest('.btn-quick-info')) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        let targetUrl = movieCard.dataset.url || movieCard.getAttribute('data-url');
+        if (!targetUrl) {
+            const anchor = movieCard.querySelector('a[href]');
+            if (anchor && anchor.getAttribute('href') && anchor.getAttribute('href') !== '#') {
+                targetUrl = anchor.getAttribute('href');
+            }
+        }
+        if (!targetUrl && movieCard.dataset.id) {
+            const kind = String(movieCard.dataset.kind || 'MOVIE').toUpperCase();
+            const title = movieCard.dataset.title || 'phim';
+            const slug = (title || 'phim')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd').replace(/Đ/g, 'd')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'phim';
+            const prefix = kind === 'SERIES' ? '/phim-bo/' : '/phim/';
+            targetUrl = `${prefix}${slug}-${encodeURIComponent(movieCard.dataset.id)}`;
+        }
+
+        window.showLoginModal(targetUrl);
+        return false;
+    }
+
+    // 2. Kiểm tra nếu nhấn vào các nút / link Xem phim, Chi tiết phim, Tập phim
+    const watchOrDetailLink = e.target.closest(
+        '.btnWatch, .btnEp, .btn-watch, .btn-play, .preview-play-icon, #modalWatchBtn, #modalDetailBtn, .ep-item, a[href*="/xem-phim"], a[href*="/xem-phim-bo"], a[href*="/phim/"], a[href*="/phim-bo/"]'
+    );
+    if (watchOrDetailLink) {
+        const href = watchOrDetailLink.getAttribute('href') || watchOrDetailLink.dataset.url || '';
+        // Phân biệt link danh mục chung (/phim, /phim-bo) với link phim cụ thể
+        const isSpecificMovieRoute = href.includes('/xem-phim') ||
+                                     href.includes('/xem-phim-bo') ||
+                                     /\/(phim|phim-bo)\/[^?#]+-\d+/.test(href) ||
+                                     watchOrDetailLink.classList.contains('ep-item') ||
+                                     watchOrDetailLink.classList.contains('btnWatch') ||
+                                     watchOrDetailLink.classList.contains('btnEp');
+
+        if (isSpecificMovieRoute || watchOrDetailLink.id === 'modalWatchBtn' || watchOrDetailLink.id === 'modalDetailBtn') {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            const targetUrl = href && href !== '#' ? href : (window.location.pathname + window.location.search);
+            window.showLoginModal(targetUrl);
+            return false;
+        }
+    }
+}, true);
+
 
 

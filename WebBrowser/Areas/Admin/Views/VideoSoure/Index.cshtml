@@ -31,6 +31,10 @@
     var urlApproveSubtitle = Url.Action("Approve", "Subtitle", new { area = "Admin" });
     var urlGetSubtitlesBySource = Url.Action("GetBySource", "Subtitle", new { area = "Admin" });
     var urlSaveSourceSubtitles = Url.Action("SaveSourceSubtitles", "Subtitle", new { area = "Admin" });
+    var urlGenerateGeminiImage = Url.Action("GenerateGeminiImage", "VideoSoure", new { area = "Admin" });
+    var urlEnhanceGeminiPrompt = Url.Action("EnhanceGeminiPrompt", "VideoSoure", new { area = "Admin" });
+    var urlSaveGeminiAsset = Url.Action("SaveGeminiAsset", "VideoSoure", new { area = "Admin" });
+    var urlAutoGenerateAndBind = Url.Action("AutoGenerateAndBind", "VideoSoure", new { area = "Admin" });
 
 
     // Nguồn dữ liệu tham chiếu
@@ -452,7 +456,10 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h4 class="m-0"><i class="bi bi-hdd-network me-2"></i>Quản lý Video Sources</h4>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-info" id="btnTopGeminiImage" title="Tự tạo hình ảnh bằng AI Gemini (Imagen 3)">
+            <i class="bi bi-stars me-1"></i>Tạo ảnh bằng Gemini
+        </button>
         <button class="btn btn-outline-secondary" id="btnRefresh">
             <i class="bi bi-arrow-clockwise me-1"></i>Nạp lại
         </button>
@@ -752,7 +759,13 @@
                 <button type="button" class="btn btn-outline-danger d-none" id="btnDeleteCurrentSource">
                     <i class="bi bi-trash me-1"></i>Xóa nguồn này
                 </button>
-                <div class="d-flex gap-2 ms-auto">
+                <div class="d-flex gap-2 ms-auto flex-wrap">
+                    <button type="button" class="btn btn-outline-warning" id="btnAutoBindFromModal" title="Tự động tạo Poster và Theme bằng Gemini rồi gắn trực tiếp vào phim đang chọn">
+                        <i class="bi bi-magic me-1"></i>Tự tạo & Gán Poster/Theme AI
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btnOpenGeminiImageModal" title="Tạo hình ảnh bằng AI Gemini cho phim của nguồn này">
+                        <i class="bi bi-stars me-1"></i>Tạo ảnh tùy chỉnh
+                    </button>
                     <button type="button" class="btn btn-outline-success d-none" id="btnPreviewSubtitle">
                         <i class="bi bi-eye me-1"></i>Xem trước phụ đề
                     </button>
@@ -780,6 +793,366 @@
             <div class="modal-footer">
                 <span id="previewMeta" class="me-auto text-muted small"></span>
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tự tạo hình ảnh bằng AI Gemini -->
+<div class="modal fade" id="geminiImageModal" tabindex="-1" aria-labelledby="geminiImageModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="background: #151821; border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
+            <div class="modal-header border-bottom border-secondary border-opacity-25 py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, rgba(22, 131, 255, 0.2), rgba(25, 211, 197, 0.2)); border: 1px solid rgba(25, 211, 197, 0.3);">
+                        <i class="bi bi-stars fs-5" style="color: #27d3c3;"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title m-0 fw-bold text-light" id="geminiImageModalLabel">Tự tạo hình ảnh bằng Gemini AI (Imagen 3)</h5>
+                        <div class="small text-muted">Tạo Poster (2:3), Thumbnail / Backdrop (16:9) chất lượng cao và lưu trực tiếp vào phim</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-3 p-md-4">
+                <div class="row g-4">
+                    <!-- Cột trái: Cấu hình API Key, Phim, Prompt, Tùy chọn -->
+                    <div class="col-12 col-lg-6">
+                        <!-- Box API Key -->
+                        <div class="p-3 rounded-3 mb-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="geminiApiKey" class="form-label mb-0 fw-semibold small text-light d-flex align-items-center gap-1">
+                                    <i class="bi bi-key-fill text-warning"></i>Gemini API Key (Tùy chọn)
+                                </label>
+                                <span class="badge" id="geminiApiKeyBadge" style="background: rgba(255,255,255,0.08); color: #9aa0aa;">Mặc định: Key hệ thống</span>
+                            </div>
+                            <div class="input-group input-group-sm mb-2">
+                                <input type="password" id="geminiApiKey" class="form-control bg-dark text-light border-secondary border-opacity-50" placeholder="Để trống nếu dùng key hệ thống hoặc nhập AIzaSy..." autocomplete="off" />
+                                <button class="btn btn-outline-secondary" type="button" id="btnToggleApiKeyVisibility" title="Hiện/ẩn API Key">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" type="button" id="btnClearApiKey" title="Xóa API Key cá nhân">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            <div class="form-check form-switch small">
+                                <input class="form-check-input" type="checkbox" id="chkRememberApiKey" checked>
+                                <label class="form-check-label text-muted" for="chkRememberApiKey">Ghi nhớ API Key trên trình duyệt này (LocalStorage)</label>
+                            </div>
+                        </div>
+
+                        <!-- Gán hình ảnh cho phim -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="geminiTargetMovie" class="form-label mb-0 fw-semibold small text-light">
+                                    <i class="bi bi-film text-info me-1"></i>Gán ảnh cho Phim
+                                </label>
+                                <button type="button" class="btn btn-sm btn-link text-info text-decoration-none p-0 small" id="btnAutoPromptFromMovie">
+                                    <i class="bi bi-magic me-1"></i>Lấy gợi ý từ phim
+                                </button>
+                            </div>
+                            <select id="geminiTargetMovie" class="form-select form-select-sm bg-dark text-light border-secondary border-opacity-50">
+                                <option value="">-- Chọn phim cần tạo hình ảnh --</option>
+                            </select>
+                            <input type="hidden" id="geminiTargetOwnerType" value="MOVIE" />
+                        </div>
+
+                        <!-- Tỷ lệ khung hình (Aspect Ratio) -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-light d-block mb-2">
+                                <i class="bi bi-aspect-ratio text-info me-1"></i>Tỷ lệ khung hình (Aspect Ratio)
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="geminiAspectRatio" id="ratio16x9" value="16:9" checked autocomplete="off">
+                                    <label class="btn btn-outline-secondary w-100 text-center py-2 h-100 d-flex flex-column align-items-center justify-content-center" for="ratio16x9">
+                                        <i class="bi bi-tv fs-5 mb-1 text-info"></i>
+                                        <span class="fw-bold small d-block">16:9</span>
+                                        <span class="text-muted" style="font-size:0.7rem;">Backdrop / Thumb</span>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="geminiAspectRatio" id="ratio3x4" value="3:4" autocomplete="off">
+                                    <label class="btn btn-outline-secondary w-100 text-center py-2 h-100 d-flex flex-column align-items-center justify-content-center" for="ratio3x4">
+                                        <i class="bi bi-file-earmark-image fs-5 mb-1 text-warning"></i>
+                                        <span class="fw-bold small d-block">2:3 / 3:4</span>
+                                        <span class="text-muted" style="font-size:0.7rem;">Movie Poster</span>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="geminiAspectRatio" id="ratio1x1" value="1:1" autocomplete="off">
+                                    <label class="btn btn-outline-secondary w-100 text-center py-2 h-100 d-flex flex-column align-items-center justify-content-center" for="ratio1x1">
+                                        <i class="bi bi-square fs-5 mb-1 text-success"></i>
+                                        <span class="fw-bold small d-block">1:1</span>
+                                        <span class="text-muted" style="font-size:0.7rem;">Square Thumb</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Phong cách nghệ thuật (Style) & Model -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-7">
+                                <label for="geminiStyle" class="form-label fw-semibold small text-light mb-1">
+                                    <i class="bi bi-palette text-info me-1"></i>Phong cách gợi ý
+                                </label>
+                                <select id="geminiStyle" class="form-select form-select-sm bg-dark text-light border-secondary border-opacity-50">
+                                    <option value="Cinematic Movie Poster, highly dramatic lighting, 8k resolution, photorealistic masterpiece">Điện ảnh hoành tráng (Cinematic)</option>
+                                    <option value="Photorealistic cinematic film still, detailed depth of field, dramatic shadows, octane render 8k">Chân thực sắc nét (Photorealistic)</option>
+                                    <option value="Anime aesthetic wallpaper, vibrant colors, Makoto Shinkai style, high detail illustration">Hoạt hình Anime / Manga</option>
+                                    <option value="Cyberpunk futuristic city, glowing neon reflections, rain, high-tech dystopian atmosphere">Cyberpunk & Viễn tưởng</option>
+                                    <option value="Dark horror atmosphere, eerie fog, cinematic suspense, gothic moody lighting">Kinh dị u ám (Dark Horror)</option>
+                                    <option value="Epic fantasy concept art, mystical glowing atmosphere, magical realism, artstation trending">Huyền ảo kỳ bí (Epic Fantasy)</option>
+                                </select>
+                            </div>
+                            <div class="col-5">
+                                <label for="geminiModel" class="form-label fw-semibold small text-light mb-1">
+                                    <i class="bi bi-cpu text-info me-1"></i>Mô hình AI
+                                </label>
+                                <select id="geminiModel" class="form-select form-select-sm bg-dark text-light border-secondary border-opacity-50">
+                                    <option value="imagen-3.0-generate-002" selected>Imagen 3 (Sắc nét)</option>
+                                    <option value="imagen-3.0-fast-generate-001">Imagen 3 Fast (Nhanh)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Prompt input & Enhance button -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="geminiPrompt" class="form-label mb-0 fw-semibold small text-light">
+                                    <i class="bi bi-chat-text text-info me-1"></i>Prompt mô tả hình ảnh *
+                                </label>
+                                <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2 small" id="btnEnhancePrompt" title="Tối ưu prompt mô tả thành câu lệnh điện ảnh chi tiết">
+                                    <i class="bi bi-stars me-1"></i>✨ Tối ưu bằng Gemini AI
+                                </button>
+                            </div>
+                            <textarea id="geminiPrompt" rows="4" class="form-control bg-dark text-light border-secondary border-opacity-50" placeholder="Ví dụ: Một người hùng đứng trên đỉnh tòa nhà nhìn xuống thành phố lúc hoàng hôn, ánh sáng vàng cam rực rỡ, góc nhìn rộng điện ảnh..."></textarea>
+                            <div class="form-text text-muted small mt-1">Hỗ trợ nhập Tiếng Việt hoặc Tiếng Anh. Bấm <b>✨ Tối ưu bằng Gemini AI</b> để biến ý tưởng ngắn thành câu lệnh vẽ chuẩn điện ảnh.</div>
+                        </div>
+
+                        <!-- Nút bắt đầu tạo ảnh -->
+                        <button type="button" class="btn btn-primary w-100 py-2 fs-6 fw-bold shadow-sm" id="btnStartGenerateImage" style="background: linear-gradient(135deg, #1683ff 0%, #19d3c5 100%); border: none; color: #07131e;">
+                            <i class="bi bi-stars me-2"></i>Bắt đầu tạo hình ảnh
+                        </button>
+                    </div>
+
+                    <!-- Cột phải: Preview ảnh & Lưu Asset -->
+                    <div class="col-12 col-lg-6">
+                        <div class="h-100 d-flex flex-column p-3 rounded-3" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); min-height: 420px;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-semibold small text-light"><i class="bi bi-image me-1 text-info"></i>Kết quả tạo hình ảnh</span>
+                                <span id="geminiStatusBadge" class="badge bg-secondary-subtle text-secondary">Sẵn sàng</span>
+                            </div>
+
+                            <!-- Preview container -->
+                            <div class="flex-grow-1 d-flex align-items-center justify-content-center rounded-3 position-relative overflow-hidden mb-3" id="geminiPreviewContainer" style="background: #0d0f15; border: 1px dashed rgba(255,255,255,0.15); min-height: 280px;">
+                                <!-- Empty state -->
+                                <div id="geminiPreviewEmpty" class="text-center p-4">
+                                    <i class="bi bi-image text-secondary opacity-50" style="font-size: 3.5rem;"></i>
+                                    <div class="text-muted small mt-2">Chưa có hình ảnh được tạo.</div>
+                                    <div class="text-secondary small">Hãy nhập mô tả bên trái và bấm <b>Bắt đầu tạo hình ảnh</b>.</div>
+                                </div>
+
+                                <!-- Loading state -->
+                                <div id="geminiPreviewLoading" class="text-center p-4 d-none">
+                                    <div class="spinner-border text-info mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                                    <div class="text-light fw-medium" id="geminiLoadingText">Gemini AI đang sáng tạo hình ảnh...</div>
+                                    <div class="text-secondary small mt-1">Quá trình thường mất khoảng 8 - 15 giây.</div>
+                                </div>
+
+                                <!-- Result image -->
+                                <img id="geminiResultImg" src="" alt="AI Generated Image" class="img-fluid d-none w-100 h-100 object-fit-contain" style="max-height: 380px; border-radius: 8px;" />
+                            </div>
+
+                            <!-- Controls khi đã có ảnh -->
+                            <div id="geminiActionBox" class="d-none">
+                                <div class="p-3 rounded-3 mb-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                                    <label class="form-label small fw-semibold text-light mb-1">
+                                        <i class="bi bi-cloud-arrow-up text-success me-1"></i>Lưu vào Media Asset của phim
+                                    </label>
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-6">
+                                            <select id="geminiSaveAssetType" class="form-select form-select-sm bg-dark text-light border-secondary border-opacity-50">
+                                                <option value="BACKDROP">Lưu làm BACKDROP</option>
+                                                <option value="POSTER">Lưu làm POSTER</option>
+                                                <option value="THUMB">Lưu làm THUMBNAIL</option>
+                                                <option value="STILL">Lưu làm STILL</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-sm btn-success w-100 fw-bold" id="btnSaveToMovieAsset">
+                                                <i class="bi bi-check-circle me-1"></i>Lưu vào Phim
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 justify-content-between">
+                                    <a id="btnDownloadGeminiImg" href="#" download="gemini_image.jpg" class="btn btn-sm btn-outline-info flex-fill text-center">
+                                        <i class="bi bi-download me-1"></i>Tải về máy
+                                    </a>
+                                    <button type="button" id="btnCopyImgBase64" class="btn btn-sm btn-outline-secondary flex-fill">
+                                        <i class="bi bi-clipboard me-1"></i>Sao chép URL
+                                    </button>
+                                    <button type="button" id="btnRegenerateImg" class="btn btn-sm btn-outline-warning flex-fill">
+                                        <i class="bi bi-arrow-repeat me-1"></i>Tạo lại
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary border-opacity-25 py-2">
+                <span class="text-muted small me-auto"><i class="bi bi-info-circle me-1"></i>Tạo ảnh được cung cấp bởi Google Gemini Imagen 3 API.</span>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tự Động Tạo & Gán Poster, Theme Phim Bằng AI Gemini -->
+<div class="modal fade" id="autoBindGeminiModal" tabindex="-1" aria-labelledby="autoBindGeminiModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="background: #171920; border: 1px solid rgba(25, 211, 197, 0.25); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
+            <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
+                <h5 class="modal-title d-flex align-items-center gap-2 text-light" id="autoBindGeminiModalLabel">
+                    <span class="badge bg-warning text-dark"><i class="bi bi-magic"></i> AI</span>
+                    <span>Tự động tạo & Gán Poster, Theme bằng Gemini</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng" id="btnAutoBindClose"></button>
+            </div>
+            <div class="modal-body py-3">
+                <!-- Movie Target Card -->
+                <div class="p-3 rounded-3 mb-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div>
+                            <span class="text-secondary small">Phim mục tiêu từ Video Source:</span>
+                            <h5 class="text-light fw-bold mb-0 mt-1" id="autoBindMovieTitleDisplay">Đang tải tên phim...</h5>
+                            <div class="text-muted small mt-1" id="autoBindMovieDetailDisplay">Mã phim: #...</div>
+                        </div>
+                        <input type="hidden" id="autoBindMovieId" value="" />
+                        <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2">
+                            <i class="bi bi-film me-1"></i>Từ Video Source
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Form Controls -->
+                <div id="autoBindFormSection">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-semibold text-light mb-2">Tùy chọn ảnh muốn tạo:</label>
+                            <div class="d-flex flex-column gap-2 p-3 rounded-3" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06);">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="chkAutoPoster" checked>
+                                    <label class="form-check-label text-light small fw-medium" for="chkAutoPoster">
+                                        <i class="bi bi-file-image text-warning me-1"></i><strong>Poster phim</strong> (Dọc 3:4)
+                                        <div class="text-secondary" style="font-size:0.75rem;">Gán vào Media Assets loại POSTER làm ảnh bìa chính</div>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="chkAutoBackdrop" checked>
+                                    <label class="form-check-label text-light small fw-medium" for="chkAutoBackdrop">
+                                        <i class="bi bi-aspect-ratio text-info me-1"></i><strong>Theme / Backdrop</strong> (Ngang 16:9)
+                                        <div class="text-secondary" style="font-size:0.75rem;">Gán vào Media Assets loại BACKDROP làm hình nền/theme trang xem phim</div>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="chkAutoThumb">
+                                    <label class="form-check-label text-light small fw-medium" for="chkAutoThumb">
+                                        <i class="bi bi-card-image text-success me-1"></i><strong>Thumbnail tập/video</strong> (Ngang 16:9)
+                                        <div class="text-secondary" style="font-size:0.75rem;">Gán vào Media Assets loại THUMBNAIL</div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-semibold text-light mb-2">Phong cách điện ảnh (AI Style):</label>
+                            <select id="autoBindStyle" class="form-select bg-dark text-light border-secondary border-opacity-50 mb-3">
+                                <option value="cinematic" selected>🎬 Cinematic Theatrical (Điện ảnh hoành tráng, IMAX)</option>
+                                <option value="realistic">📸 Realistic Movie Still (Khung hình phim chân thực)</option>
+                                <option value="dark">🌑 Dark & Moody Thriller (Bí ẩn, kịch tính, noir)</option>
+                                <option value="anime">🎨 Anime Key Art (Phong cách Makoto Shinkai/Ghibli)</option>
+                                <option value="poster">🖼️ Graphic Poster (Poster nghệ thuật cổ điển)</option>
+                            </select>
+
+                            <div class="p-2 px-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+                                <div class="d-flex justify-content-between align-items-center small">
+                                    <span class="text-secondary">Khóa API Gemini:</span>
+                                    <span id="autoBindApiKeyStatus" class="badge text-muted">Mặc định: Key hệ thống</span>
+                                </div>
+                                <div class="text-secondary small mt-1" style="font-size: 0.75rem;">
+                                    Gemini Imagen 3 sẽ tự động phân tích tên phim, thể loại và tóm tắt để tạo Poster & Theme đồng bộ chất lượng cao.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-warning w-100 py-2 fs-6 fw-bold shadow-sm" id="btnStartAutoBind">
+                        <i class="bi bi-magic me-2"></i>Bắt đầu tự động tạo & Gán vào phim
+                    </button>
+                </div>
+
+                <!-- Progress Section (Hiển thị khi đang chạy) -->
+                <div id="autoBindProgressSection" class="d-none my-3">
+                    <div class="p-4 rounded-3 text-center" style="background: rgba(0,0,0,0.35); border: 1px solid rgba(25,211,197,0.2);">
+                        <div class="spinner-border text-warning mb-3" style="width: 3.2rem; height: 3.2rem;" role="status"></div>
+                        <h6 class="text-light fw-bold" id="autoBindProgressTitle">Gemini AI đang sáng tạo hình ảnh...</h6>
+                        <p class="text-secondary small mb-3" id="autoBindProgressDetail">Đang phân tích thông tin phim và chuẩn bị prompt...</p>
+                        <div class="progress mb-2" style="height: 10px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" id="autoBindProgressBar" role="progressbar" style="width: 25%"></div>
+                        </div>
+                        <div class="text-muted small" style="font-size: 0.78rem;">Quá trình mất khoảng 15 - 30 giây để hoàn tất tạo và gắn toàn bộ hình ảnh. Vui lòng không đóng cửa sổ.</div>
+                    </div>
+                </div>
+
+                <!-- Result Section (Hiển thị khi hoàn tất) -->
+                <div id="autoBindResultSection" class="d-none mt-3">
+                    <div class="alert alert-success d-flex align-items-center gap-2 py-2 mb-3" id="autoBindSuccessAlert">
+                        <i class="bi bi-check-circle-fill fs-5"></i>
+                        <span id="autoBindSuccessMessage">Đã tự động tạo và gắn Poster, Theme thành công cho phim!</span>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Poster Preview -->
+                        <div class="col-12 col-md-5" id="autoBindPosterCol">
+                            <div class="p-2 rounded-3 text-center h-100 d-flex flex-column" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1);">
+                                <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-file-image me-1"></i>POSTER</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Đã gắn vào phim</span>
+                                </div>
+                                <div class="ratio ratio-3x4 rounded overflow-hidden mb-2 bg-dark flex-grow-1" style="max-height: 280px;">
+                                    <img id="autoBindPosterImg" src="" alt="Poster" class="w-100 h-100 object-fit-cover" />
+                                </div>
+                                <a id="btnViewPosterLink" href="#" target="_blank" class="btn btn-sm btn-outline-info w-100 mt-auto">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Xem ảnh đầy đủ
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Theme / Backdrop Preview -->
+                        <div class="col-12 col-md-7" id="autoBindBackdropCol">
+                            <div class="p-2 rounded-3 text-center h-100 d-flex flex-column" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1);">
+                                <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                                    <span class="badge bg-info text-dark"><i class="bi bi-aspect-ratio me-1"></i>THEME / BACKDROP</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Đã gắn vào phim</span>
+                                </div>
+                                <div class="ratio ratio-16x9 rounded overflow-hidden mb-2 bg-dark flex-grow-1" style="max-height: 280px;">
+                                    <img id="autoBindBackdropImg" src="" alt="Backdrop" class="w-100 h-100 object-fit-cover" />
+                                </div>
+                                <a id="btnViewBackdropLink" href="#" target="_blank" class="btn btn-sm btn-outline-info w-100 mt-auto">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Xem ảnh đầy đủ
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary border-opacity-25 py-2 d-flex justify-content-between">
+                <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Ảnh tự động lưu vào Cloudflare R2 / Media Assets và cập nhật giao diện xem phim ngay lập tức.</span>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
             </div>
         </div>
     </div>
@@ -825,6 +1198,10 @@
             approveSubtitle: '@urlApproveSubtitle',
             getSubtitlesBySource: '@urlGetSubtitlesBySource',
             saveSourceSubtitles: '@urlSaveSourceSubtitles',
+            generateGeminiImage: '@urlGenerateGeminiImage',
+            enhanceGeminiPrompt: '@urlEnhanceGeminiPrompt',
+            saveGeminiAsset: '@urlSaveGeminiAsset',
+            autoGenerateAndBind: '@urlAutoGenerateAndBind',
             movies:  '@urlGetAllMovies',
             eps:     '@urlGetAllEpisodes',
             series:  '@urlGetAllSeries',
@@ -1119,6 +1496,15 @@
             }
             return undefined;
           }
+          function escapeHtml(str){
+            if (!str) return '';
+            return String(str)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#39;');
+          }
           function uniqueById(list, idSelector){
             const seen = new Set();
             return (Array.isArray(list) ? list : []).filter(item=>{
@@ -1266,6 +1652,12 @@
                 </td>
                 <td class="text-end">
                   <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-warning btn-auto-bind-assets" data-id="${id}" data-movie-id="${movieId || ''}" data-movie-title="${escapeHtml(movieTitle || '')}" title="⚡ Tự động tạo & Gán Poster, Theme AI cho phim này">
+                      <i class="bi bi-magic"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-info btn-row-gen-image" data-id="${id}" data-movie-id="${movieId || ''}" data-movie-title="${escapeHtml(movieTitle || '')}" title="Tạo ảnh AI tùy chỉnh bằng Gemini">
+                      <i class="bi bi-stars"></i>
+                    </button>
                     <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}" title="Sửa nguồn">
                       <i class="bi bi-pencil"></i>
                     </button>
@@ -3265,6 +3657,440 @@
             const id = $(this).data('id');
             const url = $(this).data('url');
             confirmAndDeleteSource(id, url);
+          });
+
+          // ===== Gemini AI Image Generator =====
+          const geminiImageModalEl = document.getElementById('geminiImageModal');
+          const geminiImageModal = geminiImageModalEl ? new bootstrap.Modal(geminiImageModalEl) : null;
+          let currentGeneratedImageBase64 = null;
+          let currentGeneratedMimeType = 'image/jpeg';
+
+          // Load remembered API key
+          (function initGeminiApiKey(){
+            const savedKey = localStorage.getItem('gemini_custom_api_key') || '';
+            if (savedKey) {
+              $('#geminiApiKey').val(savedKey);
+              $('#geminiApiKeyBadge').removeClass('text-muted').addClass('bg-success-subtle text-success border border-success-subtle')
+                .html('<i class="bi bi-key-fill me-1"></i>Đang dùng Key cá nhân');
+            }
+          })();
+
+          $('#geminiApiKey').on('input', function(){
+            const val = ($(this).val() || '').trim();
+            if ($('#chkRememberApiKey').is(':checked')) {
+              if (val) localStorage.setItem('gemini_custom_api_key', val);
+              else localStorage.removeItem('gemini_custom_api_key');
+            }
+            if (val) {
+              $('#geminiApiKeyBadge').removeClass('text-muted').addClass('bg-success-subtle text-success border border-success-subtle')
+                .html('<i class="bi bi-key-fill me-1"></i>Đang dùng Key cá nhân');
+            } else {
+              $('#geminiApiKeyBadge').removeClass('bg-success-subtle text-success border border-success-subtle').addClass('text-muted')
+                .text('Mặc định: Key hệ thống');
+            }
+          });
+
+          $('#btnClearApiKey').on('click', function(){
+            $('#geminiApiKey').val('').trigger('input');
+            localStorage.removeItem('gemini_custom_api_key');
+            showToast('Đã xóa API Key cá nhân. Sẽ sử dụng key hệ thống.', true);
+          });
+
+          $('#btnToggleApiKeyVisibility').on('click', function(){
+            const $inp = $('#geminiApiKey');
+            const isPassword = $inp.attr('type') === 'password';
+            $inp.attr('type', isPassword ? 'text' : 'password');
+            $(this).find('i').toggleClass('bi-eye bi-eye-slash');
+          });
+
+          // Aspect ratio change -> update asset type default
+          $('input[name="geminiAspectRatio"]').on('change', function(){
+            const ratio = $('input[name="geminiAspectRatio"]:checked').val();
+            if (ratio === '3:4') {
+              $('#geminiSaveAssetType').val('POSTER');
+            } else if (ratio === '16:9') {
+              $('#geminiSaveAssetType').val('BACKDROP');
+            } else {
+              $('#geminiSaveAssetType').val('THUMB');
+            }
+          });
+
+          function fillGeminiTargetMovies(selectedMovieId){
+            const $ddl = $('#geminiTargetMovie');
+            $ddl.empty().append(new Option('-- Chọn phim cần tạo hình ảnh --', '', false, false));
+            if (!urls.movies) return;
+
+            $.get(urls.movies, res => {
+              const list = uniqueById(pickList(res), m => gv(m, 'movieId', 'MovieId', 'moviE_ID'));
+              list.forEach(m => {
+                const id = gv(m, 'movieId', 'MovieId', 'moviE_ID');
+                const title = gv(m, 'title', 'Title') || `Movie #${id}`;
+                const opt = new Option(`[#${id}] ${title}`, id, false, false);
+                $(opt).data('movie-item', m);
+                $ddl.append(opt);
+              });
+              if (selectedMovieId) {
+                $ddl.val(String(selectedMovieId)).trigger('change');
+              }
+            });
+          }
+
+          function openGeminiImageModalFor(movieId, movieTitle){
+            if (!geminiImageModal) return;
+            fillGeminiTargetMovies(movieId);
+            if (movieTitle && !$('#geminiPrompt').val()) {
+              $('#geminiPrompt').val(`Cinematic poster for movie "${movieTitle}", dramatic lighting, ultra-realistic 8k render, stunning depth`);
+            }
+            geminiImageModal.show();
+          }
+
+          $('#btnTopGeminiImage').on('click', function(){
+            openGeminiImageModalFor();
+          });
+
+          $('#btnOpenGeminiImageModal').on('click', function(){
+            const isMovie = $('#targetMovie').is(':checked');
+            const movieId = isMovie ? $('#MovieId').val() : $('#SeasonMovieId').val();
+            const movieText = isMovie ? $('#MovieId option:selected').text() : $('#SeasonMovieId option:selected').text();
+            openGeminiImageModalFor(movieId, movieText);
+          });
+
+          $tbody.on('click', '.btn-row-gen-image', function(){
+            const mId = $(this).data('movie-id');
+            const mTitle = $(this).data('movie-title');
+            openGeminiImageModalFor(mId, mTitle);
+          });
+
+          // Lấy gợi ý từ phim
+          $('#btnAutoPromptFromMovie').on('click', function(){
+            const $opt = $('#geminiTargetMovie option:selected');
+            const m = $opt.data('movie-item');
+            if (!m) {
+              showToast('Vui lòng chọn một phim trước để lấy thông tin gợi ý.', false);
+              return;
+            }
+            const title = gv(m, 'title', 'Title') || '';
+            const overview = gv(m, 'overview', 'Overview') || '';
+            const genre = gv(m, 'genre', 'Genre', 'genres', 'Genres') || '';
+            const year = gv(m, 'releaseYear', 'ReleaseYear') || '';
+
+            let promptDraft = `Cinematic key visual for ${title ? `"${title}"` : 'movie'}`;
+            if (genre) promptDraft += `, genre: ${genre}`;
+            if (year) promptDraft += ` (${year})`;
+            if (overview) promptDraft += `. Scene overview: ${overview.substring(0, 150)}`;
+            promptDraft += `, dramatic lighting, photorealistic 8k, master composition`;
+
+            $('#geminiPrompt').val(promptDraft);
+            showToast('Đã nạp thông tin phim vào prompt!', true);
+          });
+
+          // ✨ Tối ưu Prompt bằng Gemini
+          $('#btnEnhancePrompt').on('click', function(){
+            const rawPrompt = ($('#geminiPrompt').val() || '').trim();
+            if (!rawPrompt) {
+              showToast('Vui lòng nhập mô tả sơ lược trước khi bấm Tối ưu Prompt.', false);
+              return;
+            }
+            const $btn = $(this);
+            const originalHtml = $btn.html();
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang tối ưu...');
+
+            const customApiKey = ($('#geminiApiKey').val() || '').trim();
+            const style = $('#geminiStyle').val();
+            const movieTitle = $('#geminiTargetMovie option:selected').val() ? $('#geminiTargetMovie option:selected').text() : '';
+
+            $.ajax({
+              url: urls.enhanceGeminiPrompt,
+              type: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify({
+                description: rawPrompt,
+                title: movieTitle,
+                style: style,
+                apiKey: customApiKey || null
+              }),
+              success(res){
+                if (res && res.success && res.enhancedPrompt) {
+                  $('#geminiPrompt').val(res.enhancedPrompt);
+                  showToast('Đã tối ưu prompt thành công bằng Gemini!', true);
+                } else {
+                  showToast(res?.errorMessage || 'Không thể tối ưu prompt. Vui lòng thử lại.', false);
+                }
+              },
+              error(xhr){
+                const msg = xhr?.responseJSON?.errorMessage || xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi khi gọi API tối ưu prompt.';
+                showToast(msg, false);
+              },
+              complete(){
+                $btn.prop('disabled', false).html(originalHtml);
+              }
+            });
+          });
+
+          // Bắt đầu tạo hình ảnh
+          $('#btnStartGenerateImage, #btnRegenerateImg').on('click', function(){
+            const prompt = ($('#geminiPrompt').val() || '').trim();
+            if (!prompt) {
+              showToast('Vui lòng nhập prompt mô tả hình ảnh.', false);
+              $('#geminiPrompt').focus();
+              return;
+            }
+
+            const aspectRatio = $('input[name="geminiAspectRatio"]:checked').val() || '16:9';
+            const model = $('#geminiModel').val() || 'imagen-3.0-generate-002';
+            const customApiKey = ($('#geminiApiKey').val() || '').trim();
+
+            const $btn = $('#btnStartGenerateImage');
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Gemini đang vẽ ảnh...');
+            $('#geminiStatusBadge').removeClass('bg-secondary-subtle bg-success-subtle bg-danger-subtle').addClass('bg-warning-subtle text-warning border border-warning-subtle').text('Đang tạo ảnh...');
+            $('#geminiPreviewEmpty').addClass('d-none');
+            $('#geminiResultImg').addClass('d-none');
+            $('#geminiActionBox').addClass('d-none');
+            $('#geminiPreviewLoading').removeClass('d-none');
+
+            $.ajax({
+              url: urls.generateGeminiImage,
+              type: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify({
+                prompt: prompt,
+                aspectRatio: aspectRatio,
+                model: model,
+                apiKey: customApiKey || null
+              }),
+              success(res){
+                if (res && res.success && res.base64Data) {
+                  currentGeneratedImageBase64 = res.base64Data;
+                  currentGeneratedMimeType = res.mimeType || 'image/jpeg';
+                  const dataUrl = `data:${currentGeneratedMimeType};base64,${currentGeneratedImageBase64}`;
+
+                  $('#geminiResultImg').attr('src', dataUrl).removeClass('d-none');
+                  $('#btnDownloadGeminiImg').attr('href', dataUrl).attr('download', `gemini_${aspectRatio.replace(':','x')}_${Date.now()}.jpg`);
+                  $('#geminiActionBox').removeClass('d-none');
+                  $('#geminiStatusBadge').removeClass('bg-warning-subtle text-warning').addClass('bg-success-subtle text-success border border-success-subtle').text('Tạo ảnh thành công');
+                  showToast('Tạo hình ảnh bằng AI thành công!', true);
+                } else {
+                  $('#geminiPreviewEmpty').removeClass('d-none');
+                  $('#geminiStatusBadge').removeClass('bg-warning-subtle text-warning').addClass('bg-danger-subtle text-danger border border-danger-subtle').text('Thất bại');
+                  showToast(res?.errorMessage || 'Không thể tạo ảnh từ Gemini API.', false);
+                }
+              },
+              error(xhr){
+                $('#geminiPreviewEmpty').removeClass('d-none');
+                $('#geminiStatusBadge').removeClass('bg-warning-subtle text-warning').addClass('bg-danger-subtle text-danger border border-danger-subtle').text('Lỗi kết nối');
+                const msg = xhr?.responseJSON?.errorMessage || xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi khi gọi API tạo ảnh.';
+                showToast(msg, false);
+              },
+              complete(){
+                $('#geminiPreviewLoading').addClass('d-none');
+                $btn.prop('disabled', false).html('<i class="bi bi-stars me-2"></i>Bắt đầu tạo hình ảnh');
+              }
+            });
+          });
+
+          // Sao chép data URL
+          $('#btnCopyImgBase64').on('click', function(){
+            if (!currentGeneratedImageBase64) return;
+            const dataUrl = `data:${currentGeneratedMimeType};base64,${currentGeneratedImageBase64}`;
+            navigator.clipboard.writeText(dataUrl).then(()=>{
+              showToast('Đã sao chép Data URL của hình ảnh!', true);
+            }).catch(()=>{
+              showToast('Không thể sao chép URL vào clipboard.', false);
+            });
+          });
+
+          // Lưu ảnh vào Media Asset của phim
+          $('#btnSaveToMovieAsset').on('click', function(){
+            const movieId = $('#geminiTargetMovie').val();
+            if (!movieId) {
+              showToast('Vui lòng chọn Phim cần gán hình ảnh.', false);
+              $('#geminiTargetMovie').focus();
+              return;
+            }
+            if (!currentGeneratedImageBase64) {
+              showToast('Chưa có hình ảnh nào được tạo để lưu.', false);
+              return;
+            }
+
+            const assetType = $('#geminiSaveAssetType').val() || 'POSTER';
+            const $btn = $(this);
+            const originalHtml = $btn.html();
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...');
+
+            $.ajax({
+              url: urls.saveGeminiAsset,
+              type: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify({
+                ownerType: 'MOVIE',
+                ownerId: Number(movieId),
+                assetType: assetType,
+                base64Data: currentGeneratedImageBase64,
+                mimeType: currentGeneratedMimeType,
+                sortOrder: 0
+              }),
+              success(res){
+                const ok = res && (res.success === true || res.Success === true || res.code === '200');
+                if (ok) {
+                  showToast(res.message || 'Đã lưu hình ảnh AI thành công vào Media Assets của phim!', true);
+                  $btn.html('<i class="bi bi-check2-all me-1"></i>Đã lưu thành công!').removeClass('btn-success').addClass('btn-outline-success');
+                } else {
+                  showToast(res?.message || 'Lưu media asset thất bại.', false);
+                  $btn.prop('disabled', false).html(originalHtml);
+                }
+              },
+              error(xhr){
+                const msg = xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi khi lưu media asset.';
+                showToast(msg, false);
+                $btn.prop('disabled', false).html(originalHtml);
+              }
+            });
+          });
+
+          // ===== Auto Generate & Bind Poster + Theme/Backdrop to Movie =====
+          const autoBindModalEl = document.getElementById('autoBindGeminiModal');
+          const autoBindModal = autoBindModalEl ? new bootstrap.Modal(autoBindModalEl) : null;
+
+          function openAutoBindModal(movieId, movieTitle, movieOverview, movieGenre) {
+            if (!movieId) {
+              showToast('Video source này chưa được gán vào phim nào hoặc chưa chọn phim.', false);
+              return;
+            }
+            $('#autoBindMovieId').val(movieId);
+            $('#autoBindMovieTitleDisplay').text(movieTitle || `Phim #${movieId}`);
+            $('#autoBindMovieDetailDisplay').text(`Mã phim: #${movieId}` + (movieGenre ? ` • Thể loại: ${movieGenre}` : ''));
+            
+            // Cập nhật trạng thái API key cá nhân / hệ thống
+            const customKey = localStorage.getItem('gemini_custom_api_key') || ($('#geminiApiKey').val() || '').trim();
+            if (customKey) {
+              $('#autoBindApiKeyStatus').removeClass('text-muted').addClass('bg-success-subtle text-success border border-success-subtle')
+                .html('<i class="bi bi-key-fill me-1"></i>Key cá nhân');
+            } else {
+              $('#autoBindApiKeyStatus').removeClass('bg-success-subtle text-success border border-success-subtle').addClass('text-muted')
+                .text('Mặc định: Key hệ thống');
+            }
+
+            // Reset modal state
+            $('#autoBindFormSection').removeClass('d-none');
+            $('#autoBindProgressSection').addClass('d-none');
+            $('#autoBindResultSection').addClass('d-none');
+            $('#btnStartAutoBind').prop('disabled', false).html('<i class="bi bi-magic me-2"></i>Bắt đầu tự động tạo & Gán vào phim');
+
+            autoBindModal?.show();
+          }
+
+          $tbody.on('click', '.btn-auto-bind-assets', function(){
+            const mId = $(this).data('movie-id');
+            const mTitle = $(this).data('movie-title');
+            openAutoBindModal(mId, mTitle);
+          });
+
+          $('#btnAutoBindFromModal').on('click', function(){
+            const isMovie = $('#targetMovie').is(':checked');
+            const movieId = isMovie ? $('#MovieId').val() : $('#SeasonMovieId').val();
+            const movieText = isMovie ? $('#MovieId option:selected').text() : $('#SeasonMovieId option:selected').text();
+            openAutoBindModal(movieId, movieText);
+          });
+
+          $('#btnStartAutoBind').on('click', function(){
+            const movieId = Number($('#autoBindMovieId').val());
+            if (!movieId) {
+              showToast('Không tìm thấy mã phim.', false);
+              return;
+            }
+
+            const genPoster = $('#chkAutoPoster').is(':checked');
+            const genBackdrop = $('#chkAutoBackdrop').is(':checked');
+            const genThumb = $('#chkAutoThumb').is(':checked');
+
+            if (!genPoster && !genBackdrop && !genThumb) {
+              showToast('Vui lòng chọn ít nhất một loại hình ảnh cần tạo (Poster hoặc Theme/Backdrop).', false);
+              return;
+            }
+
+            const style = $('#autoBindStyle').val() || 'cinematic';
+            const customApiKey = localStorage.getItem('gemini_custom_api_key') || ($('#geminiApiKey').val() || '').trim();
+            const movieTitle = $('#autoBindMovieTitleDisplay').text();
+
+            $('#autoBindFormSection').addClass('d-none');
+            $('#autoBindProgressSection').removeClass('d-none');
+            $('#autoBindResultSection').addClass('d-none');
+            $('#btnAutoBindClose').prop('disabled', true);
+
+            // Stepper feedback
+            let progressStep = 15;
+            $('#autoBindProgressBar').css('width', '15%');
+            $('#autoBindProgressTitle').text('Gemini AI đang bắt đầu sáng tạo...');
+            $('#autoBindProgressDetail').text(`1/3: Đang phân tích thông tin phim "${movieTitle}"...`);
+
+            const progressInterval = setInterval(() => {
+              if (progressStep < 85) {
+                progressStep += 5;
+                $('#autoBindProgressBar').css('width', `${progressStep}%`);
+                if (progressStep >= 35 && progressStep < 65) {
+                  $('#autoBindProgressDetail').text(`2/3: Đang dùng Imagen 3 tạo Poster và Theme/Backdrop điện ảnh...`);
+                } else if (progressStep >= 65) {
+                  $('#autoBindProgressDetail').text(`3/3: Đang tải ảnh lên Cloudflare R2 và gắn vào Media Assets của phim...`);
+                }
+              }
+            }, 2200);
+
+            $.ajax({
+              url: urls.autoGenerateAndBind,
+              type: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify({
+                movieId: movieId,
+                movieTitle: movieTitle,
+                generatePoster: genPoster,
+                generateBackdrop: genBackdrop,
+                generateThumb: genThumb,
+                style: style,
+                apiKey: customApiKey || null,
+                sortOrder: 0
+              }),
+              success(res) {
+                clearInterval(progressInterval);
+                $('#autoBindProgressBar').css('width', '100%');
+                $('#autoBindProgressSection').addClass('d-none');
+                $('#btnAutoBindClose').prop('disabled', false);
+
+                if (res && res.success) {
+                  $('#autoBindResultSection').removeClass('d-none');
+                  $('#autoBindSuccessMessage').text(res.message || `Đã tạo và gắn Poster, Theme cho phim "${movieTitle}" thành công!`);
+
+                  if (res.posterUrl) {
+                    $('#autoBindPosterCol').removeClass('d-none');
+                    $('#autoBindPosterImg').attr('src', res.posterUrl);
+                    $('#btnViewPosterLink').attr('href', res.posterUrl);
+                  } else {
+                    $('#autoBindPosterCol').addClass('d-none');
+                  }
+
+                  if (res.backdropUrl) {
+                    $('#autoBindBackdropCol').removeClass('d-none');
+                    $('#autoBindBackdropImg').attr('src', res.backdropUrl);
+                    $('#btnViewBackdropLink').attr('href', res.backdropUrl);
+                  } else {
+                    $('#autoBindBackdropCol').addClass('d-none');
+                  }
+
+                  showToast(`Tạo và gắn ảnh cho phim "${movieTitle}" thành công!`, true, 5000);
+                } else {
+                  $('#autoBindFormSection').removeClass('d-none');
+                  const errMsg = res?.message || (res?.errors ? res.errors.join(' | ') : 'Không thể tự động tạo ảnh.');
+                  showToast(errMsg, false, 8000);
+                }
+              },
+              error(xhr) {
+                clearInterval(progressInterval);
+                $('#autoBindProgressSection').addClass('d-none');
+                $('#autoBindFormSection').removeClass('d-none');
+                $('#btnAutoBindClose').prop('disabled', false);
+                const errMsg = xhr?.responseJSON?.message || xhr?.responseText || 'Lỗi khi gọi API tạo và gắn ảnh AI.';
+                showToast(errMsg, false, 8000);
+              }
+            });
           });
 
           // First load
