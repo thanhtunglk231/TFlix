@@ -178,4 +178,37 @@ public sealed class SubtitleController : AdminBaseController
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpGet]
+    public async Task<IActionResult> GetBySource(long sourceId)
+    {
+        if (sourceId <= 0) return BadRequest(new { message = "SourceId không hợp lệ." });
+        try
+        {
+            var res = await _service.GetBySourceAsync(sourceId);
+            return Ok(res);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveSourceSubtitles([FromBody] SaveSourceSubtitlesDto request)
+    {
+        if (request == null || request.SourceId <= 0 || request.Cues == null || request.Cues.Count == 0)
+            return BadRequest(new { message = "Dữ liệu phụ đề không hợp lệ." });
+        try
+        {
+            var result = await _service.SaveSourceSubtitlesAsync(request.SourceId, request.Cues);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
+

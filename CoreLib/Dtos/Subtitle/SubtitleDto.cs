@@ -71,6 +71,13 @@ namespace CoreLib.Dtos.Subtitle
         public List<GeminiSourceSubtitleCue> Cues { get; set; } = new();
     }
 
+    public sealed class SaveSourceSubtitlesDto
+    {
+        public long SourceId { get; set; }
+        public List<GeminiSourceSubtitleCue> Cues { get; set; } = new();
+    }
+
+
     public sealed class SubtitleCueDto
     {
         [JsonPropertyName("index")]

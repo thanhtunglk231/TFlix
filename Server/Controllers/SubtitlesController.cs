@@ -122,6 +122,24 @@ namespace Server.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetBySource(long sourceId) => Ok(await _repository.GetBySourceAsync(sourceId));
 
+        [HttpPost("source/{sourceId:long}/save")]
+        [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        public async Task<IActionResult> SaveSourceSubtitles(long sourceId, [FromBody] SaveSourceSubtitlesDto request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (sourceId <= 0 || request.Cues == null || request.Cues.Count == 0)
+                    return BadRequest(new { message = "Dữ liệu phụ đề không hợp lệ." });
+                var success = await _browserJobs.SaveSourceSubtitlesAsync(sourceId, request.Cues, cancellationToken);
+                return Ok(new { success, message = "Đã lưu chỉnh sửa phụ đề thành công." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+
         [HttpPost("generate/{sourceId:long}")]
         [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
         public async Task<IActionResult> GenerateForSource(long sourceId, CancellationToken cancellationToken)

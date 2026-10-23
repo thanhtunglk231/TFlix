@@ -8,6 +8,12 @@
     var urlUpdate = Url.Action("UpdateMovie", "Movie", new { area = "Admin" });
     var urlDelete = Url.Action("Delete", "Movie", new { area = "Admin" });
 
+    // Series & Season
+    var urlSeriesGetAll = Url.Action("GetAll", "Series", new { area = "Admin" });
+    var urlSeasonGetAll = Url.Action("GetAll", "Season", new { area = "Admin" });
+    var urlAssignMovie  = Url.Action("AssignMovie", "Season", new { area = "Admin" });
+    var urlRemoveMovie  = Url.Action("RemoveMovie", "Season", new { area = "Admin" });
+
     // MovieAsset
     var urlAssetAdd = Url.Action("Add", "MovieAsset", new { area = "Admin" });
     var urlAssetRoot = Url.Content("~/Admin/MovieAsset");
@@ -144,10 +150,17 @@
 <div class="card">
     <div class="card-body">
         <div class="row g-2 mb-3">
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-3">
                 <input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề...">
             </div>
             <div class="col-6 col-md-3">
+                <select id="slSeriesFilter" class="form-select">
+                    <option value="">Phim bộ (Tất cả)</option>
+                    <option value="__standalone">Phim lẻ độc lập</option>
+                    <option value="__inseries">Thuộc phim bộ</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
                 <select id="slStatus" class="form-select">
                     <option value="">Trạng thái (Tất cả)</option>
                     <option value="PUBLISHED">PUBLISHED</option>
@@ -156,7 +169,7 @@
                     <option value="RELEASED">RELEASED</option>
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <select id="slPremium" class="form-select">
                     <option value="">Premium (Tất cả)</option>
                     <option value="Y">Có</option>
@@ -177,8 +190,9 @@
             <table id="movieTable" class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th style="width:90px;">ID</th>
+                        <th style="width:70px;">ID</th>
                         <th>Tiêu đề</th>
+                        <th style="min-width:180px;">Thuộc Bộ / Mùa</th>
                         <th class="text-nowrap">Release Date</th>
                         <th class="text-nowrap">Duration (min)</th>
                         <th>Status</th>
@@ -264,6 +278,38 @@
                     <div class="col-md-4">
                         <label class="form-label">Poster URL</label>
                         <input class="form-control" id="PosterUrl" placeholder="https://..." />
+                    </div>
+
+                    <!-- Lựa chọn Series và Season cho phim -->
+                    <div class="col-12">
+                        <div class="card p-3" style="background:#1a1e28; border: 1px solid rgba(39, 211, 195, 0.25); border-radius: 8px;">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <h6 class="m-0 text-info"><i class="bi bi-collection-play me-2"></i>Thuộc Phim bộ / Mùa (Series &amp; Season)</h6>
+                                <span class="badge bg-secondary-subtle text-secondary" id="movieSeasonStatusBadge">Phim lẻ độc lập</span>
+                            </div>
+                            <p class="text-secondary small mb-3">Nếu phim này là một tập phim thuộc Phim bộ, hãy chọn Phim bộ và Mùa. Để trống nếu là phim lẻ độc lập.</p>
+                            <div class="row g-2">
+                                <div class="col-md-5">
+                                    <label class="form-label small">Chọn Phim bộ (Series)</label>
+                                    <select class="form-select" id="Movie_SeriesId">
+                                        <option value="">-- Phim lẻ độc lập (Không thuộc bộ) --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Chọn Mùa (Season)</label>
+                                    <select class="form-select" id="Movie_SeasonId" disabled>
+                                        <option value="">-- Chọn mùa --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Tập số (Episode No)</label>
+                                    <input type="number" class="form-control" id="Movie_EpisodeNo" min="1" placeholder="Tập số (vd: 1)" disabled />
+                                </div>
+                            </div>
+                            <input type="hidden" id="Movie_ExistingEpisodeId" />
+                            <input type="hidden" id="Movie_OriginalSeriesId" />
+                            <input type="hidden" id="Movie_OriginalSeasonId" />
+                        </div>
                     </div>
 
                     <div class="col-12">
@@ -424,6 +470,14 @@
                     update: '@urlUpdate',
                     delete: '@urlDelete'
                 },
+                series: {
+                    getAll: '@urlSeriesGetAll'
+                },
+                season: {
+                    getAll: '@urlSeasonGetAll',
+                    assignMovie: '@urlAssignMovie',
+                    removeMovie: '@urlRemoveMovie'
+                },
                 asset: {
                     root: '@urlAssetRoot',
                     add: '@urlAssetAdd'
@@ -456,6 +510,8 @@
             let assetCache = [];
             let genreMaster = [];
             let genreCache = [];
+            let seriesMaster = [];
+            let seasonMaster = [];
             let pendingAssets = [];
             let pendingGenres = [];
 
@@ -585,20 +641,109 @@
                 });
             }
 
+            async function loadSeriesAndSeasonMaster() {
+                try {
+                    const [resSeries, resSeason] = await Promise.all([
+                        $.get(urls.series.getAll),
+                        $.get(urls.season.getAll)
+                    ]);
+                    seriesMaster = pickList(resSeries);
+                    seasonMaster = pickList(resSeason);
+
+                    const currentFilter = $('#slSeriesFilter').val();
+                    const filterOpts = seriesMaster.map(s => {
+                        const sid = s.seriesId ?? s.SeriesId ?? s.serieS_ID;
+                        const tit = s.title ?? s.Title ?? `Series #${sid}`;
+                        return `<option value="${sid}">Bộ: ${tit}</option>`;
+                    }).join('');
+                    $('#slSeriesFilter').html(`
+                        <option value="">Phim bộ (Tất cả)</option>
+                        <option value="__standalone">Phim lẻ độc lập</option>
+                        <option value="__inseries">Thuộc phim bộ</option>
+                        ${filterOpts}
+                    `);
+                    if (currentFilter) $('#slSeriesFilter').val(currentFilter);
+
+                    const currentModalSeries = $('#Movie_SeriesId').val();
+                    const modalOpts = seriesMaster.map(s => {
+                        const sid = s.seriesId ?? s.SeriesId ?? s.serieS_ID;
+                        const tit = s.title ?? s.Title ?? `Series #${sid}`;
+                        return `<option value="${sid}">[#${sid}] ${tit}</option>`;
+                    }).join('');
+                    $('#Movie_SeriesId').html(`
+                        <option value="">-- Phim lẻ độc lập (Không thuộc bộ) --</option>
+                        ${modalOpts}
+                    `);
+                    if (currentModalSeries) $('#Movie_SeriesId').val(currentModalSeries);
+                } catch (err) {
+                    console.error('Error loading Series & Season master:', err);
+                }
+            }
+
+            function onSeriesChange() {
+                const selSeriesId = +($('#Movie_SeriesId').val() || 0);
+                const $season = $('#Movie_SeasonId');
+                const $epNo = $('#Movie_EpisodeNo');
+                const $badge = $('#movieSeasonStatusBadge');
+
+                if (!selSeriesId) {
+                    $season.prop('disabled', true).html('<option value="">-- Chọn mùa --</option>');
+                    $epNo.prop('disabled', true).val('');
+                    $badge.removeClass('bg-info text-dark').addClass('bg-secondary-subtle text-secondary').text('Phim lẻ độc lập');
+                    return;
+                }
+
+                $badge.removeClass('bg-secondary-subtle text-secondary').addClass('bg-info text-dark').text('Thuộc Phim bộ');
+
+                const seasons = seasonMaster.filter(s => {
+                    const sid = s.serieS_ID ?? s.SeriesId ?? s.seriesId;
+                    return +sid === selSeriesId;
+                });
+
+                if (seasons.length > 0) {
+                    const opts = seasons.map(s => {
+                        const id = s.seasoN_ID ?? s.SeasonId ?? s.seasonId;
+                        const no = s.seasoN_NO ?? s.SeasonNo ?? s.seasonNo ?? 1;
+                        const tit = s.title ?? s.Title ?? `Mùa ${no}`;
+                        return `<option value="${id}">Mùa ${no}: ${tit}</option>`;
+                    }).join('');
+                    $season.prop('disabled', false).html(opts);
+                } else {
+                    $season.prop('disabled', false).html('<option value="0">Tự động tạo Mùa 1</option>');
+                }
+
+                $epNo.prop('disabled', false);
+                if (!$epNo.val()) {
+                    $epNo.val(1);
+                }
+            }
+
             function applyFilter() {
                 const q = ($('#txtSearch').val() || '').trim().toLowerCase();
                 const st = ($('#slStatus').val() || '').trim();
                 const pm = ($('#slPremium').val() || '').trim();
+                const sFilter = ($('#slSeriesFilter').val() || '').trim();
 
                 filtered = cache.filter(m => {
                     const title = (m.title ?? m.Title ?? '').toLowerCase();
                     const status = (m.status ?? m.Status ?? '');
                     const ip = (m.iS_PREMIUM ?? m.IsPremium ?? m.IsPremiumYN ?? 'N');
                     const yn = (typeof ip === 'string') ? ip.toUpperCase() : (ip ? 'Y' : 'N');
+                    const sid = String(m.seriesId ?? m.SeriesId ?? m.serieS_ID ?? m.series_id ?? '');
+
+                    let matchSeries = true;
+                    if (sFilter === '__standalone') {
+                        matchSeries = !sid;
+                    } else if (sFilter === '__inseries') {
+                        matchSeries = !!sid;
+                    } else if (sFilter) {
+                        matchSeries = sid === sFilter;
+                    }
 
                     return (!q || title.includes(q))
                         && (!st || status === st)
-                        && (!pm || yn === pm);
+                        && (!pm || yn === pm)
+                        && matchSeries;
                 });
             }
 
@@ -616,10 +761,33 @@
                     const yn = (typeof ip === 'string') ? ip.toUpperCase() : (ip ? 'Y' : 'N');
                     const ipTx = yn === 'Y' ? 'Có' : 'Không';
 
+                    const sTitle = m.seriesTitle ?? m.SeriesTitle ?? m.serieS_TITLE ?? m.series_title ?? '';
+                    const sId = m.seriesId ?? m.SeriesId ?? m.serieS_ID ?? m.series_id ?? null;
+                    const sNo = m.seasonNo ?? m.SeasonNo ?? m.seasoN_NO ?? m.season_no ?? '';
+                    const epNo = m.episodeNo ?? m.EpisodeNo ?? m.episodE_NO ?? m.episode_no ?? '';
+
+                    let seriesBadge = `<span class="badge bg-secondary-subtle text-secondary small"><i class="bi bi-film me-1"></i>Phim lẻ độc lập</span>`;
+                    if (sId && sTitle) {
+                        seriesBadge = `
+                            <div class="d-flex flex-column gap-1">
+                                <span class="badge bg-info text-dark text-truncate" style="max-width:200px" title="${sTitle}"><i class="bi bi-collection-play me-1"></i>${sTitle}</span>
+                                <span class="badge bg-dark border border-secondary text-light small">Mùa ${sNo || 1} · Tập ${epNo || 1}</span>
+                            </div>
+                        `;
+                    } else if (sId) {
+                        seriesBadge = `
+                            <div class="d-flex flex-column gap-1">
+                                <span class="badge bg-info text-dark"><i class="bi bi-collection-play me-1"></i>Series #${sId}</span>
+                                <span class="badge bg-dark border border-secondary text-light small">Mùa ${sNo || 1} · Tập ${epNo || 1}</span>
+                            </div>
+                        `;
+                    }
+
                     return `
                         <tr>
                             <td class="text-muted">${id ?? ''}</td>
                             <td class="fw-semibold">${ti}</td>
+                            <td>${seriesBadge}</td>
                             <td>${rel || ''}</td>
                             <td>${dur || ''}</td>
                             <td><span class="chip">${stt}</span></td>
@@ -638,12 +806,13 @@
                     `;
                 }).join('');
 
-                $tbody.html(rows || `<tr><td colspan="7" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
+                $tbody.html(rows || `<tr><td colspan="8" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
                 renderPager(st);
             }
 
             function reloadAll() {
                 showLoading();
+                loadSeriesAndSeasonMaster();
                 $.get(urls.movie.getAll)
                     .done(res => {
                         cache = pickList(res);
@@ -676,6 +845,12 @@
                 $('#movieForm')[0].reset();
                 $('#IsPremium').val('N');
                 bindMovieId('');
+                $('#Movie_ExistingEpisodeId').val('');
+                $('#Movie_OriginalSeriesId').val('');
+                $('#Movie_OriginalSeasonId').val('');
+                $('#Movie_SeriesId').val('');
+                onSeriesChange();
+
                 assetCache = [];
                 genreCache = [];
                 pendingAssets = [];
@@ -717,6 +892,29 @@
                 $('#Movie_CountryCode').val(m.countryCode ?? m.CountryCode ?? '');
                 $('#Movie_LanguageCode').val(m.languageCode ?? m.LanguageCode ?? '');
 
+                const sid = m.seriesId ?? m.SeriesId ?? m.serieS_ID ?? m.series_id ?? null;
+                const seasonId = m.seasonId ?? m.SeasonId ?? m.seasoN_ID ?? m.season_id ?? null;
+                const epNo = m.episodeNo ?? m.EpisodeNo ?? m.episodE_NO ?? m.episode_no ?? null;
+                const epId = m.episodeId ?? m.EpisodeId ?? m.episodE_ID ?? m.episode_id ?? null;
+
+                $('#Movie_ExistingEpisodeId').val(epId || '');
+                $('#Movie_OriginalSeriesId').val(sid || '');
+                $('#Movie_OriginalSeasonId').val(seasonId || '');
+
+                if (sid) {
+                    $('#Movie_SeriesId').val(sid);
+                    onSeriesChange();
+                    if (seasonId) {
+                        $('#Movie_SeasonId').val(seasonId);
+                    }
+                    if (epNo) {
+                        $('#Movie_EpisodeNo').val(epNo);
+                    }
+                } else {
+                    $('#Movie_SeriesId').val('');
+                    onSeriesChange();
+                }
+
                 resetAssetForm();
                 resetGenreForm();
                 setRelatedPanelsEnabled(true);
@@ -725,6 +923,37 @@
                 loadGenreMaster().then(() => loadGenresFor(movieId));
 
                 modal.show();
+            }
+
+            async function saveSeriesSeasonAssignment(movieId) {
+                const selSeriesId = +($('#Movie_SeriesId').val() || 0);
+                const selSeasonId = +($('#Movie_SeasonId').val() || 0);
+                const selEpNo = +($('#Movie_EpisodeNo').val() || 1);
+                const origSeriesId = +($('#Movie_OriginalSeriesId').val() || 0);
+                const existingEpId = +($('#Movie_ExistingEpisodeId').val() || 0);
+
+                if (selSeriesId > 0) {
+                    await $.ajax({
+                        url: urls.season.assignMovie,
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        data: JSON.stringify({
+                            SeriesId: selSeriesId,
+                            SeasonId: selSeasonId,
+                            MovieId: movieId,
+                            EpisodeNo: selEpNo
+                        })
+                    });
+                } else if (existingEpId > 0 || origSeriesId > 0) {
+                    if (existingEpId > 0) {
+                        await $.ajax({
+                            url: urls.season.removeMovie,
+                            type: 'POST',
+                            contentType: 'application/json; charset=utf-8',
+                            data: JSON.stringify(existingEpId)
+                        });
+                    }
+                }
             }
 
             async function saveMovie() {
@@ -774,11 +1003,17 @@
                     }
 
                     if (isEdit) {
+                        try {
+                            await saveSeriesSeasonAssignment(+idStr);
+                        } catch (epErr) {
+                            console.warn('Lỗi gán phim vào season:', epErr);
+                        }
                         const relatedResult = await savePendingRelated(+idStr);
                         if (relatedResult.failed > 0) {
                             showToast(`Đã cập nhật phim, nhưng ${relatedResult.failed} mục liên quan vẫn chưa lưu được.`, false, 6000);
                         } else {
                             showToast('Đã cập nhật movie', true);
+                            modal.hide();
                         }
                         await ensureAssetCache(+idStr);
                         renderAssetRows(+idStr);
@@ -790,17 +1025,24 @@
                     const newMovieId = getMovieIdFromResponse(res);
                     if (!newMovieId) {
                         showToast('Đã lưu movie nhưng server chưa trả về MovieId.', false);
+                        modal.hide();
                         reloadAll();
                         return;
                     }
 
                     bindMovieId(newMovieId);
                     setRelatedPanelsEnabled(true);
+                    try {
+                        await saveSeriesSeasonAssignment(newMovieId);
+                    } catch (epErr) {
+                        console.warn('Lỗi gán phim vào season:', epErr);
+                    }
                     const relatedResult = await savePendingRelated(newMovieId);
                     if (relatedResult.failed > 0) {
                         showToast(`Đã tạo phim #${newMovieId}, nhưng ${relatedResult.failed} mục liên quan chưa lưu được. Bạn có thể thử lại ngay trong form.`, false, 6000);
                     } else {
                         showToast(`Đã tạo phim #${newMovieId} cùng tài nguyên và thể loại.`, true);
+                        modal.hide();
                     }
 
                     await ensureAssetCache(newMovieId);
@@ -1261,7 +1503,9 @@
             $('#btnAdd').on('click', openAdd);
             $('#btnSave').on('click', saveMovie);
 
-            $('#txtSearch,#slStatus,#slPremium').on('input change', () => {
+            $('#Movie_SeriesId').on('change', onSeriesChange);
+
+            $('#txtSearch,#slStatus,#slPremium,#slSeriesFilter').on('input change', () => {
                 applyFilter();
                 page = 1;
                 renderTablePage();
@@ -1329,6 +1573,7 @@
                 renderGenreRows();
             });
 
+            loadSeriesAndSeasonMaster();
             reloadAll();
             loadGenreMaster();
             setRelatedPanelsEnabled(false);

@@ -50,9 +50,10 @@
     if (!string.IsNullOrWhiteSpace(canonicalPath))
         ViewData["CanonicalUrl"] = $"{Context.Request.Scheme}://{Context.Request.Host}{canonicalPath}";
     var currentEpisode = Model.Episodes.FirstOrDefault(x => x.EpisodeId == currentEpisodeId);
+    var currentEpisodeMovieId = currentEpisode?.MovieId;
     var currentSources = Model.Sources
         .Where(x => currentEpisodeId.HasValue
-            ? x.EpisodeId == currentEpisodeId
+            ? (x.EpisodeId == currentEpisodeId || (currentEpisodeMovieId.HasValue && x.MovieId == currentEpisodeMovieId.Value))
             : x.MovieId == contentId)
         .ToList();
 
@@ -331,15 +332,31 @@
         .progress-wrap {
             position: relative;
             height: 6px;
-            background: rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 999px;
             cursor: pointer;
             transition: height 0.15s ease;
+            overflow: visible;
         }
         .progress-wrap:hover {
             height: 8px;
         }
 
+        /* Thanh đệm đã tải (buffered): hiển thị 1 phần mờ hơn */
+        .progress-buffer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            background: rgba(255, 255, 255, 0.45);
+            border-radius: 999px;
+            z-index: 1;
+            pointer-events: none;
+            transition: width 0.15s linear;
+        }
+
+        /* Thanh đã phát (played): hiển thị sáng và rực rỡ hơn */
         .progress-bar {
             position: absolute;
             left: 0;
@@ -348,34 +365,26 @@
             width: 0;
             background: var(--brand-gradient);
             border-radius: 999px;
-            position: relative;
+            z-index: 2;
+            pointer-events: none;
         }
         .progress-bar::after {
             content: "";
             position: absolute;
-            right: -5px;
+            right: -6px;
             top: 50%;
             transform: translateY(-50%);
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             background: #ffffff;
-            box-shadow: 0 0 8px rgba(25, 211, 197, 0.8);
+            box-shadow: 0 0 10px rgba(25, 211, 197, 0.9), 0 0 4px rgba(0, 0, 0, 0.5);
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, transform 0.1s ease;
         }
         .progress-wrap:hover .progress-bar::after {
             opacity: 1;
-        }
-
-        .progress-buffer {
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 0;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 999px;
+            transform: translateY(-50%) scale(1.1);
         }
 
         .time-label {
@@ -402,25 +411,39 @@
             box-shadow: 0 0 0 2px rgba(25, 211, 197, 0.25);
         }
 
-        /* Subtitle Overlay & Menu Styles (Netflix / Disney+ style) */
+        /* Ẩn triệt để native subtitle cues mặc định của trình duyệt để chỉ hiển thị 1 sub overlay bên trên */
+        video::cue {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            font-size: 0 !important;
+            background: transparent !important;
+            color: transparent !important;
+        }
+        video::-webkit-media-text-track-display,
+        video::-webkit-media-text-track-container {
+            display: none !important;
+        }
+
+        /* Subtitle Overlay & Menu Styles */
         .subtitle-overlay {
             position: absolute;
-            bottom: 45px;
+            bottom: 24px;
             left: 5%;
             right: 5%;
             text-align: center;
             pointer-events: none;
-            z-index: 25;
+            z-index: 10; /* Nằm dưới thanh công cụ (.player-controls có z-index: 20) */
             transition: bottom 0.22s ease, opacity 0.2s ease;
         }
-        /* Khi thanh điều khiển hiển thị (mặc định hoặc khi hover) */
+        /* Khi thanh điều khiển hiển thị: phụ đề ẩn ở tầng dưới thanh công cụ */
         .player-wrap:not(.hide-ui) .subtitle-overlay,
         #playerBox:hover .subtitle-overlay {
-            bottom: 96px;
+            bottom: 20px;
         }
-        /* Khi ẩn thanh điều khiển thì phụ đề hạ xuống gần đáy video */
+        /* Khi ẩn thanh điều khiển thì phụ đề hiển thị sát đáy video */
         .player-wrap.hide-ui .subtitle-overlay {
-            bottom: 38px;
+            bottom: 28px;
         }
         .subtitle-text {
             display: inline-block;
@@ -933,6 +956,7 @@
                         <video id="video"
                                class="video-el"
                                playsinline
+                               crossorigin="anonymous"
                                preload="none"
                                poster="@poster"
                                controlslist="nodownload noremoteplayback"
@@ -1071,9 +1095,9 @@
                             </div>
                             <h3 class="fw-bold text-white mb-2">Chưa có nguồn phát video</h3>
                             <p class="text-muted max-w-500 mx-auto mb-4" style="max-width: 480px; font-size: 0.95rem;">@(currentEpisode != null ? $"Tập {currentEpisode.EpisodeNo} ({currentEpisode.EpisodeTitle}) của \"{movieTitle}\"" : $"Bộ phim \"{movieTitle}\"") hiện chưa có nguồn phát video hoặc đang được mã hóa transcoder. Chúng tôi sẽ cập nhật sớm nhất.</p>
-                            @if (episodes != null && episodes.Any(ep => Model.Sources.Any(s => s.EpisodeId == ep.EpisodeId)))
+                            @if (episodes != null && episodes.Any(ep => Model.Sources.Any(s => s.EpisodeId == ep.EpisodeId || (ep.MovieId.HasValue && s.MovieId == ep.MovieId.Value))))
                             {
-                                var availableEp = episodes.FirstOrDefault(ep => Model.Sources.Any(s => s.EpisodeId == ep.EpisodeId));
+                                var availableEp = episodes.FirstOrDefault(ep => Model.Sources.Any(s => s.EpisodeId == ep.EpisodeId || (ep.MovieId.HasValue && s.MovieId == ep.MovieId.Value)));
                                 if (availableEp != null)
                                 {
                                     <a href="@Url.Action("Watch", "Film", new { id = contentId, kind = content.kind, ep = availableEp.EpisodeId })" class="btn px-4 py-2.5 rounded-pill fw-bold d-inline-flex align-items-center gap-2 mb-2" style="background: var(--brand-gradient); color: #081119; text-decoration: none;">
@@ -1342,7 +1366,7 @@
                                 var canWatchEp = !isEpPremium || Model.HasActiveSubscription;
 
                                 var episodeSource = Model.Sources
-                                    .Where(x => x.EpisodeId == episode.EpisodeId)
+                                    .Where(x => x.EpisodeId == episode.EpisodeId || (episode.MovieId.HasValue && x.MovieId == episode.MovieId.Value))
                                     .OrderByDescending(IsHlsSource)
                                     .ThenByDescending(x => x.IsPrimary)
                                     .FirstOrDefault();
@@ -1559,34 +1583,7 @@
             return null;
         }
 
-        function updateSubtitlesForSource(rawUrl) {
-            if (!video || !selSubtitleInPlayer) return;
-            [...video.querySelectorAll('track[kind="subtitles"]')].forEach(track => track.remove());
-            selSubtitleInPlayer.innerHTML = '<option value="off">CC Tắt</option>';
-            const source = allSources.find(item => sourceValue(item, 'stream_url', 'streamUrl', 'StreamUrl', 'streaM_URL') === rawUrl);
-            const sourceId = sourceValue(source, 'source_id', 'sourceId', 'SourceId', 'sourcE_ID');
-            const items = subtitlesBySource[String(sourceId)] || subtitlesBySource[sourceId] || [];
-            items.forEach((item, index) => {
-                const language = String(subtitleValue(item, 'languageCode', 'LanguageCode', 'language_code') || '').toLowerCase();
-                const url = subtitleValue(item, 'url', 'Url');
-                if (!url) return;
-                const label = language === 'vi' ? 'Tiếng Việt' : language === 'en' ? 'English' : language.toUpperCase();
-                const track = document.createElement('track');
-                track.kind = 'subtitles'; track.srclang = language; track.label = label; track.src = url;
-                video.appendChild(track);
-                const option = document.createElement('option');
-                option.value = String(index); option.textContent = 'CC ' + label;
-                selSubtitleInPlayer.appendChild(option);
-            });
-            selSubtitleInPlayer.disabled = items.length === 0;
-            selSubtitleInPlayer.title = items.length ? 'Chọn phụ đề' : 'Nguồn này chưa có phụ đề';
-        }
 
-        selSubtitleInPlayer?.addEventListener('change', event => {
-            const selected = event.target.value;
-            [...video.textTracks].forEach((track, index) => track.mode = selected !== 'off' && index === Number(selected) ? 'showing' : 'disabled');
-            showQualityToast(selected === 'off' ? 'Đã tắt phụ đề' : `Phụ đề: ${event.target.options[event.target.selectedIndex].text.replace('CC ', '')}`);
-        });
 
         function showPlayerLoading() {
             if (!playerLoading || !premiumPlayerGate?.classList.contains('d-none')) return;
@@ -1778,6 +1775,333 @@
                 return url;
             }
 
+            // ==========================================
+            // SUBTITLE LOGIC (TFlix Subtitles & Dynamic Overlay)
+            // ==========================================
+            const btnSubtitle = document.getElementById('btnSubtitle');
+            const selSubtitle = document.getElementById('selSubtitle');
+            const subtitleDropdownMenu = document.getElementById('subtitleDropdownMenu');
+            const subtitleOverlay = document.getElementById('subtitleOverlay');
+            const subtitleText = document.getElementById('subtitleText');
+
+            function parseWebVtt(vttText) {
+                if (!vttText || typeof vttText !== 'string') return [];
+                const cues = [];
+                const normalized = vttText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                const lines = normalized.split('\n');
+                let i = 0;
+                while (i < lines.length) {
+                    let line = lines[i].trim();
+                    if (line.includes('-->')) {
+                        const timeParts = line.split('-->');
+                        const startSec = parseVttTimestamp(timeParts[0].trim());
+                        const endPart = timeParts[1].trim().split(/\s+/)[0];
+                        const endSec = parseVttTimestamp(endPart);
+                        i++;
+                        const textLines = [];
+                        while (i < lines.length && lines[i].trim() !== '') {
+                            textLines.push(lines[i].trim());
+                            i++;
+                        }
+                        if (endSec > startSec && textLines.length > 0) {
+                            cues.push({
+                                startSeconds: startSec,
+                                endSeconds: endSec,
+                                text: textLines.join('\n')
+                            });
+                        }
+                    }
+                    i++;
+                }
+                return cues.sort((a, b) => a.startSeconds - b.startSeconds);
+            }
+
+            function parseVttTimestamp(ts) {
+                if (!ts) return 0;
+                const parts = ts.split(':');
+                if (parts.length === 3) {
+                    return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2].replace(',', '.'));
+                } else if (parts.length === 2) {
+                    return parseFloat(parts[0]) * 60 + parseFloat(parts[1].replace(',', '.'));
+                }
+                return parseFloat(ts.replace(',', '.')) || 0;
+            }
+
+            function normalizeTrack(raw) {
+                if (!raw) return null;
+                const langCode = (raw.languageCode || raw.LanguageCode || '').toLowerCase();
+                const langName = raw.languageName || raw.LanguageName || (langCode === 'vi' ? 'Tiếng Việt' : 'English');
+                const rawCues = raw.cues || raw.Cues || [];
+                const cues = (Array.isArray(rawCues) ? rawCues : []).map(c => ({
+                    id: c.id || c.Id || 0,
+                    startSeconds: typeof c.startSeconds === 'number' ? c.startSeconds : (c.StartSeconds || 0),
+                    endSeconds: typeof c.endSeconds === 'number' ? c.endSeconds : (c.EndSeconds || 0),
+                    text: c.text || c.Text || ''
+                })).sort((a, b) => a.startSeconds - b.startSeconds);
+
+                return {
+                    id: raw.id || raw.Id || 0,
+                    movieId: raw.movieId || raw.MovieId || 0,
+                    languageCode: langCode,
+                    languageName: langName,
+                    cues: cues
+                };
+            }
+
+            let rawInitialSubtitles = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Subtitles ?? new List<CoreLib.Dtos.Subtitle.SubtitleTrackDto>()));
+            let subtitlesList = Array.isArray(rawInitialSubtitles) ? rawInitialSubtitles.map(normalizeTrack).filter(Boolean) : [];
+            let currentSubtitleLang = 'off';
+
+            function getCurrentSourceSubtitles(rawUrl) {
+                const urlToCheck = rawUrl || (selServer ? selServer.value : '') || '';
+                const source = allSources.find(item => sourceValue(item, 'stream_url', 'streamUrl', 'StreamUrl', 'streaM_URL') === urlToCheck);
+                const sourceId = sourceValue(source, 'source_id', 'sourceId', 'SourceId', 'sourcE_ID');
+                const items = (sourceId && (subtitlesBySource[String(sourceId)] || subtitlesBySource[sourceId])) || [];
+                return { sourceId, items };
+            }
+
+            function syncSubtitleUi(lang) {
+                currentSubtitleLang = lang;
+                if (selSubtitle) selSubtitle.value = lang;
+                if (selSubtitleInPlayer) selSubtitleInPlayer.value = lang;
+
+                if (btnSubtitle) {
+                    if (lang === 'off') {
+                        btnSubtitle.classList.remove('active-sub');
+                    } else {
+                        btnSubtitle.classList.add('active-sub');
+                    }
+                }
+
+                document.querySelectorAll('#subtitleDropdownMenu .sub-track-item').forEach(item => {
+                    const itemLang = item.getAttribute('data-lang');
+                    const checkIcon = item.querySelector('.sub-check');
+                    if (itemLang === lang) {
+                        item.classList.add('active');
+                        if (checkIcon) checkIcon.classList.remove('d-none');
+                    } else {
+                        item.classList.remove('active');
+                        if (checkIcon) checkIcon.classList.add('d-none');
+                    }
+                });
+            }
+
+            async function setSubtitleTrack(lang, showToast = true) {
+                syncSubtitleUi(lang);
+                localStorage.setItem(movieKey + ':subtitle', lang);
+
+                if (lang === 'off') {
+                    if (subtitleOverlay) subtitleOverlay.classList.add('d-none');
+                    if (subtitleText) subtitleText.textContent = '';
+                    if (video) {
+                        [...video.querySelectorAll('track[data-tflix="sub"]')].forEach(t => t.remove());
+                        [...video.textTracks].forEach(t => t.mode = 'disabled');
+                    }
+                    if (showToast) showQualityToast('Đã tắt phụ đề');
+                    return;
+                }
+
+                const { sourceId, items } = getCurrentSourceSubtitles();
+                const subItem = items.find(item => {
+                    const c = String(subtitleValue(item, 'languageCode', 'LanguageCode', 'language_code') || '').toLowerCase();
+                    return c === lang.toLowerCase();
+                });
+
+                const langLabel = lang === 'vi' ? 'Tiếng Việt' : (lang === 'en' ? 'English' : lang.toUpperCase());
+
+                let track = subtitlesList.find(t => (t.languageCode || '').toLowerCase() === lang.toLowerCase());
+
+                if (!track || !track.cues || track.cues.length === 0) {
+                    let vttFetchUrl = '';
+                    if (subItem && subItem.url) {
+                        vttFetchUrl = `/Film/SubtitleVtt?sourceId=${sourceId || ''}&lang=${lang}&url=${encodeURIComponent(subItem.url)}`;
+                    } else if (sourceId) {
+                        vttFetchUrl = `/Film/SubtitleVtt?sourceId=${sourceId}&lang=${lang}`;
+                    } else {
+                        vttFetchUrl = `/Film/SubtitleVtt?id=${movieId}&lang=${lang}${currentEp > 0 ? '&episodeId=' + currentEp : ''}`;
+                    }
+
+                    try {
+                        if (showToast) showQualityToast(`Đang tải phụ đề ${langLabel}...`);
+                        const res = await fetch(vttFetchUrl);
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const vttText = await res.text();
+                        const parsedCues = parseWebVtt(vttText);
+                        if (parsedCues && parsedCues.length > 0) {
+                            track = {
+                                movieId: movieId,
+                                languageCode: lang,
+                                languageName: langLabel,
+                                cues: parsedCues
+                            };
+                            subtitlesList = subtitlesList.filter(t => (t.languageCode || '').toLowerCase() !== lang.toLowerCase());
+                            subtitlesList.push(track);
+                        }
+                    } catch (err) {
+                        console.error('Lỗi khi tải phụ đề:', err);
+                    }
+                }
+
+                if (!track || !track.cues || track.cues.length === 0) {
+                    syncSubtitleUi('off');
+                    showQualityToast(`Nguồn phim chưa có phụ đề ${langLabel}.`);
+                    return;
+                }
+
+                if (video) {
+                    [...video.querySelectorAll('track[data-tflix="sub"]')].forEach(t => t.remove());
+                    const trackEl = document.createElement('track');
+                    trackEl.setAttribute('data-tflix', 'sub');
+                    trackEl.kind = 'subtitles';
+                    trackEl.label = langLabel;
+                    trackEl.srclang = lang;
+                    const trackSrc = `/Film/SubtitleVtt?sourceId=${sourceId || ''}&lang=${lang}${subItem?.url ? '&url=' + encodeURIComponent(subItem.url) : ''}`;
+                    trackEl.src = trackSrc;
+                    trackEl.default = true;
+                    video.appendChild(trackEl);
+                    [...video.textTracks].forEach(t => {
+                        t.mode = (t.language === lang ? 'hidden' : 'disabled');
+                    });
+                }
+
+                const now = video ? video.currentTime : 0;
+                updateSubtitleDisplay(now);
+
+                if (showToast) {
+                    showQualityToast(`Phụ đề: ${langLabel}`);
+                }
+            }
+
+            function updateSubtitleDisplay(currentTime) {
+                if (currentSubtitleLang === 'off' || !subtitleOverlay || !subtitleText) {
+                    if (subtitleOverlay && !subtitleOverlay.classList.contains('d-none')) {
+                        subtitleOverlay.classList.add('d-none');
+                    }
+                    return;
+                }
+
+                const track = subtitlesList.find(t => (t.languageCode || '').toLowerCase() === currentSubtitleLang.toLowerCase());
+                if (!track || !track.cues || track.cues.length === 0) {
+                    subtitleOverlay.classList.add('d-none');
+                    return;
+                }
+
+                let currentCue = track.cues.find(c => (currentTime + 0.15) >= c.startSeconds && currentTime <= (c.endSeconds + 0.15));
+                if (!currentCue && currentTime < 0.5 && track.cues.length > 0 && track.cues[0].startSeconds <= 2.0) {
+                    currentCue = track.cues[0];
+                }
+
+                if (currentCue && currentCue.text) {
+                    if (subtitleText.textContent !== currentCue.text) {
+                        subtitleText.textContent = currentCue.text;
+                    }
+                    subtitleOverlay.classList.remove('d-none');
+                } else {
+                    subtitleOverlay.classList.add('d-none');
+                }
+            }
+
+            function toggleSubtitleShortcut() {
+                if (currentSubtitleLang === 'off') {
+                    setSubtitleTrack('vi');
+                } else if (currentSubtitleLang === 'vi') {
+                    setSubtitleTrack('en');
+                } else {
+                    setSubtitleTrack('off');
+                }
+            }
+
+            function updateSubtitlesForSource(rawUrl) {
+                if (!video) return;
+                const { sourceId, items } = getCurrentSourceSubtitles(rawUrl);
+
+                [...video.querySelectorAll('track[kind="subtitles"]')].forEach(track => track.remove());
+
+                if (selSubtitleInPlayer) {
+                    selSubtitleInPlayer.innerHTML = '<option value="off">CC Tắt</option>';
+                    items.forEach(item => {
+                        const lang = String(subtitleValue(item, 'languageCode', 'LanguageCode', 'language_code') || '').toLowerCase();
+                        const label = lang === 'vi' ? 'Tiếng Việt' : (lang === 'en' ? 'English' : lang.toUpperCase());
+                        const opt = document.createElement('option');
+                        opt.value = lang;
+                        opt.textContent = 'CC ' + label;
+                        selSubtitleInPlayer.appendChild(opt);
+                    });
+                    selSubtitleInPlayer.disabled = (items.length === 0);
+                    selSubtitleInPlayer.title = items.length ? 'Chọn phụ đề' : 'Nguồn này chưa có phụ đề';
+                }
+
+                if (selSubtitle) {
+                    selSubtitle.innerHTML = '<option value="off">Tắt phụ đề</option>';
+                    items.forEach(item => {
+                        const lang = String(subtitleValue(item, 'languageCode', 'LanguageCode', 'language_code') || '').toLowerCase();
+                        const label = lang === 'vi' ? 'Tiếng Việt' : (lang === 'en' ? 'English' : lang.toUpperCase());
+                        const opt = document.createElement('option');
+                        opt.value = lang;
+                        opt.textContent = label;
+                        selSubtitle.appendChild(opt);
+                    });
+                }
+
+                if (subtitleDropdownMenu) {
+                    let html = `
+                        <li class="dropdown-header text-uppercase small text-white-50 px-3 py-1">Tùy chọn phụ đề</li>
+                        <li><a class="dropdown-item ${currentSubtitleLang === 'off' ? 'active' : ''} d-flex align-items-center justify-content-between sub-track-item" href="javascript:void(0)" data-lang="off"><span>Tắt phụ đề</span><i class="bi bi-check2 sub-check ${currentSubtitleLang === 'off' ? '' : 'd-none'}"></i></a></li>
+                        <li><hr class="dropdown-divider border-secondary opacity-25"></li>
+                        <li class="dropdown-header text-uppercase small text-info px-3 py-1">Phụ đề có sẵn</li>
+                    `;
+                    if (items.length === 0) {
+                        html += `<li><span class="dropdown-item-text text-white-50 small px-3">Chưa có phụ đề cho nguồn này</span></li>`;
+                    } else {
+                        items.forEach(item => {
+                            const lang = String(subtitleValue(item, 'languageCode', 'LanguageCode', 'language_code') || '').toLowerCase();
+                            const label = lang === 'vi' ? 'Tiếng Việt' : (lang === 'en' ? 'English' : lang.toUpperCase());
+                            const isActive = currentSubtitleLang === lang;
+                            html += `<li><a class="dropdown-item ${isActive ? 'active' : ''} d-flex align-items-center justify-content-between sub-track-item" href="javascript:void(0)" data-lang="${lang}"><span>${label}</span><i class="bi bi-check2 sub-check ${isActive ? '' : 'd-none'}"></i></a></li>`;
+                        });
+                    }
+                    subtitleDropdownMenu.innerHTML = html;
+                    subtitleDropdownMenu.querySelectorAll('.sub-track-item').forEach(el => {
+                        el.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            const targetLang = el.getAttribute('data-lang') || 'off';
+                            setSubtitleTrack(targetLang, true);
+                        });
+                    });
+                }
+
+                const savedPref = localStorage.getItem(movieKey + ':subtitle');
+                const defaultItem = items.find(it => Boolean(subtitleValue(it, 'isDefault', 'IsDefault', 'is_default')))
+                                 || items.find(it => String(subtitleValue(it, 'languageCode', 'LanguageCode') || '').toLowerCase() === 'vi');
+                const autoLang = (savedPref && savedPref !== 'off' && items.some(it => String(subtitleValue(it, 'languageCode', 'LanguageCode') || '').toLowerCase() === savedPref))
+                    ? savedPref
+                    : (defaultItem ? String(subtitleValue(defaultItem, 'languageCode', 'LanguageCode') || 'vi').toLowerCase() : 'off');
+
+                if (autoLang && autoLang !== 'off') {
+                    setSubtitleTrack(autoLang, false);
+                } else {
+                    syncSubtitleUi('off');
+                }
+            }
+
+            if (selSubtitle) {
+                selSubtitle.addEventListener('change', () => {
+                    setSubtitleTrack(selSubtitle.value, true);
+                });
+            }
+
+            if (selSubtitleInPlayer) {
+                selSubtitleInPlayer.addEventListener('change', () => {
+                    setSubtitleTrack(selSubtitleInPlayer.value, true);
+                });
+            }
+
+            if (video) {
+                video.addEventListener('timeupdate', () => {
+                    updateSubtitleDisplay(video.currentTime);
+                });
+            }
+
             function loadSource(rawUrl, useProxy = false){
                 if (!isLoggedIn) {
                     guardAuth();
@@ -1852,6 +2176,10 @@
                         restorePlaybackPosition();
                         populateHlsQualities(hls);
                         video.play().catch(() => {});
+                    });
+
+                    hls.on(Hls.Events.FRAG_BUFFERED, () => {
+                        updateBufferedProgress();
                     });
 
                     hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
@@ -2237,192 +2565,50 @@
                 });
             }
 
-            // Progress UI
-            video.addEventListener('timeupdate', ()=>{
-                const p = (video.currentTime / (video.duration||1))*100;
+            // Progress UI: hiển thị 1 phần video đã phát và 1 phần mờ hơn là phần nội dung đã load
+            function updateBufferedProgress() {
+                if (!video || !buffered || !video.duration || Number.isNaN(video.duration)) return;
+                try {
+                    const curTime = video.currentTime;
+                    let bufferedEnd = 0;
+                    for (let i = 0; i < video.buffered.length; i++) {
+                        const start = video.buffered.start(i);
+                        const end = video.buffered.end(i);
+                        if (curTime >= start && curTime <= end) {
+                            bufferedEnd = end;
+                            break;
+                        } else if (end > bufferedEnd && start <= curTime) {
+                            bufferedEnd = end;
+                        }
+                    }
+                    if (bufferedEnd === 0 && video.buffered.length > 0) {
+                        bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                    }
+                    const pct = Math.min(100, Math.max(0, (bufferedEnd / video.duration) * 100));
+                    buffered.style.width = pct + '%';
+                } catch (e) {}
+            }
+
+            video.addEventListener('timeupdate', () => {
+                const p = (video.currentTime / (video.duration || 1)) * 100;
                 if (bar) bar.style.width = p + '%';
                 if (time) time.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
-                if (Math.floor(video.currentTime)%2===0) {
+                if (Math.floor(video.currentTime) % 2 === 0) {
                     localStorage.setItem(`${movieKey}:ep:${currentEp}:t`, String(Math.floor(video.currentTime)));
                 }
+                updateBufferedProgress();
                 updateSubtitleDisplay(video.currentTime);
             });
 
-            video.addEventListener('progress', ()=>{
-                try {
-                    if (video.buffered.length && buffered) {
-                        const end = video.buffered.end(video.buffered.length-1);
-                        const b = (end/(video.duration||1))*100;
-                        buffered.style.width = b + '%';
-                    }
-                } catch {}
-            });
+            video.addEventListener('progress', updateBufferedProgress);
 
             if (progress) {
-                progress.addEventListener('click', e => guardAuth(()=>{
+                progress.addEventListener('click', e => guardAuth(() => {
                     const r = progress.getBoundingClientRect();
-                    const ratio = (e.clientX - r.left)/r.width;
-                    video.currentTime = ratio * (video.duration||0);
+                    const ratio = (e.clientX - r.left) / r.width;
+                    video.currentTime = ratio * (video.duration || 0);
+                    updateBufferedProgress();
                 }));
-            }
-
-            // ==========================================
-            // SUBTITLE LOGIC (TFlix AI Gemini Subtitles)
-            // ==========================================
-            // SUBTITLE LOGIC (TFlix AI Gemini Subtitles)
-            // ==========================================
-            const btnSubtitle = document.getElementById('btnSubtitle');
-            const selSubtitle = document.getElementById('selSubtitle');
-            const subtitleOverlay = document.getElementById('subtitleOverlay');
-            const subtitleText = document.getElementById('subtitleText');
-
-            function normalizeTrack(raw) {
-                if (!raw) return null;
-                const langCode = (raw.languageCode || raw.LanguageCode || '').toLowerCase();
-                const langName = raw.languageName || raw.LanguageName || (langCode === 'vi' ? 'Tiếng Việt' : 'English');
-                const rawCues = raw.cues || raw.Cues || [];
-                const cues = (Array.isArray(rawCues) ? rawCues : []).map(c => ({
-                    id: c.id || c.Id || 0,
-                    startSeconds: typeof c.startSeconds === 'number' ? c.startSeconds : (c.StartSeconds || 0),
-                    endSeconds: typeof c.endSeconds === 'number' ? c.endSeconds : (c.EndSeconds || 0),
-                    text: c.text || c.Text || ''
-                })).sort((a, b) => a.startSeconds - b.startSeconds);
-
-                return {
-                    id: raw.id || raw.Id || 0,
-                    movieId: raw.movieId || raw.MovieId || 0,
-                    languageCode: langCode,
-                    languageName: langName,
-                    cues: cues
-                };
-            }
-
-            let rawInitialSubtitles = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Subtitles ?? new List<CoreLib.Dtos.Subtitle.SubtitleTrackDto>()));
-            let subtitlesList = Array.isArray(rawInitialSubtitles) ? rawInitialSubtitles.map(normalizeTrack).filter(Boolean) : [];
-            let currentSubtitleLang = 'off';
-
-            function syncSubtitleUi(lang) {
-                currentSubtitleLang = lang;
-                if (selSubtitle) selSubtitle.value = lang;
-
-                if (btnSubtitle) {
-                    if (lang === 'off') {
-                        btnSubtitle.classList.remove('active-sub');
-                    } else {
-                        btnSubtitle.classList.add('active-sub');
-                    }
-                }
-
-                document.querySelectorAll('#subtitleDropdownMenu .sub-track-item').forEach(item => {
-                    const itemLang = item.getAttribute('data-lang');
-                    const checkIcon = item.querySelector('.sub-check');
-                    if (itemLang === lang) {
-                        item.classList.add('active');
-                        if (checkIcon) checkIcon.classList.remove('d-none');
-                    } else {
-                        item.classList.remove('active');
-                        if (checkIcon) checkIcon.classList.add('d-none');
-                    }
-                });
-            }
-
-            function setSubtitleTrack(lang, showToast = true) {
-                syncSubtitleUi(lang);
-
-                if (lang === 'off') {
-                    if (subtitleOverlay) subtitleOverlay.classList.add('d-none');
-                    if (subtitleText) subtitleText.textContent = '';
-                    const existingTrack = video?.querySelector('track[data-tflix="sub"]');
-                    if (existingTrack) existingTrack.remove();
-                    if (showToast) showQualityToast('Đã tắt phụ đề');
-                    return;
-                }
-
-                let track = subtitlesList.find(t => (t.languageCode || '').toLowerCase() === lang.toLowerCase());
-                if (!track || !track.cues || track.cues.length === 0) {
-                    syncSubtitleUi('off');
-                    showQualityToast(`Nguồn phim chưa có phụ đề ${lang === 'vi' ? 'Tiếng Việt' : 'Tiếng Anh'}.`);
-                    return;
-                }
-
-                if (video) {
-                    const existingTrack = video.querySelector('track[data-tflix="sub"]');
-                    if (existingTrack) existingTrack.remove();
-
-                    const trackEl = document.createElement('track');
-                    trackEl.setAttribute('data-tflix', 'sub');
-                    trackEl.kind = 'subtitles';
-                    trackEl.label = track.languageName || (lang === 'vi' ? 'Tiếng Việt' : 'English');
-                    trackEl.srclang = lang;
-                    trackEl.src = `/Film/SubtitleVtt?id=${movieId}&lang=${lang}${currentEp > 0 ? '&episodeId=' + currentEp : ''}`;
-                    trackEl.default = true;
-                    video.appendChild(trackEl);
-                }
-
-                // Cập nhật phụ đề trên overlay ngay lập tức
-                const now = video ? video.currentTime : 0;
-                updateSubtitleDisplay(now);
-
-                if (showToast) {
-                    const langName = lang === 'vi' ? 'Tiếng Việt' : 'English';
-                    showQualityToast(`Phụ đề: ${langName}`);
-                }
-            }
-
-            function updateSubtitleDisplay(currentTime) {
-                if (currentSubtitleLang === 'off' || !subtitleOverlay || !subtitleText) {
-                    if (subtitleOverlay && !subtitleOverlay.classList.contains('d-none')) {
-                        subtitleOverlay.classList.add('d-none');
-                    }
-                    return;
-                }
-
-                const track = subtitlesList.find(t => (t.languageCode || '').toLowerCase() === currentSubtitleLang.toLowerCase());
-                if (!track || !track.cues || track.cues.length === 0) {
-                    subtitleOverlay.classList.add('d-none');
-                    return;
-                }
-
-                // Tìm cue đang phát dựa vào currentTime với một chút dung sai
-                let currentCue = track.cues.find(c => (currentTime + 0.15) >= c.startSeconds && currentTime <= (c.endSeconds + 0.15));
-                if (!currentCue && currentTime < 0.5 && track.cues.length > 0 && track.cues[0].startSeconds <= 2.0) {
-                    // Nếu video vừa mở hoặc ở giây 0, hiển thị cue đầu tiên nếu bắt đầu gần mốc này
-                    currentCue = track.cues[0];
-                }
-
-                if (currentCue && currentCue.text) {
-                    if (subtitleText.textContent !== currentCue.text) {
-                        subtitleText.textContent = currentCue.text;
-                    }
-                    subtitleOverlay.classList.remove('d-none');
-                } else {
-                    subtitleOverlay.classList.add('d-none');
-                }
-            }
-
-            function toggleSubtitleShortcut() {
-                if (currentSubtitleLang === 'off') {
-                    setSubtitleTrack('vi');
-                } else if (currentSubtitleLang === 'vi') {
-                    setSubtitleTrack('en');
-                } else {
-                    setSubtitleTrack('off');
-                }
-            }
-
-            // Subtitle dropdown menu item clicks
-            document.querySelectorAll('#subtitleDropdownMenu .sub-track-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const lang = item.getAttribute('data-lang');
-                    setSubtitleTrack(lang || 'off');
-                });
-            });
-
-            if (selSubtitle) {
-                selSubtitle.addEventListener('change', () => {
-                    setSubtitleTrack(selSubtitle.value);
-                });
             }
 
             // Phím tắt bàn phím

@@ -1,4 +1,5 @@
-﻿using CoreLib.Dtos.Season;
+using CoreLib.Dtos.Episode;
+using CoreLib.Dtos.Season;
 using CoreLib.Models;
 using WebBrowser.Models;
 using WebBrowser.Models.Season;
@@ -11,5 +12,11 @@ namespace WebBrowser.Services.Interfaces
         Task<CResponseMessage> delete_Season(decimal id);
         Task<ApiResponse<SeasonTableWrapper>> get_all();
         Task<CResponseMessage> uppdate_Season(UpdateSeasonDto updateDto);
+
+        // === Gan Movie vao Season ===
+        Task<CResponseMessage> AssignMovie(AssignMovieToSeasonDto dto);
+        Task<CResponseMessage> UpdateMovieInSeason(UpdateMovieInSeasonDto dto);
+        Task<CResponseMessage> RemoveMovie(long episodeId);
+        Task<CResponseMessage> GetMoviesBySeason(long seasonId);
     }
 }

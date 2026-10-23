@@ -18,6 +18,7 @@ namespace WebBrowser.Services.Interfaces
         Task<SubtitleDraftDto> GetDraftAsync(Guid jobId);
         Task<SubtitleDraftDto> UpdateDraftAsync(Guid jobId, UpdateSubtitleDraftDto request);
         Task<BrowserSubtitleJobDto> ApproveAsync(Guid jobId);
+        Task<CResponseMessage> SaveSourceSubtitlesAsync(long sourceId, List<GeminiSourceSubtitleCue> cues);
         Task<GenerateSubtitleResponseDto?> GetSubtitlesAsync(long? movieId, long? episodeId, string? title = null, string? overview = null, double? durationSeconds = null);
         Task<GenerateSubtitleResponseDto?> GenerateSubtitlesAsync(GenerateSubtitleRequestDto request);
         Task<string?> GetWebVttAsync(long? movieId, long? episodeId, string lang);

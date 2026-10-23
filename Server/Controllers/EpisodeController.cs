@@ -1,4 +1,4 @@
-﻿// Server/Controllers/EpisodeController.cs
+// Server/Controllers/EpisodeController.cs
 using CoreLib.Dtos.Episode;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +18,6 @@ namespace Server.Controllers
             var response = await _cEpisode.sp_get_all_episode();
             if (response.code != "200")
                 return StatusCode(500, new { code = response.code, message = response.message });
-
             return Ok(new { code = response.code, message = response.message, data = response.Data });
         }
 
@@ -26,8 +25,7 @@ namespace Server.Controllers
         public async Task<IActionResult> GetBySeries(long seriesId, [FromQuery] bool publishedOnly = true)
         {
             if (seriesId <= 0)
-                return BadRequest(new { code = "400", message = "SeriesId không hợp lệ." });
-
+                return BadRequest(new { code = "400", message = "SeriesId khong hop le." });
             var response = await _cEpisode.GetBySeriesAsync(seriesId, publishedOnly);
             if (response.code != "200")
             {
@@ -39,7 +37,6 @@ namespace Server.Controllers
                 };
                 return StatusCode(statusCode, new { code = response.code, message = response.message });
             }
-
             return Ok(new { code = response.code, message = response.message, data = response.Data });
         }
 
@@ -48,12 +45,10 @@ namespace Server.Controllers
         {
             if (addEpisodeDto == null || addEpisodeDto.SeriesId <= 0 || addEpisodeDto.SeasonId <= 0 ||
                 addEpisodeDto.EpisodeNo <= 0 || string.IsNullOrWhiteSpace(addEpisodeDto.Title))
-                return BadRequest(new { code = "400", message = "Dữ liệu tập phim không hợp lệ." });
-
+                return BadRequest(new { code = "400", message = "Du lieu tap phim khong hop le." });
             var response = await _cEpisode.Add_episode(addEpisodeDto);
             if (response.code != "200")
                 return StatusCode(response.code == "400" ? 400 : 500, new { code = response.code, message = response.message });
-
             return Ok(new { code = response.code, message = response.message, data = response.Data });
         }
 
@@ -62,12 +57,10 @@ namespace Server.Controllers
         {
             if (dto == null || dto.EpisodeId <= 0 || dto.SeriesId <= 0 || dto.SeasonId <= 0 ||
                 dto.EpisodeNo <= 0 || string.IsNullOrWhiteSpace(dto.Title))
-                return BadRequest(new { code = "400", message = "Dữ liệu tập phim không hợp lệ." });
-
+                return BadRequest(new { code = "400", message = "Du lieu tap phim khong hop le." });
             var response = await _cEpisode.Update_episode(dto);
             if (response.code != "200")
                 return StatusCode(response.code == "400" ? 400 : 500, new { code = response.code, message = response.message });
-
             return Ok(new { code = response.code, message = response.message, data = response.Data });
         }
 
@@ -75,12 +68,53 @@ namespace Server.Controllers
         public async Task<IActionResult> Delete([FromBody] long id)
         {
             if (id <= 0) return BadRequest(new { code = "400", message = "Invalid id." });
-
             var response = await _cEpisode.Delete_episode(id);
             if (response.code != "200")
                 return StatusCode(response.code == "400" ? 400 : 500, new { code = response.code, message = response.message });
-
             return Ok(new { code = response.code, message = response.message });
+        }
+
+        // ===== Gan Movie vao Season =====
+        [HttpPost("assign-movie")]
+        public async Task<IActionResult> AssignMovie([FromBody] AssignMovieToSeasonDto dto)
+        {
+            if (dto == null || dto.SeriesId <= 0 || dto.SeasonId <= 0 || dto.MovieId <= 0 || dto.EpisodeNo <= 0)
+                return BadRequest(new { code = "400", message = "Can SeriesId, SeasonId, MovieId va so thu tu tap > 0." });
+            var response = await _cEpisode.AssignMovieToSeason(dto);
+            if (response.code != "200")
+                return StatusCode(response.code == "400" ? 400 : 500, new { code = response.code, message = response.message });
+            return Ok(new { code = response.code, message = response.message, data = response.Data });
+        }
+
+        [HttpPost("update-movie")]
+        public async Task<IActionResult> UpdateMovie([FromBody] UpdateMovieInSeasonDto dto)
+        {
+            if (dto == null || dto.EpisodeId <= 0 || dto.EpisodeNo <= 0)
+                return BadRequest(new { code = "400", message = "Can EpisodeId va so thu tu tap > 0." });
+            var response = await _cEpisode.UpdateMovieInSeason(dto);
+            if (response.code != "200")
+                return StatusCode(response.code == "400" ? 400 : 500, new { code = response.code, message = response.message });
+            return Ok(new { code = response.code, message = response.message });
+        }
+
+        [HttpPost("remove-movie")]
+        public async Task<IActionResult> RemoveMovie([FromBody] long episodeId)
+        {
+            if (episodeId <= 0) return BadRequest(new { code = "400", message = "EpisodeId khong hop le." });
+            var response = await _cEpisode.RemoveMovieFromSeason(episodeId);
+            if (response.code != "200")
+                return StatusCode(response.code == "400" ? 400 : 500, new { code = response.code, message = response.message });
+            return Ok(new { code = response.code, message = response.message });
+        }
+
+        [HttpGet("movies-by-season/{seasonId:long}")]
+        public async Task<IActionResult> GetMoviesBySeason(long seasonId)
+        {
+            if (seasonId <= 0) return BadRequest(new { code = "400", message = "SeasonId khong hop le." });
+            var response = await _cEpisode.GetMoviesBySeason(seasonId);
+            if (response.code != "200")
+                return StatusCode(500, new { code = response.code, message = response.message });
+            return Ok(new { code = response.code, message = response.message, data = response.Data });
         }
     }
 }

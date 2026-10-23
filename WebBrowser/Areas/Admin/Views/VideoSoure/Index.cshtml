@@ -29,10 +29,16 @@
     var urlGetSubtitleDraft = Url.Action("GetDraft", "Subtitle", new { area = "Admin" });
     var urlUpdateSubtitleDraft = Url.Action("UpdateDraft", "Subtitle", new { area = "Admin" });
     var urlApproveSubtitle = Url.Action("Approve", "Subtitle", new { area = "Admin" });
+    var urlGetSubtitlesBySource = Url.Action("GetBySource", "Subtitle", new { area = "Admin" });
+    var urlSaveSourceSubtitles = Url.Action("SaveSourceSubtitles", "Subtitle", new { area = "Admin" });
+
 
     // Nguồn dữ liệu tham chiếu
     var urlGetAllMovies = Url.Action("GetAll", "Movie", new { area = "Admin" });
     var urlGetAllEpisodes = Url.Action("GetAll", "Esopide", new { area = "Admin" });
+    var urlGetAllSeries = Url.Action("GetAll", "Series", new { area = "Admin" });
+    var urlGetAllSeasons = Url.Action("GetAll", "Season", new { area = "Admin" });
+    var urlGetMoviesBySeason = Url.Action("GetMoviesBySeason", "Season", new { area = "Admin" });
 }
 
 <style>
@@ -182,20 +188,34 @@
             background: #dc3545
         }
 
-    .video-cell {
-        max-width: 260px;
-        width: 260px;
+    .video-source-table {
+        min-width: 860px;
     }
 
-        .video-cell video {
-            width: 100%;
-            max-height: 140px;
-            border-radius: .5rem;
-            outline: none;
-        }
+    .video-source-table th {
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #9aa0aa;
+        background: #171920;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px 14px;
+        white-space: nowrap;
+    }
+
+    .video-source-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .video-stream-cell {
+        max-width: 220px;
+        min-width: 170px;
+    }
 
     .text-clip {
-        max-width: 360px;
+        max-width: 240px;
         display: inline-block;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -203,8 +223,30 @@
         vertical-align: bottom;
     }
 
+    /* Responsive improvements for Admin Video Source table */
+    @@media (max-width: 991.98px) {
+        .video-source-table th, .video-source-table td {
+            padding: 8px 10px;
+            font-size: 0.85rem;
+        }
+        .text-clip {
+            max-width: 160px;
+        }
+    }
+
+    @@media (max-width: 767.98px) {
+        .table-responsive {
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: #171920;
+        }
+        .video-source-table {
+            min-width: 760px;
+        }
+    }
+
     /* Select2 & Dropdowns Dark Theme - Không còn nền trắng */
-    #MovieId, #EpisodeId,
+    #MovieId, #EpisodeId, #SeriesId, #SeasonId, #SeasonMovieId,
     #sourceModal .form-select,
     #slType,
     .select2-container--default .select2-selection--single {
@@ -214,7 +256,7 @@
         border-radius: 8px !important;
     }
 
-    #MovieId option, #EpisodeId option,
+    #MovieId option, #EpisodeId option, #SeriesId option, #SeasonId option, #SeasonMovieId option,
     #sourceModal .form-select option,
     #slType option {
         background-color: #171920 !important;
@@ -367,9 +409,11 @@
             </div>
             <div class="d-none mt-3" id="subtitleDraftPanel">
                 <div class="alert alert-warning py-2" id="subtitleApprovalStatus">Chưa duyệt — phụ đề chưa hiển thị ở trang xem phim.</div>
-                <div class="ratio ratio-16x9 bg-black mb-3" style="max-height:360px">
-                    <video id="subtitlePreviewVideo" controls playsinline></video>
-                    <div class="position-absolute start-50 bottom-0 translate-middle-x text-center text-white fw-semibold px-3 py-2 mb-4 rounded bg-dark bg-opacity-75" id="subtitlePreviewText" style="width:max-content;max-width:90%;height:auto;top:auto"></div>
+                <div class="position-relative bg-black mb-3 rounded overflow-hidden mx-auto" style="max-width: 640px; max-height: 360px;">
+                    <div class="ratio ratio-16x9">
+                        <video id="subtitlePreviewVideo" controls playsinline style="width:100%;height:100%;object-fit:contain"></video>
+                        <div class="position-absolute start-50 bottom-0 translate-middle-x text-center text-white fw-semibold px-3 py-2 mb-4 rounded bg-dark bg-opacity-75" id="subtitlePreviewText" style="width:max-content;max-width:90%;height:auto;top:auto;pointer-events:none;z-index:2"></div>
+                    </div>
                 </div>
                 <div class="d-flex gap-2 mb-2">
                     <button type="button" class="btn btn-sm btn-outline-info subtitle-preview-lang active" data-lang="vi">Tiếng Việt</button>
@@ -420,45 +464,43 @@
 
 <div class="card">
     <div class="card-body">
-        <div class="row g-2 mb-3">
-            <div class="col-12 col-md-3">
-                <input id="txtSearch" class="form-control" placeholder="Tìm Provider/Server/URL/Tên Movie/Tên Episode..." />
+        <div class="row g-2 mb-3 align-items-center">
+            <div class="col-12 col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary border-opacity-25 text-secondary"><i class="bi bi-search"></i></span>
+                    <input id="txtSearch" class="form-control" placeholder="Tìm Provider, Server, URL, tên phim..." />
+                </div>
             </div>
             <div class="col-6 col-md-2">
                 <select id="slType" class="form-select">
-                    <option value="">Loại: Tất cả</option>
-                    <option value="movie">Movie</option>
-                    <option value="episode">Episode</option>
+                    <option value="">Tất cả loại</option>
+                    <option value="movie">Phim lẻ (Movie)</option>
+                    <option value="episode">Phim bộ (Episode)</option>
                 </select>
             </div>
             <div class="col-6 col-md-2">
-                <input id="txtMovieId" class="form-control" placeholder="Lọc MovieId..." />
+                <input id="txtMovieId" class="form-control" placeholder="Lọc Movie ID..." />
             </div>
             <div class="col-6 col-md-2">
-                <input id="txtEpisodeId" class="form-control" placeholder="Lọc EpisodeId..." />
+                <input id="txtEpisodeId" class="form-control" placeholder="Lọc Episode ID..." />
             </div>
-            <div class="col-6 col-md-3 d-flex gap-2">
-                <input id="txtQuality" class="form-control" placeholder="Lọc Quality (720p/1080p...)" />
+            <div class="col-12 col-md-2">
+                <input id="txtQuality" class="form-control" placeholder="Lọc Quality (1080p...)" />
             </div>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-hover align-middle" id="tblSources">
+            <table class="table table-hover align-middle video-source-table" id="tblSources">
                 <thead>
                     <tr>
-                        <th style="width:80px;">ID</th>
-                        <th style="width:90px;">MovieId</th>
-                        <th style="width:170px;">Movie Title</th>
-                        <th style="width:90px;">EpisodeId</th>
-                        <th style="width:190px;">Episode Title</th>
-                        <th>Provider / Server</th>
-                        <th class="video-cell">Video</th>
-                        <th>Quality</th>
-                        <th>Format</th>
-                        <th class="text-nowrap">DRM</th>
-                        <th class="text-nowrap">Primary</th>
-                        <th class="text-nowrap">Status</th>
-                        <th class="text-end">Thao tác</th>
+                        <th style="width:70px;">ID</th>
+                        <th style="width:110px;">Phân loại</th>
+                        <th style="min-width:200px;">Nội dung gán</th>
+                        <th style="min-width:140px;">Provider / Server</th>
+                        <th style="min-width:180px;">Video / Stream URL</th>
+                        <th style="min-width:130px;">Định dạng & DRM</th>
+                        <th style="width:110px;">Trạng thái</th>
+                        <th style="width:90px;" class="text-end">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody><!-- render by JS --></tbody>
@@ -542,29 +584,71 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" id="SourceId" />
                     <input type="hidden" id="OldStreamUrl" />
+                    <input type="hidden" id="LegacyEpisodeId" />
 
-                    <div class="col-md-4">
-                        <label class="form-label">Loại nguồn *</label>
-                        <select id="SourceType" class="form-select" required>
-                            <option value="movie">Movie</option>
-                            <option value="episode">Episode</option>
-                        </select>
+                    <!-- Chọn đối tượng gán nguồn video -->
+                    <div class="col-12" id="blockTargetSelection">
+                        <label class="form-label fw-semibold">Đích gán nguồn video *</label>
+                        <div class="d-flex gap-4 p-2 rounded" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+                            <div class="form-check m-0 d-flex align-items-center gap-2">
+                                <input class="form-check-input" type="radio" name="SourceTargetType" id="targetMovie" value="movie" checked>
+                                <label class="form-check-label fw-medium text-light" for="targetMovie" role="button">
+                                    <i class="bi bi-film me-1 text-info"></i>Phim lẻ (Movie)
+                                </label>
+                            </div>
+                            <div class="form-check m-0 d-flex align-items-center gap-2">
+                                <input class="form-check-input" type="radio" name="SourceTargetType" id="targetSeries" value="series">
+                                <label class="form-check-label fw-medium text-light" for="targetSeries" role="button">
+                                    <i class="bi bi-collection-play me-1 text-warning"></i>Tập thuộc Phim bộ (Series)
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label">Movie</label>
+                    <!-- Khối chọn Phim lẻ -->
+                    <div class="col-12" id="blockTargetMovie">
+                        <label class="form-label fw-semibold">Chọn Phim lẻ *</label>
                         <select id="MovieId" class="form-select">
-                            <option value="">-- Chọn Movie --</option>
+                            <option value="">-- Chọn Phim lẻ --</option>
                         </select>
-                        <div class="form-text">Chỉ dùng khi Loại = Movie.</div>
+                        <div class="form-text text-secondary">Gõ tên phim hoặc Movie ID để tìm kiếm nhanh.</div>
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label">Episode</label>
-                        <select id="EpisodeId" class="form-select">
-                            <option value="">-- Chọn Episode --</option>
-                        </select>
-                        <div class="form-text">Chỉ dùng khi Loại = Episode.</div>
+                    <!-- Khối chọn Tập thuộc Phim bộ (Series -> Season -> Tập/Movie) -->
+                    <div class="col-12 d-none" id="blockTargetSeries">
+                        <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">1. Chọn Phim bộ (Series) *</label>
+                                    <select id="SeriesId" class="form-select">
+                                        <option value="">-- Chọn Phim bộ --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">2. Chọn Mùa (Season) *</label>
+                                    <select id="SeasonId" class="form-select" disabled>
+                                        <option value="">-- Chọn Mùa --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">3. Chọn Tập phim (Movie) *</label>
+                                    <select id="SeasonMovieId" class="form-select" disabled>
+                                        <option value="">-- Chọn Tập phim --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-text text-secondary mt-2">
+                                <i class="bi bi-info-circle me-1"></i>Mỗi tập phim trong mùa là một phim lẻ được gán vào mùa đó. Chọn tập phim để liên kết nguồn video.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Khối hiển thị nguồn cũ nếu là Legacy Episode (khi Edit) -->
+                    <div class="col-12 d-none" id="blockLegacyEpisode">
+                        <div class="alert alert-info py-2 px-3 mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-info-circle-fill"></i>
+                            <span id="legacyEpisodeText">Nguồn video này thuộc Episode ID cũ.</span>
+                        </div>
                     </div>
 
                     <div class="col-md-4">
@@ -669,6 +753,9 @@
                     <i class="bi bi-trash me-1"></i>Xóa nguồn này
                 </button>
                 <div class="d-flex gap-2 ms-auto">
+                    <button type="button" class="btn btn-outline-success d-none" id="btnPreviewSubtitle">
+                        <i class="bi bi-eye me-1"></i>Xem trước phụ đề
+                    </button>
                     <button type="button" class="btn btn-outline-info d-none" id="btnGenerateSubtitle">
                         <i class="bi bi-badge-cc me-1"></i>Tạo phụ đề VI/EN bằng Gemini
                     </button>
@@ -736,8 +823,13 @@
             getSubtitleDraft: '@urlGetSubtitleDraft',
             updateSubtitleDraft: '@urlUpdateSubtitleDraft',
             approveSubtitle: '@urlApproveSubtitle',
+            getSubtitlesBySource: '@urlGetSubtitlesBySource',
+            saveSourceSubtitles: '@urlSaveSourceSubtitles',
             movies:  '@urlGetAllMovies',
-            eps:     '@urlGetAllEpisodes'
+            eps:     '@urlGetAllEpisodes',
+            series:  '@urlGetAllSeries',
+            seasons: '@urlGetAllSeasons',
+            moviesBySeason: '@urlGetMoviesBySeason'
           };
 
           // ===== Elements & State =====
@@ -789,6 +881,8 @@
           let currentSubtitleDraft = [];
           let subtitlePreviewLanguage = 'vi';
           let subtitlePreviewHls = null;
+          let currentPreviewSourceId = 0;
+          let currentPreviewStreamUrl = '';
 
           function reportVideoSourceClientError(eventName, detail){
             const antiForgeryToken = $('input[name="__RequestVerificationToken"]').first().val();
@@ -959,7 +1053,9 @@
             }
             const draft = await $.get(urls.getSubtitleDraft, { jobId });
             currentSubtitleDraftJobId = jobId;
+            currentPreviewSourceId = Number(draft.sourceId || draft.SourceId || 0);
             currentSubtitleDraft = draft.cues || draft.Cues || [];
+
             renderSubtitleDraft();
             setupSubtitlePreview(draft.streamUrl || draft.StreamUrl, draft.sourceId || draft.SourceId);
             $('#subtitleDraftPanel,#btnSaveSubtitleDraft,#btnApproveSubtitle').removeClass('d-none');
@@ -1071,10 +1167,16 @@
           function initSelect2(){
             const parent = $('#sourceModal');
             $('#MovieId').select2({
-              placeholder: '-- Chọn Movie --', allowClear: true, width: '100%', dropdownParent: parent
+              placeholder: '-- Chọn Phim lẻ --', allowClear: true, width: '100%', dropdownParent: parent
             });
-            $('#EpisodeId').select2({
-              placeholder: '-- Chọn Episode --', allowClear: true, width: '100%', dropdownParent: parent
+            $('#SeriesId').select2({
+              placeholder: '-- Chọn Phim bộ --', allowClear: true, width: '100%', dropdownParent: parent
+            });
+            $('#SeasonId').select2({
+              placeholder: '-- Chọn Mùa --', allowClear: true, width: '100%', dropdownParent: parent
+            });
+            $('#SeasonMovieId').select2({
+              placeholder: '-- Chọn Tập phim --', allowClear: true, width: '100%', dropdownParent: parent
             });
           }
           initSelect2();
@@ -1086,49 +1188,82 @@
 
             const rows = state.items.map(x=>{
               const id          = gv(x,'sourceId','SourceId','sourcE_ID');
-              const movieId     = gv(x,'movieId','MovieId','moviE_ID') ?? '';
-              const episodeId   = gv(x,'episodeId','EpisodeId','episodE_ID') ?? '';
-              const movieTitle  = gv(x,'movieTitle','MovieTitle','moviE_TITLE') ?? '';
-              const episodeTitle= gv(x,'episodeTitle','EpisodeTitle','episodE_TITLE') ?? '';
-              const provider    = gv(x,'provider','Provider') ?? '';
-              const server      = gv(x,'serverName','ServerName','serveR_NAME') ?? '';
-              const url         = gv(x,'streamUrl','StreamUrl','streaM_URL') ?? '';
-              const quality     = gv(x,'quality','Quality') ?? '';
-              const format      = gv(x,'format','Format') ?? '';
-              const drmType     = gv(x,'drmType','DrmType','drM_TYPE') ?? '';
-              const drmLic      = gv(x,'drmLicenseUrl','DrmLicenseUrl','drM_LICENSE_URL') ?? '';
-              const isPrimary   = gv(x,'isPrimary','IsPrimary','iS_PRIMARY');
-              const status      = gv(x,'status','Status') ?? '';
+              const movieId     = gv(x,'movieId','MovieId','moviE_ID');
+              const episodeId   = gv(x,'episodeId','EpisodeId','episodE_ID');
+              const movieTitle  = gv(x,'movieTitle','MovieTitle','moviE_TITLE') || '';
+              const episodeTitle= gv(x,'episodeTitle','EpisodeTitle','episodE_TITLE') || '';
+              const provider    = gv(x,'provider','Provider') || 'N/A';
+              const server      = gv(x,'serverName','ServerName','serveR_NAME') || '';
+              const url         = gv(x,'streamUrl','StreamUrl','streaM_URL') || '';
+              const quality     = gv(x,'quality','Quality') || '';
+              const format      = gv(x,'format','Format') || '';
+              const drmType     = gv(x,'drmType','DrmType','drM_TYPE') || '';
+              const drmLic      = gv(x,'drmLicenseUrl','DrmLicenseUrl','drM_LICENSE_URL') || '';
+              const isPrimary   = (String(gv(x,'isPrimary','IsPrimary','iS_PRIMARY'))==='Y'||String(gv(x,'isPrimary','IsPrimary','iS_PRIMARY'))==='true'||gv(x,'isPrimary')===true);
+              const status      = (gv(x,'status','Status') || 'ACTIVE').toUpperCase();
 
-              const videoCell = url ? `
-                <div class="video-cell">
-                  <video src="${url}" controls playsinline preload="metadata"
-                         onerror="console.warn('Video load error:', '${url}')"></video>
-                  <div class="small mt-1">
-                    <a href="${url}" target="_blank" class="text-clip" title="${url}">${url}</a>
-                    <button class="btn btn-sm btn-outline-secondary ms-2 btn-preview"
-                            data-url="${url}" data-id="${id}" title="Xem lớn">
-                      <i class="bi bi-arrows-fullscreen"></i>
+              const isSeriesEpisode = !!episodeId || (!movieId && !!episodeTitle);
+              const typeBadge = isSeriesEpisode
+                ? `<span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-collection-play me-1"></i>Phim bộ</span>`
+                : `<span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle"><i class="bi bi-film me-1"></i>Phim lẻ</span>`;
+
+              let targetHtml = '';
+              if (movieTitle || movieId) {
+                targetHtml += `<div class="fw-semibold text-light text-clip" title="${movieTitle || `Movie #${movieId}`}">${movieTitle || `Movie #${movieId}`}</div>`;
+              }
+              if (isSeriesEpisode) {
+                targetHtml += `<div class="small text-secondary d-flex flex-wrap align-items-center gap-1 mt-1">
+                  <i class="bi bi-play-circle text-warning"></i>
+                  <span class="text-clip" style="max-width: 170px;" title="${episodeTitle}">${episodeTitle || `Tập #${episodeId}`}</span>
+                  ${episodeId ? `<span class="badge bg-secondary-subtle text-secondary py-0">E#${episodeId}</span>` : ''}
+                </div>`;
+              } else if (movieId) {
+                targetHtml += `<div class="small text-secondary mt-1"><span class="badge bg-secondary-subtle text-secondary py-0">Movie #${movieId}</span></div>`;
+              }
+
+              const streamCell = url ? `
+                <div class="video-stream-cell">
+                  <div class="d-flex align-items-center gap-1 mb-1">
+                    <button class="btn btn-sm btn-outline-info btn-preview py-0 px-2" data-url="${url}" data-id="${id}" title="Xem trước video">
+                      <i class="bi bi-play-fill me-1"></i>Xem video
                     </button>
+                    <a href="${url}" target="_blank" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Mở luồng">
+                      <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
                   </div>
-                </div>` : `<span class="text-muted">N/A</span>`;
+                  <div class="small text-muted text-clip" title="${url}">${url}</div>
+                </div>` : `<span class="text-muted small">Chưa có URL</span>`;
+
+              const statusBadge = status === 'ACTIVE'
+                ? `<span class="badge bg-success">ACTIVE</span>`
+                : `<span class="badge bg-danger">DISABLED</span>`;
+
+              const primaryBadge = isPrimary
+                ? `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-star-fill me-1"></i>Chính</span>`
+                : `<span class="badge bg-secondary-subtle text-secondary">Phụ</span>`;
 
               return `<tr>
-                <td class="text-muted">${id??''}</td>
-                <td>${movieId || ''}</td>
-                <td>${movieTitle ? `<span class="text-clip" title="${movieTitle}">${movieTitle}</span>` : ''}</td>
-                <td>${episodeId || ''}</td>
-                <td>${episodeTitle ? `<span class="text-clip" title="${episodeTitle}">${episodeTitle}</span>` : ''}</td>
-                <td><div class="small">${provider}</div><div class="text-muted small">${server}</div></td>
-                <td>${videoCell}</td>
-                <td>${quality||''}</td>
-                <td>${format||''}</td>
+                <td class="text-secondary fw-semibold">#${id??''}</td>
+                <td>${typeBadge}</td>
+                <td>${targetHtml || '<span class="text-muted">Chưa gán</span>'}</td>
                 <td>
-                  <div class="small">${drmType||''}</div>
-                  ${drmLic ? `<div class="text-muted small text-clip" title="${drmLic}">${drmLic}</div>` : ''}
+                  <div class="fw-medium text-light"><i class="bi bi-hdd-network text-info me-1"></i>${provider}</div>
+                  ${server ? `<div class="text-muted small">${server}</div>` : ''}
                 </td>
-                <td>${(String(isPrimary)==='Y'||String(isPrimary)==='true'||isPrimary===true)?'Yes':'No'}</td>
-                <td>${status}</td>
+                <td>${streamCell}</td>
+                <td>
+                  <div class="d-flex flex-wrap gap-1 align-items-center">
+                    ${quality ? `<span class="badge bg-dark border text-light">${quality}</span>` : ''}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">${format || 'HLS'}</span>
+                    ${drmType ? `<span class="badge bg-danger-subtle text-danger border border-danger-subtle" title="${drmLic || ''}">DRM: ${drmType}</span>` : ''}
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex flex-column gap-1 align-items-start">
+                    ${primaryBadge}
+                    ${statusBadge}
+                  </div>
+                </td>
                 <td class="text-end">
                   <div class="btn-group">
                     <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}" title="Sửa nguồn">
@@ -1142,7 +1277,7 @@
               </tr>`;
             }).join('');
 
-            $tbody.html(rows || `<tr><td colspan="13" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
+            $tbody.html(rows || `<tr><td colspan="8" class="text-center text-secondary py-4"><i class="bi bi-inbox me-2"></i>Không có dữ liệu nguồn video</td></tr>`);
             renderPager($pager, state);
           }
 
@@ -1175,10 +1310,13 @@
             }).always(hideLoading);
           }
 
-          // ===== Dropdown Movies / Episodes (Select2, có selectedId) =====
+          // ===== Dropdowns Cascading (Phim lẻ & Phim bộ/Mùa/Tập) =====
+          let allSeriesList = [];
+          let allSeasonsList = [];
+
           function fillMovies(selectedId){
             const $ddl = $('#MovieId');
-            $ddl.empty().append(new Option('-- Chọn Movie --', '', false, false)).trigger('change');
+            $ddl.empty().append(new Option('-- Chọn Phim lẻ --', '', false, false)).trigger('change');
             if (!urls.movies) return;
 
             movieLookupRequest?.abort();
@@ -1187,39 +1325,118 @@
               uniqueById(pickList(res), m=>gv(m,'movieId','MovieId','moviE_ID')).forEach(m=>{
                 const id = gv(m,'movieId','MovieId','moviE_ID');
                 const title = gv(m,'title','Title') || `Movie #${id}`;
-                $ddl.append(new Option(title, id, false, false));
+                $ddl.append(new Option(`[#${id}] ${title}`, id, false, false));
               });
               $ddl.val(selectedId != null ? String(selectedId) : '').trigger('change');
             }).always(()=> { movieLookupRequest = null; });
           }
-          function fillEpisodes(selectedId){
-            const $ddl = $('#EpisodeId');
-            $ddl.empty().append(new Option('-- Chọn Episode --', '', false, false)).trigger('change');
-            if (!urls.eps) return;
 
-            episodeLookupRequest?.abort();
-            episodeLookupRequest = $.get(urls.eps, res=>{
+          function fillSeries(selectedSeriesId, onDone){
+            const $ddl = $('#SeriesId');
+            $ddl.empty().append(new Option('-- Chọn Phim bộ --', '', false, false)).trigger('change');
+            if (!urls.series) return;
+
+            $.get(urls.series, res => {
+              allSeriesList = pickList(res);
               $ddl.find('option:not(:first)').remove();
-              uniqueById(pickList(res), ep=>gv(ep,'episodeId','EpisodeId','episodE_ID')).forEach(ep=>{
-                const id   = gv(ep,'episodeId','EpisodeId','episodE_ID');
-                const epNo = gv(ep,'episodeNo','EpisodeNo','episodE_NO');
-                const title= gv(ep,'episodeTitle','EpisodeTitle','title','Title') || `Episode #${id}`;
-                $ddl.append(new Option(`E${epNo ?? ''} - ${title}`, id, false, false));
+              allSeriesList.forEach(s => {
+                const id = gv(s, 'seriesId', 'SeriesId', 'serieS_ID');
+                const title = gv(s, 'title', 'Title') || `Series #${id}`;
+                $ddl.append(new Option(`[#${id}] ${title}`, id, false, false));
               });
-              $ddl.val(selectedId != null ? String(selectedId) : '').trigger('change');
-            }).always(()=> { episodeLookupRequest = null; });
+              if (selectedSeriesId != null) {
+                $ddl.val(String(selectedSeriesId)).trigger('change');
+              }
+              if (typeof onDone === 'function') onDone();
+            });
           }
 
-          function toggleTypeUI(){
-            const type = $('#SourceType').val();
-            if (type === 'movie'){
-              $('#MovieId').prop('disabled', false);
-              $('#EpisodeId').prop('disabled', true).val('').trigger('change');
-            } else {
-              $('#MovieId').prop('disabled', true).val('').trigger('change');
-              $('#EpisodeId').prop('disabled', false);
+          function fillSeasons(seriesId, selectedSeasonId, onDone){
+            const $ddl = $('#SeasonId');
+            $ddl.empty().append(new Option('-- Chọn Mùa --', '', false, false)).trigger('change');
+            if (!seriesId) {
+              $ddl.prop('disabled', true);
+              $('#SeasonMovieId').empty().append(new Option('-- Chọn Tập phim --', '', false, false)).prop('disabled', true).trigger('change');
+              return;
             }
+
+            $.get(urls.seasons, res => {
+              allSeasonsList = pickList(res);
+              const matchedSeasons = allSeasonsList.filter(sn => {
+                const sId = gv(sn, 'seriesId', 'SeriesId', 'serieS_ID');
+                return String(sId) === String(seriesId);
+              });
+              $ddl.find('option:not(:first)').remove();
+              matchedSeasons.forEach(sn => {
+                const id = gv(sn, 'seasonId', 'SeasonId', 'seasoN_ID');
+                const no = gv(sn, 'seasonNo', 'SeasonNo', 'seasoN_NO') || 1;
+                const title = gv(sn, 'title', 'Title') || `Mùa ${no}`;
+                $ddl.append(new Option(`Mùa ${no}: ${title}`, id, false, false));
+              });
+              $ddl.prop('disabled', false);
+              if (selectedSeasonId != null) {
+                $ddl.val(String(selectedSeasonId)).trigger('change');
+              }
+              if (typeof onDone === 'function') onDone();
+            });
           }
+
+          function fillMoviesBySeason(seasonId, selectedMovieId, onDone){
+            const $ddl = $('#SeasonMovieId');
+            $ddl.empty().append(new Option('-- Chọn Tập phim --', '', false, false)).trigger('change');
+            if (!seasonId) {
+              $ddl.prop('disabled', true);
+              return;
+            }
+
+            $.get(urls.moviesBySeason, { seasonId }, res => {
+              const list = pickList(res);
+              $ddl.find('option:not(:first)').remove();
+              list.forEach(item => {
+                const mId = gv(item, 'movieId', 'MovieId');
+                const epId = gv(item, 'episodeId', 'EpisodeId');
+                const epNo = gv(item, 'episodeNo', 'EpisodeNo') || '';
+                const title = gv(item, 'movieTitle', 'MovieTitle', 'title', 'Title') || `Movie #${mId}`;
+                const scCount = Number(gv(item, 'sourceCount', 'SourceCount')) || 0;
+                const optText = `Tập ${epNo}: ${title} (Movie #${mId})` + (scCount > 0 ? ` [${scCount} nguồn]` : '');
+                const opt = new Option(optText, mId, false, false);
+                $(opt).data('episode-id', epId);
+                $ddl.append(opt);
+              });
+              $ddl.prop('disabled', false);
+              if (selectedMovieId != null) {
+                $ddl.val(String(selectedMovieId)).trigger('change');
+              }
+              if (typeof onDone === 'function') onDone();
+            });
+          }
+
+          // Chuyển đổi giữa Phim lẻ và Tập thuộc Phim bộ
+          $('input[name="SourceTargetType"]').on('change', function(){
+            const val = $('input[name="SourceTargetType"]:checked').val();
+            if (val === 'movie'){
+              $('#blockTargetMovie').removeClass('d-none');
+              $('#blockTargetSeries').addClass('d-none');
+            } else {
+              $('#blockTargetMovie').addClass('d-none');
+              $('#blockTargetSeries').removeClass('d-none');
+              if ($('#SeriesId option').length <= 1) {
+                fillSeries();
+              }
+            }
+          });
+
+          // Chọn Series -> nạp Seasons
+          $('#SeriesId').on('change', function(){
+            const seriesId = $(this).val();
+            fillSeasons(seriesId);
+          });
+
+          // Chọn Season -> nạp Movies trong Season
+          $('#SeasonId').on('change', function(){
+            const seasonId = $(this).val();
+            fillMoviesBySeason(seasonId);
+          });
 
           // ===== Modal: Add/Edit =====
           function openAdd(){
@@ -1227,6 +1444,7 @@
             $('#frmSource')[0].reset();
             $('#SourceId').val('');
             $('#OldStreamUrl').val('');
+            $('#LegacyEpisodeId').val('');
             $('#File').prop('disabled', false);
             resumeFileState = null;
             resetInlineUploadProgress();
@@ -1237,12 +1455,16 @@
             $('#btnDeleteCurrentSource').addClass('d-none').data('id', '').data('url', '');
             $('#btnGenerateHighlight').addClass('d-none').data('id', '');
             $('#btnGenerateSubtitle').addClass('d-none').data('id', '');
+            $('#btnPreviewSubtitle').addClass('d-none').data('id', '');
 
-            $('#SourceType').val('movie');
-            toggleTypeUI();
+            $('#blockTargetSelection').removeClass('d-none');
+            $('#blockLegacyEpisode').addClass('d-none');
+            $('#targetMovie').prop('checked', true).trigger('change');
+            $('#MovieId').prop('disabled', false);
+            $('#SeriesId').prop('disabled', false);
 
             fillMovies();
-            fillEpisodes();
+            fillSeries();
 
             sourceModal.show();
           }
@@ -1258,14 +1480,25 @@
 
             const movieId     = gv(it,'movieId','MovieId','moviE_ID');
             const episodeId   = gv(it,'episodeId','EpisodeId','episodE_ID');
-            const isMovie     = !!movieId && !episodeId;
+            const movieTitle  = gv(it,'movieTitle','MovieTitle','moviE_TITLE') || '';
+            const episodeTitle= gv(it,'episodeTitle','EpisodeTitle','episodE_TITLE') || '';
 
-            $('#SourceType').val(isMovie?'movie':'episode');
-            toggleTypeUI();
+            $('#LegacyEpisodeId').val(episodeId || '');
 
-            // nạp list + chọn đúng item
-            fillMovies(isMovie ? movieId : null);
-            fillEpisodes(!isMovie ? episodeId : null);
+            if (movieId) {
+              $('#blockTargetSelection').addClass('d-none');
+              $('#blockLegacyEpisode').addClass('d-none');
+              $('#blockTargetMovie').removeClass('d-none');
+              $('#blockTargetSeries').addClass('d-none');
+              $('#targetMovie').prop('checked', true);
+              fillMovies(movieId);
+            } else if (episodeId) {
+              $('#blockTargetSelection').addClass('d-none');
+              $('#blockTargetMovie').addClass('d-none');
+              $('#blockTargetSeries').addClass('d-none');
+              $('#blockLegacyEpisode').removeClass('d-none');
+              $('#legacyEpisodeText').html(`Nguồn video này liên kết với <b>Episode #${episodeId}</b> ${episodeTitle ? `(${episodeTitle})` : ''}`);
+            }
 
             $('#Provider').val(gv(it,'provider','Provider')||'');
             $('#ServerName').val(gv(it,'serverName','ServerName','serveR_NAME')||'');
@@ -1282,6 +1515,8 @@
             $('#btnDeleteCurrentSource').removeClass('d-none').data('id', id).data('url', streamUrl);
             $('#btnGenerateHighlight').removeClass('d-none').data('id', id);
             $('#btnGenerateSubtitle').removeClass('d-none').data('id', id);
+            $('#btnPreviewSubtitle').addClass('d-none').data('id', id).data('url', streamUrl);
+            checkAndToggleSubtitlePreview(id);
 
             $('#File').val('').prop('disabled', false);
             resumeFileState = null;
@@ -1293,6 +1528,7 @@
 
             sourceModal.show();
           }
+
 
           async function createMp4Fingerprint(file){
             const sampleSize = 1024 * 1024;
@@ -1737,6 +1973,7 @@
 
               showUploadProgress('Hoàn tất', `Đã tạo và upload ${segments.length} HLS segments.`, 100);
               loadAll();
+              autoGenerateSubtitleAfterSave(result, sourceId);
               closeSourceAndShowUploadResult(
                 true,
                 'Upload thành công',
@@ -2296,6 +2533,7 @@
                 await showSubtitleDraft(resJobId);
                 subtitleConfirmModal.show();
                 showToast('Đã tạo bản nháp. Vui lòng kiểm tra và nhấn Duyệt phụ đề.', true, 6000);
+                $('#btnPreviewSubtitle').removeClass('d-none').data('id', sourceId);
               } else {
                 showToast('Tạo phụ đề hoàn tất nhưng không nhận được mã tác vụ hợp lệ.', false);
               }
@@ -2330,14 +2568,26 @@
               Status:       ($('#Status').val()||'ACTIVE').trim()
             };
 
-            if (type==='movie'){
-              if (!movieId){ showToast("Vui lòng chọn Movie.", false); return; }
-              payload.MovieId = Number(movieId);
-              payload.EpisodeId = null;
+            if (isEdit) {
+              payload.MovieId = Number($('#MovieId').val()) || null;
+              payload.EpisodeId = Number($('#LegacyEpisodeId').val()) || null;
             } else {
-              if (!episodeId){ showToast("Vui lòng chọn Episode.", false); return; }
-              payload.MovieId = null;
-              payload.EpisodeId = Number(episodeId);
+              const targetType = $('input[name="SourceTargetType"]:checked').val();
+              if (targetType === 'movie') {
+                const mId = ($('#MovieId').val() || '').trim();
+                if (!mId) { showToast("Vui lòng chọn Phim lẻ.", false); return; }
+                payload.MovieId = Number(mId);
+                payload.EpisodeId = null;
+              } else {
+                const seriesId = ($('#SeriesId').val() || '').trim();
+                const seasonId = ($('#SeasonId').val() || '').trim();
+                const sMovieId = ($('#SeasonMovieId').val() || '').trim();
+                if (!seriesId) { showToast("Vui lòng chọn Phim bộ.", false); return; }
+                if (!seasonId) { showToast("Vui lòng chọn Mùa.", false); return; }
+                if (!sMovieId) { showToast("Vui lòng chọn Tập phim trong mùa.", false); return; }
+                payload.MovieId = Number(sMovieId);
+                payload.EpisodeId = null;
+              }
             }
 
             if (!payload.Provider){ showToast("Provider là bắt buộc.", false); return; }
@@ -2354,9 +2604,10 @@
                   showToast('Vui lòng chọn file MP4.', false);
                   return;
                 }
-                uploadMp4AsHls(fileObj, payload, anti);
+                uploadMp4AsHlsInBrowser(fileObj, payload, anti);
                 return;
               }
+
 
               if (inputMode === 'hls'){
                 const playlist = document.getElementById('HlsPlaylist').files?.[0] || null;
@@ -2423,9 +2674,10 @@
 
               if (inputMode === 'file'){
                 if (!fileObj){ showToast('Vui lòng chọn file MP4 mới.', false); return; }
-                uploadMp4AsHls(fileObj, payload, anti, Number(id), oldStreamUrl);
+                uploadMp4AsHlsInBrowser(fileObj, payload, anti, Number(id), oldStreamUrl);
                 return;
               }
+
 
               if (inputMode === 'hls'){
                 const playlist = document.getElementById('HlsPlaylist').files?.[0] || null;
@@ -2616,35 +2868,107 @@
               });
           });
 
-          $('#subtitleCueEditor').on('click', '.subtitle-seek', function(){
-            const video = document.getElementById('subtitlePreviewVideo');
-            video.currentTime = Number($(this).data('time')) || 0;
-            video.play().catch(()=>{});
-          }).on('click', '.cue-delete', function(){
-            $(this).closest('tr').remove();
-          });
+          function updateLiveSubtitlePreview(row, seekVideo = false){
+            const $row = $(row).closest('tr');
+            const index = Number($row.data('index'));
+            const startSec = Number($row.find('.cue-start').val()) || 0;
+            const endSec = Number($row.find('.cue-end').val()) || 0;
+            const viText = $row.find('.cue-vi').val() || '';
+            const enText = $row.find('.cue-en').val() || '';
+
+            if (currentSubtitleDraft[index]) {
+              currentSubtitleDraft[index].startSeconds = startSec;
+              currentSubtitleDraft[index].endSeconds = endSec;
+              currentSubtitleDraft[index].vi = viText;
+              currentSubtitleDraft[index].en = enText;
+            }
+
+            const activeText = subtitlePreviewLanguage === 'en' ? enText : viText;
+            $('#subtitlePreviewText').text(activeText);
+
+            if (seekVideo) {
+              const video = document.getElementById('subtitlePreviewVideo');
+              if (video) {
+                video.currentTime = startSec;
+              }
+            }
+          }
+
+          $('#subtitleCueEditor')
+            .on('click', '.subtitle-seek', function(){
+              const row = $(this).closest('tr');
+              updateLiveSubtitlePreview(row, true);
+              const video = document.getElementById('subtitlePreviewVideo');
+              video?.play().catch(()=>{});
+            })
+            .on('focus click', '.cue-vi, .cue-en, .cue-start, .cue-end', function(){
+              const row = $(this).closest('tr');
+              updateLiveSubtitlePreview(row, true);
+            })
+            .on('input', '.cue-vi, .cue-en, .cue-start, .cue-end', function(){
+              const row = $(this).closest('tr');
+              updateLiveSubtitlePreview(row, false);
+            })
+            .on('click', '.cue-delete', function(){
+              const index = Number($(this).closest('tr').data('index'));
+              if (!isNaN(index) && index >= 0 && index < currentSubtitleDraft.length) {
+                currentSubtitleDraft.splice(index, 1);
+                renderSubtitleDraft();
+                $('#subtitlePreviewText').text('');
+              } else {
+                $(this).closest('tr').remove();
+              }
+            });
 
           $('.subtitle-preview-lang').on('click', function(){
             subtitlePreviewLanguage = $(this).data('lang');
             $('.subtitle-preview-lang').removeClass('active');
             $(this).addClass('active');
-            document.getElementById('subtitlePreviewVideo')?.dispatchEvent(new Event('timeupdate'));
+            const focusedRow = $('#subtitleCueEditor tr:focus-within');
+            if (focusedRow.length) {
+              updateLiveSubtitlePreview(focusedRow, false);
+            } else {
+              document.getElementById('subtitlePreviewVideo')?.dispatchEvent(new Event('timeupdate'));
+            }
           });
 
           $('#btnSaveSubtitleDraft').on('click', async function(){
-            if(!currentSubtitleDraftJobId) return;
+            const updatedCues = collectSubtitleDraft();
+            if(!updatedCues || updatedCues.length === 0){
+              showToast('Danh sách phụ đề trống.', false);
+              return;
+            }
+            const $btn = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...');
             try {
               const anti = await getFreshSubtitleRequestToken();
-              const result = await $.ajax({
-                url: `${urls.updateSubtitleDraft}?jobId=${encodeURIComponent(currentSubtitleDraftJobId)}`,
-                type: 'POST', contentType: 'application/json', data: JSON.stringify({ cues: collectSubtitleDraft() }),
-                headers: { 'RequestVerificationToken': anti }
-              });
-              currentSubtitleDraft = result.cues || result.Cues || [];
-              renderSubtitleDraft();
-              showToast('Đã lưu chỉnh sửa. Phụ đề vẫn chưa được duyệt.', true);
-            } catch(error){ showToast(error?.responseJSON?.message || error?.message || 'Không lưu được bản nháp.', false, 7000); }
+              if (currentSubtitleDraftJobId) {
+                const result = await $.ajax({
+                  url: `${urls.updateSubtitleDraft}?jobId=${encodeURIComponent(currentSubtitleDraftJobId)}`,
+                  type: 'POST', contentType: 'application/json', data: JSON.stringify({ cues: updatedCues }),
+                  headers: { 'RequestVerificationToken': anti }
+                });
+                currentSubtitleDraft = result.cues || result.Cues || updatedCues;
+                renderSubtitleDraft();
+                showToast('Đã lưu chỉnh sửa. Phụ đề vẫn chưa được duyệt.', true);
+              } else if (currentPreviewSourceId) {
+                const result = await $.ajax({
+                  url: urls.saveSourceSubtitles,
+                  type: 'POST',
+                  contentType: 'application/json',
+                  data: JSON.stringify({ sourceId: currentPreviewSourceId, cues: updatedCues }),
+                  headers: { 'RequestVerificationToken': anti }
+                });
+                currentSubtitleDraft = updatedCues;
+                renderSubtitleDraft();
+                showToast(result?.message || 'Đã lưu và xuất bản cập nhật phụ đề thành công!', true, 4000);
+              }
+            } catch(error){
+              showToast(error?.responseJSON?.message || error?.message || 'Không lưu được phụ đề.', false, 7000);
+            } finally {
+              $btn.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu chỉnh sửa phụ đề');
+            }
           });
+
 
           $('#btnApproveSubtitle').on('click', async function(){
             if(!currentSubtitleDraftJobId) return;
@@ -2665,9 +2989,161 @@
               $('#subtitleApprovalStatus').removeClass('alert-warning').addClass('alert-success').text(message);
               updateSubtitleProgress(message, 100, false);
               button.addClass('d-none'); $('#btnSaveSubtitleDraft').addClass('d-none');
+              $('#btnPreviewSubtitle').removeClass('d-none');
               showToast(message, true, 5000);
             } catch(error){ showToast(error?.responseJSON?.message || error?.message || 'Không duyệt được phụ đề.', false, 7000); }
             finally { button.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>Duyệt phụ đề'); }
+          });
+
+          // ===== Check & Preview Subtitle Logic =====
+          async function checkAndToggleSubtitlePreview(sourceId){
+            if (!sourceId){
+              $('#btnPreviewSubtitle').addClass('d-none');
+              return;
+            }
+            try {
+              const res = await $.get(urls.getSubtitlesBySource, { sourceId: Number(sourceId) });
+              const items = res?.data?.table || res?.Data?.Table || res?.data || [];
+              if (Array.isArray(items) && items.length > 0) {
+                $('#btnPreviewSubtitle')
+                  .removeClass('d-none')
+                  .data('id', sourceId)
+                  .data('subtitles', items);
+                return;
+              }
+            } catch(e) {
+              console.warn('[Subtitle] Không kiểm tra được phụ đề của sourceId=' + sourceId, e);
+            }
+            $('#btnPreviewSubtitle').addClass('d-none');
+          }
+
+          function parseVttToCues(viVttText, enVttText){
+            const parseSingle = (text) => {
+              if (!text || typeof text !== 'string') return [];
+              const result = [];
+              const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+              let i = 0;
+              while (i < lines.length) {
+                let line = lines[i].trim();
+                if (line.includes('-->')) {
+                  const parts = line.split('-->');
+                  const startSec = parseTimestamp(parts[0].trim());
+                  const endSec = parseTimestamp(parts[1].trim().split(/\s+/)[0]);
+                  i++;
+                  const textLines = [];
+                  while (i < lines.length && lines[i].trim() !== '') {
+                    textLines.push(lines[i].trim());
+                    i++;
+                  }
+                  if (endSec > startSec && textLines.length > 0) {
+                    result.push({ startSeconds: startSec, endSeconds: endSec, text: textLines.join(' ') });
+                  }
+                }
+                i++;
+              }
+              return result;
+            };
+
+            const parseTimestamp = (str) => {
+              if (!str) return 0;
+              const p = str.split(':');
+              if (p.length === 3) return parseFloat(p[0]) * 3600 + parseFloat(p[1]) * 60 + parseFloat(p[2].replace(',', '.'));
+              if (p.length === 2) return parseFloat(p[0]) * 60 + parseFloat(p[1].replace(',', '.'));
+              return parseFloat(str.replace(',', '.')) || 0;
+            };
+
+            const viCues = parseSingle(viVttText);
+            const enCues = parseSingle(enVttText);
+            const merged = [];
+
+            viCues.forEach((v, idx) => {
+              const matchedEn = enCues.find(e => Math.abs(e.startSeconds - v.startSeconds) < 1.0) || enCues[idx];
+              merged.push({
+                startSeconds: v.startSeconds,
+                endSeconds: v.endSeconds,
+                vi: v.text,
+                en: matchedEn ? matchedEn.text : ''
+              });
+            });
+
+            if (merged.length === 0 && enCues.length > 0) {
+              enCues.forEach(e => {
+                merged.push({ startSeconds: e.startSeconds, endSeconds: e.endSeconds, vi: '', en: e.text });
+              });
+            }
+            return merged;
+          }
+
+          async function openSubtitlePreviewModal(sourceId, streamUrl){
+            showLoading();
+            try {
+              const res = await $.get(urls.getSubtitlesBySource, { sourceId });
+              const items = res?.data?.table || res?.Data?.Table || res?.data || [];
+
+              if (Array.isArray(items) && items.length > 0) {
+                const viItem = items.find(it => String(it.languageCode || it.LanguageCode || '').toLowerCase() === 'vi');
+                const enItem = items.find(it => String(it.languageCode || it.LanguageCode || '').toLowerCase() === 'en');
+
+                let viVtt = '';
+                let enVtt = '';
+
+                if (viItem && viItem.url) {
+                  try {
+                    viVtt = await $.get('/Film/SubtitleVtt', { sourceId, lang: 'vi', url: viItem.url });
+                  } catch (e) {
+                    console.warn('Lỗi tải vi.vtt:', e);
+                  }
+                }
+                if (enItem && enItem.url) {
+                  try {
+                    enVtt = await $.get('/Film/SubtitleVtt', { sourceId, lang: 'en', url: enItem.url });
+                  } catch (e) {
+                    console.warn('Lỗi tải en.vtt:', e);
+                  }
+                }
+
+                const cues = parseVttToCues(viVtt, enVtt);
+                if (cues.length > 0) {
+                  currentPreviewSourceId = Number(sourceId);
+                  currentPreviewStreamUrl = streamUrl;
+                  currentSubtitleDraftJobId = null;
+                  currentSubtitleDraft = cues;
+                  renderSubtitleDraft();
+                  setupSubtitlePreview(streamUrl, sourceId);
+                  $('#subtitleProgressPanel').addClass('d-none');
+                  $('#subtitleDraftPanel').removeClass('d-none');
+                  $('#subtitleApprovalStatus')
+                    .removeClass('alert-warning alert-danger')
+                    .addClass('alert-success')
+                    .html('<i class="bi bi-check-circle-fill me-1"></i>Đã xuất bản — Bạn có thể chỉnh sửa nội dung các câu bên dưới và nhấn <b>"Lưu chỉnh sửa phụ đề"</b> để cập nhật trực tiếp lên video và trang xem phim.');
+                  $('#btnConfirmGenerateSubtitle').addClass('d-none');
+                  $('#btnApproveSubtitle').addClass('d-none');
+                  $('#btnSaveSubtitleDraft').removeClass('d-none').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Lưu chỉnh sửa phụ đề');
+                  $('#btnCancelSubtitle').prop('disabled', false).text('Đóng');
+                  $('#subtitleConfirmTitle').html('<i class="bi bi-eye text-success me-2"></i>Xem trước và chỉnh sửa phụ đề');
+                  subtitleConfirmModal.show();
+                  hideLoading();
+                  return;
+                }
+
+              }
+
+              hideLoading();
+              showToast('Nguồn video chưa có nội dung phụ đề.', false);
+            } catch(err) {
+              hideLoading();
+              showToast('Lỗi khi tải phụ đề để xem trước: ' + (err?.message || err), false);
+            }
+          }
+
+          $('#btnPreviewSubtitle').on('click', async function(){
+            const sourceId = Number($(this).data('id')) || Number($('#SourceId').val());
+            const streamUrl = $('#StreamUrl').val() || $(this).data('url') || '';
+            if(!sourceId){
+              showToast('Chưa có thông tin Video Source để xem trước phụ đề.', false);
+              return;
+            }
+            await openSubtitlePreviewModal(sourceId, streamUrl);
           });
           $('#btnConfirmGenerateHighlight').on('click', function(){
             const sourceId = pendingHighlightSourceId;
@@ -2791,17 +3267,8 @@
             confirmAndDeleteSource(id, url);
           });
 
-          // Modal UI
-          $('#SourceType').on('change', toggleTypeUI);
-
           // First load
           (function firstLoad(){
-            // nạp dropdown cho modal ngay từ đầu giúp nhanh thao tác
-            // (cũng không ảnh hưởng đến loadAll phân trang)
-            $('#MovieId').html('<option value="">-- Chọn Movie --</option>').trigger('change');
-            $('#EpisodeId').html('<option value="">-- Chọn Episode --</option>').trigger('change');
-
-            // Nạp dữ liệu dropdown (không chặn UI)
             loadAll();
           })();
         })();

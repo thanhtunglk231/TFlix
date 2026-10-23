@@ -23,6 +23,7 @@ namespace WebBrowser.Controllers
         private readonly ILogger<FilmController> _logger;
         private readonly IPaymentService _paymentService;
         private readonly ISubtitleService _subtitleService;
+        private readonly IHttpClientFactory _httpClientFactory;
 
         public FilmController(
             IPreviewService previewService,
@@ -33,7 +34,8 @@ namespace WebBrowser.Controllers
             IRatingService ratingService,
             ILogger<FilmController> logger,
             IPaymentService paymentService,
-            ISubtitleService subtitleService)
+            ISubtitleService subtitleService,
+            IHttpClientFactory httpClientFactory)
         {
             _previewService = previewService;
             _episodeService = episodeService;
@@ -44,6 +46,7 @@ namespace WebBrowser.Controllers
             _logger = logger;
             _paymentService = paymentService;
             _subtitleService = subtitleService;
+            _httpClientFactory = httpClientFactory;
         }
 
         public IActionResult Index()
@@ -230,9 +233,10 @@ namespace WebBrowser.Controllers
             }
 
             var episodeIds = episodes.Select(x => x.EpisodeId).ToHashSet();
+            var episodeMovieIds = episodes.Where(x => x.MovieId.HasValue).Select(x => x.MovieId!.Value).ToHashSet();
             var sources = sourcesResponse?.Data?.Table?
                 .Where(x => isSeries
-                    ? (x.EpisodeId.HasValue && episodeIds.Contains(x.EpisodeId.Value))
+                    ? ((x.EpisodeId.HasValue && episodeIds.Contains(x.EpisodeId.Value)) || (x.MovieId.HasValue && episodeMovieIds.Contains(x.MovieId.Value)))
                     : (x.MovieId == id || (x.EpisodeId.HasValue && episodeIds.Contains(x.EpisodeId.Value))))
                 .Where(x => string.Equals(x.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
                 .ToList() ?? new List<WebBrowser.Models.VideoSoure.SourceItem>();
@@ -260,7 +264,7 @@ namespace WebBrowser.Controllers
             // Chọn tập phim: Ưu tiên tập được chỉ định qua tham số episodeId/ep, nếu không thì chọn tập đầu tiên có video source hoạt động
             var currentEpisodeId = (targetEpId.HasValue && episodes.Any(x => x.EpisodeId == (int)targetEpId.Value))
                 ? (int)targetEpId.Value
-                : episodes.FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId))?.EpisodeId
+                : episodes.FirstOrDefault(x => sources.Any(source => source.EpisodeId == x.EpisodeId || (x.MovieId.HasValue && source.MovieId == x.MovieId.Value)))?.EpisodeId
                   ?? episodes.FirstOrDefault()?.EpisodeId;
 
             var selectedEpisode = episodes.FirstOrDefault(x => x.EpisodeId == currentEpisodeId);
@@ -302,7 +306,24 @@ namespace WebBrowser.Controllers
                 {
                     var subtitleResponse = await _subtitleService.GetBySourceAsync(source.SourceId);
                     var items = subtitleResponse?.Data?.Table ?? new();
-                    if (items.Count > 0) subtitlesBySource[source.SourceId] = items;
+                    if (items.Count > 0)
+                    {
+                        subtitlesBySource[source.SourceId] = items;
+                        foreach (var item in items)
+                        {
+                            if (!subtitles.Any(s => string.Equals(s.LanguageCode, item.LanguageCode, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                subtitles.Add(new SubtitleTrackDto
+                                {
+                                    LanguageCode = item.LanguageCode,
+                                    LanguageName = item.LanguageCode.Equals("vi", StringComparison.OrdinalIgnoreCase) ? "Tiếng Việt" : "English",
+                                    Format = item.Format ?? "VTT",
+                                    IsDefault = item.IsDefault,
+                                    VttUrl = item.Url
+                                });
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -538,7 +559,7 @@ namespace WebBrowser.Controllers
                 var sourcesResponse = await _videoSourceService.get_all();
                 var allSources = sourcesResponse?.Data?.Table ?? new List<WebBrowser.Models.VideoSoure.SourceItem>();
                 var episodeSources = allSources
-                    .Where(x => x.EpisodeId == episodeId && string.Equals(x.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
+                    .Where(x => (x.EpisodeId == episodeId || (episode.MovieId.HasValue && x.MovieId == episode.MovieId.Value)) && string.Equals(x.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(x => string.Equals(x.Format, "HLS", StringComparison.OrdinalIgnoreCase))
                     .ThenByDescending(x => x.IsPrimary)
                     .Select(x => new
@@ -738,9 +759,78 @@ namespace WebBrowser.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> SubtitleVtt(long id, string lang, long? episodeId = null)
+        public async Task<IActionResult> SubtitleVtt(long? id, string? lang, long? episodeId = null, long? sourceId = null, string? url = null)
         {
-            var vtt = await _subtitleService.GetWebVttAsync(id, episodeId, lang);
+            var targetLang = string.IsNullOrWhiteSpace(lang) ? "vi" : lang.Trim().ToLowerInvariant();
+            string? targetUrl = url;
+
+            if (string.IsNullOrWhiteSpace(targetUrl) && sourceId.HasValue && sourceId.Value > 0)
+            {
+                try
+                {
+                    var subtitleResp = await _subtitleService.GetBySourceAsync(sourceId.Value);
+                    var items = subtitleResp?.Data?.Table;
+                    var matched = items?.FirstOrDefault(x => string.Equals(x.LanguageCode, targetLang, StringComparison.OrdinalIgnoreCase))
+                                  ?? items?.FirstOrDefault();
+                    targetUrl = matched?.Url;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Lỗi khi lấy phụ đề cho SourceId={SourceId}", sourceId);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(targetUrl) && id.HasValue && id.Value > 0)
+            {
+                try
+                {
+                    var sourcesResp = await _videoSourceService.get_all(movieId: id.Value);
+                    var sources = sourcesResp?.Data?.Table;
+                    if (sources != null)
+                    {
+                        foreach (var s in sources)
+                        {
+                            var subtitleResp = await _subtitleService.GetBySourceAsync(s.SourceId);
+                            var matched = subtitleResp?.Data?.Table?.FirstOrDefault(x => string.Equals(x.LanguageCode, targetLang, StringComparison.OrdinalIgnoreCase));
+                            if (matched != null && !string.IsNullOrWhiteSpace(matched.Url))
+                            {
+                                targetUrl = matched.Url;
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Lỗi khi tìm nguồn phụ đề cho MovieId={MovieId}", id);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(targetUrl) && Uri.TryCreate(targetUrl, UriKind.Absolute, out var parsedUri))
+            {
+                try
+                {
+                    using var client = _httpClientFactory.CreateClient();
+                    client.Timeout = TimeSpan.FromSeconds(15);
+                    var response = await client.GetAsync(parsedUri);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = await response.Content.ReadAsStringAsync();
+                        if (!string.IsNullOrWhiteSpace(content))
+                        {
+                            Response.Headers["Access-Control-Allow-Origin"] = "*";
+                            return Content(content, "text/vtt; charset=utf-8");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Không thể tải phụ đề từ URL {Url}", targetUrl);
+                }
+            }
+
+            var vtt = await _subtitleService.GetWebVttAsync(id, episodeId, targetLang);
+            Response.Headers["Access-Control-Allow-Origin"] = "*";
             return Content(vtt ?? "WEBVTT\n\n", "text/vtt; charset=utf-8");
         }
     }

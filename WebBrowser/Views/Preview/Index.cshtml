@@ -641,7 +641,7 @@
                                 foreach (var ep in episodes)
                                 {
                                     var epUrl = Url.Action("Watch", "Film", new { id = watchId, kind = watchKind, episodeId = ep.EpisodeId }) ?? watchUrl;
-                                    <a href="@epUrl" class="pill btnEp">Tập @ep.EpisodeNo</a>
+                                    <a href="@epUrl" class="pill btnEp" title="Tập @ep.EpisodeNo: @ep.EpisodeTitle">Tập @ep.EpisodeNo</a>
                                 }
                             }
                             else

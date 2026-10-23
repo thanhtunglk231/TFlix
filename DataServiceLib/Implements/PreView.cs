@@ -155,7 +155,7 @@ namespace DataServiceLib.Implements
                                     COALESCE(sa.url, N'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop') AS PrimaryPosterUrl,
                                     (SELECT TOP 1 vs.stream_url 
                                      FROM dbo.episodes e 
-                                     JOIN dbo.video_sources vs ON vs.episode_id = e.episode_id 
+                                     JOIN dbo.video_sources vs ON (vs.episode_id = e.episode_id OR (e.movie_id IS NOT NULL AND vs.movie_id = e.movie_id))
                                      WHERE e.series_id = s.series_id AND vs.status = 'ACTIVE'
                                      ORDER BY vs.is_primary DESC, vs.source_id DESC) AS PrimaryStreamUrl,
                                     (
@@ -167,12 +167,13 @@ namespace DataServiceLib.Implements
                                     (
                                         SELECT STRING_AGG(p.full_name, N', ')
                                         FROM dbo.episodes e
-                                        JOIN dbo.episode_people ep ON ep.episode_id = e.episode_id
-                                        JOIN dbo.people p ON ep.person_id = p.person_id
+                                        LEFT JOIN dbo.episode_people ep ON ep.episode_id = e.episode_id
+                                        LEFT JOIN dbo.movie_people mp ON mp.movie_id = e.movie_id
+                                        JOIN dbo.people p ON (p.person_id = ep.person_id OR p.person_id = mp.person_id)
                                         WHERE e.series_id = s.series_id
                                     ) AS Casts,
                                     ISNULL(
-                                        (SELECT AVG(CAST(r.rating_val AS FLOAT)) FROM dbo.ratings r JOIN dbo.episodes ep ON r.episode_id = ep.episode_id WHERE ep.series_id = s.series_id),
+                                        (SELECT AVG(CAST(r.rating_val AS FLOAT)) FROM dbo.ratings r JOIN dbo.episodes ep ON (r.episode_id = ep.episode_id OR (ep.movie_id IS NOT NULL AND r.movie_id = ep.movie_id)) WHERE ep.series_id = s.series_id),
                                         8.5
                                     ) AS Rating
                                 FROM dbo.series s

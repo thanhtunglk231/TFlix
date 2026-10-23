@@ -1,4 +1,4 @@
-﻿using CommonLib.Helper;
+using CommonLib.Helper;
 using CommonLib.Hepler;
 using Newtonsoft.Json;
 using System.ComponentModel;
@@ -14,6 +14,10 @@ namespace WebBrowser.Models.Episode
         [JsonProperty("series_id")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public long SeriesId { get; set; }
+
+        [JsonProperty("movie_id")]
+        [JsonConverter(typeof(FlexibleIntConverter))]
+        public long? MovieId { get; set; }
 
         // Extra display fields
         [JsonProperty("series_title")]

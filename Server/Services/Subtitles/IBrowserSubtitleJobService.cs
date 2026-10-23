@@ -16,4 +16,6 @@ public interface IBrowserSubtitleJobService
     Task<SubtitleDraftDto> UpdateDraftAsync(Guid jobId, UpdateSubtitleDraftDto request, string ownerId,
         CancellationToken cancellationToken);
     Task<BrowserSubtitleJobDto> ApproveAsync(Guid jobId, string ownerId, CancellationToken cancellationToken);
+    Task<bool> SaveSourceSubtitlesAsync(long sourceId, List<GeminiSourceSubtitleCue> cues, CancellationToken cancellationToken);
 }
+

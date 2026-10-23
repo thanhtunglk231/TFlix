@@ -1,4 +1,4 @@
-﻿// DataServiceLib/Implements/CEpisode.cs
+// DataServiceLib/Implements/CEpisode.cs
 using CoreLib.Dtos.Episode;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
@@ -192,6 +192,116 @@ namespace DataServiceLib.Implements.Admin.Episodes
                 {
                     Data = dataset,
                     code = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+            }
+        }
+
+        // ===== GÁN MOVIE VÀO SEASON =====
+        public async Task<CResponseMessage> AssignMovieToSeason(AssignMovieToSeasonDto dto)
+        {
+            try
+            {
+                var p_series_id  = new SqlParameter("@p_series_id",  SqlDbType.BigInt) { Value = dto.SeriesId };
+                var p_season_id  = new SqlParameter("@p_season_id",  SqlDbType.BigInt) { Value = dto.SeasonId };
+                var p_movie_id   = new SqlParameter("@p_movie_id",   SqlDbType.BigInt) { Value = dto.MovieId };
+                var p_episode_no = new SqlParameter("@p_episode_no", SqlDbType.Int)    { Value = dto.EpisodeNo };
+                var o_episode_id = new SqlParameter("@o_episode_id", SqlDbType.BigInt) { Direction = ParameterDirection.Output };
+                var o_code       = new SqlParameter("@o_code",       SqlDbType.NVarChar, 10)   { Direction = ParameterDirection.Output };
+                var o_message    = new SqlParameter("@o_message",    SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+
+                var parameters = new IDbDataParameter[] { p_series_id, p_season_id, p_movie_id, p_episode_no, o_episode_id, o_code, o_message };
+                _baseProvider.GetDatasetFromSP("sp_assign_movie_to_season", parameters, _connectionString);
+
+                long? newId = (o_episode_id.Value != null && o_episode_id.Value != DBNull.Value)
+                    ? Convert.ToInt64(o_episode_id.Value) : null;
+
+                return new CResponseMessage
+                {
+                    Data    = new { EpisodeId = newId },
+                    code    = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+            }
+        }
+
+        // ===== CẬP NHẬT THỨ TỰ TẬP MOVIE TRONG SEASON =====
+        public async Task<CResponseMessage> UpdateMovieInSeason(UpdateMovieInSeasonDto dto)
+        {
+            try
+            {
+                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.BigInt) { Value = dto.EpisodeId };
+                var p_episode_no = new SqlParameter("@p_episode_no", SqlDbType.Int)    { Value = dto.EpisodeNo };
+                var o_code       = new SqlParameter("@o_code",       SqlDbType.NVarChar, 10)   { Direction = ParameterDirection.Output };
+                var o_message    = new SqlParameter("@o_message",    SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+
+                var parameters = new IDbDataParameter[] { p_episode_id, p_episode_no, o_code, o_message };
+                _baseProvider.GetDatasetFromSP("sp_update_movie_in_season", parameters, _connectionString);
+
+                return new CResponseMessage
+                {
+                    code    = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+            }
+        }
+
+        // ===== XÓA MOVIE KHỎI SEASON =====
+        public async Task<CResponseMessage> RemoveMovieFromSeason(long episodeId)
+        {
+            try
+            {
+                var p_episode_id = new SqlParameter("@p_episode_id", SqlDbType.BigInt) { Value = episodeId };
+                var o_code    = new SqlParameter("@o_code",    SqlDbType.NVarChar, 10)   { Direction = ParameterDirection.Output };
+                var o_message = new SqlParameter("@o_message", SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+
+                var parameters = new IDbDataParameter[] { p_episode_id, o_code, o_message };
+                _baseProvider.GetDatasetFromSP("sp_remove_movie_from_season", parameters, _connectionString);
+
+                return new CResponseMessage
+                {
+                    code    = o_code.Value?.ToString() ?? "500",
+                    message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
+                    Success = o_code.Value?.ToString() == "200"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new CResponseMessage { Success = false, code = "500", message = "Lỗi server: " + ex.Message };
+            }
+        }
+
+        // ===== LẤY DANH SÁCH MOVIE THEO SEASON =====
+        public async Task<CResponseMessage> GetMoviesBySeason(long seasonId)
+        {
+            try
+            {
+                var p_season_id = new SqlParameter("@p_season_id", SqlDbType.BigInt) { Value = seasonId };
+                var o_code      = new SqlParameter("@o_code",      SqlDbType.NVarChar, 10)   { Direction = ParameterDirection.Output };
+                var o_message   = new SqlParameter("@o_message",   SqlDbType.NVarChar, 4000) { Direction = ParameterDirection.Output };
+
+                var parameters = new IDbDataParameter[] { p_season_id, o_code, o_message };
+                var dataset = _baseProvider.GetDatasetFromSP("sp_get_movies_by_season", parameters, _connectionString);
+
+                return new CResponseMessage
+                {
+                    Data    = dataset,
+                    code    = o_code.Value?.ToString() ?? "500",
                     message = o_message.Value?.ToString() ?? "Không lấy được phản hồi",
                     Success = o_code.Value?.ToString() == "200"
                 };

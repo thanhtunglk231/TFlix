@@ -58,6 +58,12 @@ namespace WebBrowser.Services.Implements
         public Task<BrowserSubtitleJobDto> ApproveAsync(Guid jobId) =>
             _http.PostLongRunningAsync<BrowserSubtitleJobDto>($"/api/Subtitles/browser-jobs/{jobId}/approve", new { });
 
+        public Task<CResponseMessage> SaveSourceSubtitlesAsync(long sourceId, List<GeminiSourceSubtitleCue> cues)
+        {
+            var req = new SaveSourceSubtitlesDto { SourceId = sourceId, Cues = cues };
+            return _http.PostAsync<CResponseMessage>($"/api/Subtitles/source/{sourceId}/save", req);
+        }
+
         public async Task<GenerateSubtitleResponseDto?> GetSubtitlesAsync(
             long? movieId,
             long? episodeId,

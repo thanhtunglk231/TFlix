@@ -215,6 +215,32 @@ public sealed class BrowserSubtitleJobService : IBrowserSubtitleJobService
         finally { CompletionGate.Release(); }
     }
 
+    public async Task<bool> SaveSourceSubtitlesAsync(long sourceId, List<GeminiSourceSubtitleCue> cues, CancellationToken cancellationToken)
+    {
+        await CompletionGate.WaitAsync(cancellationToken);
+        try
+        {
+            var streamUrl = GetSourceUrl(sourceId);
+            var normalized = NormalizeCues(cues);
+            if (normalized.Count == 0) throw new InvalidOperationException("Danh sách phụ đề trống hoặc không hợp lệ.");
+
+            var manifest = new JobManifest
+            {
+                SourceId = sourceId,
+                StreamUrl = streamUrl
+            };
+
+            await UploadVttAsync(manifest, normalized, "vi", true, cancellationToken);
+            await UploadVttAsync(manifest, normalized, "en", false, cancellationToken);
+            return true;
+        }
+        finally
+        {
+            CompletionGate.Release();
+        }
+    }
+
+
     private static async Task<List<GeminiSourceSubtitleCue>> ReadDraftAsync(Guid jobId, CancellationToken token)
     {
         var path = GetDraftPath(jobId);

@@ -15,7 +15,8 @@ namespace WebBrowser.Areas.Admin.Controllers
         }
         public IActionResult Index()
         {
-            return View();
+            TempData["SuccessMessage"] = "Chức năng tập phim đã chuyển sang gán phim lẻ trực tiếp vào mùa phim tại đây.";
+            return RedirectToAction("Index", "Season");
         }
 
         public async Task<IActionResult> GetAll()

@@ -1,77 +1,50 @@
 @{
     Layout = "/Areas/Admin/Views/Shared/_Layout.cshtml";
-    ViewData["Title"] = "Quản lý Season · Admin";
+    ViewData["Title"] = "Quan ly Season · Admin";
 
-    var urlGetAll = Url.Action("GetAll", "Season", new { area = "Admin" });
-    var urlAdd = Url.Action("AddSeason", "Season", new { area = "Admin" });
-    var urlUpdate = Url.Action("UpdateSeason", "Season", new { area = "Admin" });
-    var urlDelete = Url.Action("Delete", "Season", new { area = "Admin" });
-    var urlSeriesGetAll = Url.Action("GetAll", "Series", new { area = "Admin" });
+    var urlGetAll        = Url.Action("GetAll",          "Season",  new { area = "Admin" });
+    var urlAdd           = Url.Action("AddSeason",       "Season",  new { area = "Admin" });
+    var urlUpdate        = Url.Action("UpdateSeason",    "Season",  new { area = "Admin" });
+    var urlDelete        = Url.Action("Delete",          "Season",  new { area = "Admin" });
+    var urlSeriesGetAll  = Url.Action("GetAll",          "Series",  new { area = "Admin" });
+    var urlAssignMovie   = Url.Action("AssignMovie",     "Season",  new { area = "Admin" });
+    var urlUpdateMovie   = Url.Action("UpdateMovie",     "Season",  new { area = "Admin" });
+    var urlRemoveMovie   = Url.Action("RemoveMovie",     "Season",  new { area = "Admin" });
+    var urlGetMovies     = Url.Action("GetMoviesBySeason","Season", new { area = "Admin" });
+    var urlMovieAutocomp = Url.Action("Autocomplete",   "Movie",   new { area = "Admin" });
 }
 
 <style>
     /* Loading + Toast */
-    .loading-overlay {
-        position: fixed;
-        inset: 0;
-        display: none;
-        z-index: 1100;
-        background: rgba(0,0,0,.25);
-        backdrop-filter: blur(1px)
-    }
+    .loading-overlay { position:fixed; inset:0; display:none; z-index:1100; background:rgba(0,0,0,.25); backdrop-filter:blur(1px) }
+    .loading-overlay .spinner-wrap { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,.35); padding:16px 18px; border-radius:10px }
+    .spinner { width:52px; height:52px; border:5px solid #eee; border-top:5px solid #27d3c3; border-radius:50%; animation:spin 1s linear infinite }
+    @@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+    .toastx { position:fixed; top:18px; right:18px; min-width:280px; z-index:1200; background:#333; color:#fff; border-radius:10px; padding:12px 16px; display:none; box-shadow:0 8px 24px rgba(0,0,0,.25) }
+    .toastx.success { background:#28a745 }
+    .toastx.error   { background:#dc3545 }
 
-        .loading-overlay .spinner-wrap {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%,-50%);
-            background: rgba(0,0,0,.35);
-            padding: 16px 18px;
-            border-radius: 10px
-        }
+    /* Episode panel */
+    .ep-panel { background:#1a1e2a; border:1px solid rgba(255,255,255,.08); border-radius:10px; }
+    .ep-panel .ep-header { background:rgba(39,211,195,.08); border-bottom:1px solid rgba(255,255,255,.07); padding:12px 16px; border-radius:10px 10px 0 0; display:flex; align-items:center; justify-content:space-between; }
+    .ep-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid rgba(255,255,255,.05); }
+    .ep-item:last-child { border-bottom:none }
+    .ep-item .ep-no { min-width:28px; height:28px; background:#27d3c3; color:#000; border-radius:6px; font-weight:700; font-size:.78rem; display:flex; align-items:center; justify-content:center; flex-shrink:0 }
+    .ep-thumb { width:56px; height:36px; object-fit:cover; border-radius:4px; background:#111; flex-shrink:0 }
+    .ep-info { flex:1; min-width:0 }
+    .ep-title { font-size:.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ep-meta  { font-size:.75rem; color:#9aa0aa }
+    .ep-actions { display:flex; gap:4px; flex-shrink:0 }
 
-    .spinner {
-        width: 52px;
-        height: 52px;
-        border: 5px solid #eee;
-        border-top: 5px solid #27d3c3;
-        border-radius: 50%;
-        animation: spin 1s linear infinite
-    }
-    @@keyframes spin {
-        from
-
-    {
-        transform: rotate(0)
-    }
-
-    to {
-        transform: rotate(360deg)
-    }
-
-    }
-
-    .toastx {
-        position: fixed;
-        top: 18px;
-        right: 18px;
-        min-width: 280px;
-        z-index: 1200;
-        background: #333;
-        color: #fff;
-        border-radius: 10px;
-        padding: 12px 16px;
-        display: none;
-        box-shadow: 0 8px 24px rgba(0,0,0,.25)
-    }
-
-        .toastx.success {
-            background: #28a745
-        }
-
-        .toastx.error {
-            background: #dc3545
-        }
+    /* Movie autocomplete */
+    .ac-wrap { position:relative }
+    .ac-dropdown { position:absolute; z-index:500; top:100%; left:0; right:0; background:#1c2030; border:1px solid rgba(255,255,255,.12); border-radius:6px; max-height:220px; overflow-y:auto; display:none }
+    .ac-dropdown .ac-item { padding:8px 12px; cursor:pointer; font-size:.85rem; display:flex; align-items:center; gap:8px; transition:background .15s }
+    .ac-dropdown .ac-item:hover { background:rgba(39,211,195,.15) }
+    .ac-dropdown .ac-item img { width:32px; height:44px; object-fit:cover; border-radius:3px; flex-shrink:0 }
+    .ac-dropdown .ac-item-text .ac-name { font-weight:600; }
+    .ac-dropdown .ac-item-text .ac-orig { font-size:.72rem; color:#9aa0aa }
+    .season-row.active-season td { background:rgba(39,211,195,.07) !important }
 </style>
 
 <div class="loading-overlay" id="__loadingOverlay">
@@ -80,67 +53,111 @@
 <div class="toastx" id="__toastMessage"></div>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h4 class="m-0"><i class="bi bi-collection-play me-2"></i>Quản lý Season</h4>
+    <h4 class="m-0"><i class="bi bi-collection-play me-2"></i>Quan ly Season</h4>
     <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary" id="btnRefresh">
-            <i class="bi bi-arrow-clockwise me-1"></i>Nạp lại
-        </button>
-        <button class="btn btn-primary" id="btnAdd">
-            <i class="bi bi-plus-circle me-1"></i>Thêm season
-        </button>
+        <button class="btn btn-outline-secondary" id="btnRefresh"><i class="bi bi-arrow-clockwise me-1"></i>Nap lai</button>
+        <button class="btn btn-primary" id="btnAdd"><i class="bi bi-plus-circle me-1"></i>Them season</button>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-
-        <div class="row g-2 mb-3">
-            <div class="col-12 col-md-3">
-                <input id="txtSearch" class="form-control" placeholder="Tìm theo tiêu đề...">
-            </div>
-            <div class="col-6 col-md-3">
-                <input id="txtSeriesIdFilter" class="form-control" placeholder="Lọc theo SeriesId...">
-            </div>
-            <div class="col-6 col-md-3">
-                <input id="txtSeasonNoFilter" class="form-control" placeholder="Lọc theo SeasonNo...">
-            </div>
-            <div class="col-12 col-md-3">
-                <select id="pageSize" class="form-select">
-                    <option value="10">10 / trang</option>
-                    <option value="20" selected>20 / trang</option>
-                    <option value="50">50 / trang</option>
-                    <option value="100">100 / trang</option>
-                </select>
+<div class="row g-3">
+    <!-- Bang Season ben trai -->
+    <div class="col-12 col-xl-7">
+        <div class="card">
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-12 col-md-4">
+                        <input id="txtSearch" class="form-control" placeholder="Tim theo tieu de...">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <input id="txtSeriesIdFilter" class="form-control" placeholder="Loc theo SeriesId...">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <input id="txtSeasonNoFilter" class="form-control" placeholder="Loc theo SeasonNo...">
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <select id="pageSize" class="form-select">
+                            <option value="10">10/trang</option>
+                            <option value="20" selected>20/trang</option>
+                            <option value="50">50/trang</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="seasonTable" class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width:70px">ID</th>
+                                <th style="width:90px">SeriesId</th>
+                                <th style="width:80px">Mua</th>
+                                <th>Tieu de</th>
+                                <th class="text-nowrap" style="width:110px">Air Date</th>
+                                <th class="text-end" style="width:160px">Thao tac</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="pagerWrap" class="mt-2"></div>
             </div>
         </div>
+    </div>
 
-        <div class="table-responsive">
-            <table id="seasonTable" class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th style="width:90px;">ID</th>
-                        <th style="width:110px;">SeriesId</th>
-                        <th style="width:110px;">SeasonNo</th>
-                        <th>Tiêu đề</th>
-                        <th class="text-nowrap">Air Date</th>
-                        <th class="text-end">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+    <!-- Panel quan ly tap phim (gan movie vao season) -->
+    <div class="col-12 col-xl-5" id="episodePanelCol" style="display:none">
+        <div class="ep-panel">
+            <div class="ep-header">
+                <div>
+                    <i class="bi bi-film me-2"></i>
+                    <span id="epPanelTitle" class="fw-semibold">Danh sach tap phim</span>
+                    <span class="badge bg-secondary ms-2" id="epCountBadge">0</span>
+                </div>
+                <button class="btn btn-sm btn-outline-light" id="btnCloseEpPanel"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <!-- Form gan Movie -->
+            <div class="p-3 border-bottom" style="border-color:rgba(255,255,255,.07) !important">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12">
+                        <label class="form-label small mb-1 text-secondary">Tim phim de gan vao mua nay</label>
+                        <div class="ac-wrap">
+                            <input type="text" id="movieSearchInput" class="form-control form-control-sm"
+                                   placeholder="Nhap ten phim..." autocomplete="off">
+                            <div id="movieAcDropdown" class="ac-dropdown"></div>
+                        </div>
+                        <input type="hidden" id="selectedMovieId" />
+                        <div id="selectedMovieInfo" class="mt-1 small text-success" style="display:none"></div>
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label small mb-1 text-secondary">So tap (Episode No)</label>
+                        <input type="number" id="assignEpNo" class="form-control form-control-sm" min="1" placeholder="VD: 1">
+                    </div>
+                    <div class="col-7">
+                        <button class="btn btn-primary btn-sm w-100" id="btnAssignMovie">
+                            <i class="bi bi-link-45deg me-1"></i>Gan phim vao mua
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danh sach tap da gan -->
+            <div id="epListContainer" style="min-height:120px; max-height:420px; overflow-y:auto">
+                <div class="text-center text-secondary py-4 small" id="epEmptyState">
+                    Chua co tap nao duoc gan vao mua nay.<br>
+                    Hay tim kiem va gan phim o phia tren.
+                </div>
+            </div>
         </div>
-
-        <div id="pagerWrap" class="mt-2"></div>
     </div>
 </div>
 
-<!-- Modal -->
+<!-- Modal Them/Sua Season -->
 <div class="modal fade" id="seasonModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><span id="seasonModalTitle">Thêm season</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                <h5 class="modal-title"><span id="seasonModalTitle">Them season</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Dong"></button>
             </div>
             <div class="modal-body">
                 <form id="seasonForm" class="row g-3">
@@ -149,19 +166,19 @@
                     <div class="col-md-4">
                         <label class="form-label">SeriesId *</label>
                         <select class="form-select" id="SeriesId" required>
-                            <option value="">-- Chọn Series --</option>
+                            <option value="">-- Chon Series --</option>
                         </select>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">SeasonNo *</label>
-                        <input class="form-control" id="SeasonNo" required />
+                        <input class="form-control" id="SeasonNo" type="number" min="1" required />
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Air Date</label>
                         <input type="date" class="form-control" id="AirDate" />
                     </div>
                     <div class="col-md-12">
-                        <label class="form-label">Tiêu đề</label>
+                        <label class="form-label">Tieu de</label>
                         <input class="form-control" id="Title" />
                     </div>
                     <div class="col-md-12">
@@ -171,8 +188,8 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Lưu</button>
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Huy</button>
+                <button class="btn btn-primary" id="btnSave"><i class="bi bi-save me-1"></i>Luu</button>
             </div>
         </div>
     </div>
@@ -181,277 +198,471 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
     <script>
-        (function () {
-            // ====== URLs ======
-            const urls = {
-                getAll: '@urlGetAll',
-                add: '@urlAdd',
-                update: '@urlUpdate',
-                delete: '@urlDelete',
-                seriesGetAll: '@urlSeriesGetAll'
+    (function () {
+        // ====== URLs ======
+        const urls = {
+            getAll:       '@urlGetAll',
+            add:          '@urlAdd',
+            update:       '@urlUpdate',
+            del:          '@urlDelete',
+            seriesGetAll: '@urlSeriesGetAll',
+            assignMovie:  '@urlAssignMovie',
+            updateMovie:  '@urlUpdateMovie',
+            removeMovie:  '@urlRemoveMovie',
+            getMovies:    '@urlGetMovies',
+            movieAc:      '@urlMovieAutocomp'
+        };
+
+        // ====== State ======
+        let cache = [], filtered = [], page = 1;
+        let activeSeason = null;  // { id, seriesId, title }
+
+        // ====== Helpers ======
+        const $overlay = $("#__loadingOverlay");
+        const $toast   = $("#__toastMessage");
+        const showLoading = () => $overlay.fadeIn(80);
+        const hideLoading = () => $overlay.fadeOut(120);
+        function showToast(msg, ok=true, ms=2800){
+            $toast.text(msg||"").removeClass("success error").addClass(ok?"success":"error").fadeIn(120);
+            setTimeout(()=>$toast.fadeOut(180), ms);
+        }
+        function pickList(res){
+            const d = res?.data ?? res?.Data ?? null;
+            if(!d) return [];
+            if(Array.isArray(d)) return d;
+            if(Array.isArray(d.table)) return d.table;
+            if(Array.isArray(d.Table)) return d.Table;
+            return [];
+        }
+        function toDateStr10(v){
+            if(!v) return "";
+            const s = String(v);
+            if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+            const d = new Date(s);
+            if(isNaN(d)) return "";
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+        }
+        function toNumberOrNull(s){
+            if(s===null||s===undefined||s==="") return null;
+            const n = Number(s); return Number.isFinite(n)?n:null;
+        }
+        function paginate(list, page, size){
+            const total = list.length, last = Math.max(1,Math.ceil(total/size));
+            const p = Math.min(Math.max(1,page), last);
+            return { page:p, size, total, last, items:list.slice((p-1)*size, p*size) };
+        }
+        function renderPager($wrap, state){
+            const {page,last,total} = state;
+            const dis = c=>c?"disabled":"";
+            const btn = (label, target, disabled) =>
+                `<li class="page-item ${dis(disabled)}"><a class="page-link" href="#" data-page="${target}">${label}</a></li>`;
+            $wrap.html(`
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="small text-secondary">Tong: <b>${total}</b> • Trang <b>${page}</b>/<b>${last}</b></div>
+                <nav><ul class="pagination m-0">
+                  ${btn("«",1,page<=1)}${btn("‹",page-1,page<=1)}
+                  ${btn(page,page,true)}
+                  ${btn("›",page+1,page>=last)}${btn("»",last,page>=last)}
+                </ul></nav>
+              </div>`);
+            $wrap.find("a.page-link").on("click", function(e){
+                e.preventDefault();
+                const p = Number($(this).data("page"));
+                if(Number.isFinite(p)){ page=p; renderTablePage(); }
+            });
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('seasonModal'));
+
+        // ====== Season Table ======
+        function applyFilter(){
+            const qTitle = ($('#txtSearch').val()||'').trim().toLowerCase();
+            const qSeries = ($('#txtSeriesIdFilter').val()||'').trim();
+            const qNo = ($('#txtSeasonNoFilter').val()||'').trim();
+            filtered = cache.filter(s=>{
+                const sid = s.serieS_ID??s.SeriesId??s.seriesId;
+                const sno = s.seasoN_NO??s.SeasonNo??s.seasonNo;
+                const tit = (s.title??s.Title??'').toLowerCase();
+                return (!qTitle||tit.includes(qTitle))
+                    && (!qSeries||String(sid??'').includes(qSeries))
+                    && (!qNo||String(sno??'').includes(qNo));
+            });
+        }
+
+        function renderTablePage(){
+            const size  = Number($('#pageSize').val()||20);
+            const state = paginate(filtered, page, size);
+            const rows  = state.items.map(s=>{
+                const id  = s.seasoN_ID??s.SeasonId??s.seasonId;
+                const sid = s.serieS_ID??s.SeriesId??s.seriesId;
+                const sno = s.seasoN_NO??s.SeasonNo??s.seasonNo;
+                const tit = s.title??s.Title??'';
+                const air = toDateStr10(s.airDate??s.AirDate??s.aiR_DATE);
+                const isActive = activeSeason && activeSeason.id == id;
+                return `<tr class="season-row ${isActive?'active-season':''}">
+                    <td class="text-muted">${id??''}</td>
+                    <td>${sid??''}</td>
+                    <td>${sno??''}</td>
+                    <td class="fw-semibold">${tit}</td>
+                    <td>${air||''}</td>
+                    <td class="text-end">
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-info btn-episodes" data-id="${id}" data-seriesid="${sid}" data-title="${tit}"
+                                    title="Quan ly tap phim">
+                                <i class="bi bi-film"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger btn-del" data-id="${id}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+            $('#seasonTable tbody').html(rows||`<tr><td colspan="6" class="text-center text-secondary">Khong co du lieu</td></tr>`);
+            renderPager($('#pagerWrap'), state);
+        }
+
+        function reloadAll(){
+            showLoading();
+            $.get(urls.getAll, function(res){
+                cache = pickList(res);
+                const urlParams = new URLSearchParams(window.location.search);
+                const qSeries = urlParams.get('seriesId');
+                if (qSeries && !$('#txtSeriesIdFilter').val()) {
+                    $('#txtSeriesIdFilter').val(qSeries);
+                }
+                applyFilter(); page=1; renderTablePage();
+                showToast("Đã tải danh sách season", true);
+
+                if (qSeries && !activeSeason) {
+                    const match = filtered.find(x => (x.serieS_ID??x.SeriesId??x.seriesId) == qSeries);
+                    if (match) {
+                        openEpisodePanel(
+                            match.seasoN_ID??match.SeasonId??match.seasonId,
+                            match.serieS_ID??match.SeriesId??match.seriesId,
+                            match.title??match.Title??''
+                        );
+                    }
+                }
+            }).fail(xhr=>{
+                showToast(xhr?.responseJSON?.message||"Lỗi kết nối máy chủ.", false);
+            }).always(hideLoading);
+        }
+
+        function loadSeriesOptions(selectedId){
+            $.get(urls.seriesGetAll, function(res){
+                const list = pickList(res);
+                const $ddl = $('#SeriesId').empty().append('<option value="">-- Chon Series --</option>');
+                list.forEach(s=>{
+                    const id = s.serieS_ID??s.SeriesId??s.seriesId;
+                    const tit = s.title??s.Title??'';
+                    $ddl.append(`<option value="${id}">${tit}</option>`);
+                });
+                if(selectedId) $ddl.val(selectedId);
+            });
+        }
+
+        // ====== Season CRUD ======
+        function openAdd(){
+            $('#seasonModalTitle').text('Them season');
+            $('#seasonForm')[0].reset();
+            $('#SeasonId').val('');
+            loadSeriesOptions();
+            modal.show();
+        }
+        function openEdit(id){
+            const s = cache.find(x=>(x.seasoN_ID??x.SeasonId??x.seasonId)==id);
+            if(!s){ showToast("Khong tim thay ban ghi.", false); return; }
+            $('#seasonModalTitle').text('Chinh sua season');
+            loadSeriesOptions(s.serieS_ID??s.SeriesId??s.seriesId);
+            $('#SeasonId').val(s.seasoN_ID??s.SeasonId??s.seasonId??'');
+            $('#SeasonNo').val(s.seasoN_NO??s.SeasonNo??s.seasonNo??'');
+            $('#Title').val(s.title??s.Title??'');
+            $('#Overview').val(s.overview??s.Overview??'');
+            $('#AirDate').val(toDateStr10(s.aiR_DATE??s.AirDate));
+            modal.show();
+        }
+        function saveSeason(){
+            const anti = $('input[name="__RequestVerificationToken"]').val();
+            const id = ($('#SeasonId').val()||'').trim();
+            const isEdit = !!id;
+            const seriesId = toNumberOrNull(($('#SeriesId').val()||'').trim());
+            const seasonNo = toNumberOrNull(($('#SeasonNo').val()||'').trim());
+            if(!seriesId){ showToast("Vui long chon Series.", false); return; }
+            if(!seasonNo){ showToast("Vui long nhap SeasonNo (so).", false); return; }
+            const payload = {
+                SeasonId: isEdit?Number(id):undefined, SeriesId:seriesId, SeasonNo:seasonNo,
+                Title: ($('#Title').val()||'').trim()||null,
+                Overview: ($('#Overview').val()||'').trim()||null,
+                AirDate: $('#AirDate').val()?$('#AirDate').val()+"T00:00:00":null
             };
+            showLoading();
+            $.ajax({
+                url: isEdit?urls.update:urls.add, type:"POST",
+                contentType:"application/json; charset=utf-8",
+                headers: anti?{"RequestVerificationToken":anti}:{},
+                data: JSON.stringify(payload),
+                success(res){
+                    if(res?.success===true||res?.code==="200"){
+                        showToast(isEdit?"Da cap nhat":"Da them moi", true);
+                        modal.hide(); reloadAll();
+                    } else {
+                        showToast(res?.message||"Thao tac that bai.", false);
+                    }
+                },
+                error(xhr){ showToast(xhr?.responseJSON?.message||"Loi ket noi.", false); },
+                complete(){ hideLoading(); }
+            });
+        }
+        function deleteSeason(id){
+            if(!confirm(`Xoa season #${id}?`)) return;
+            showLoading();
+            $.ajax({
+                url:urls.del, type:"GET", data:{id},
+                success(res){
+                    if(res?.success===true||res?.code==="200"){ showToast("Da xoa",true); reloadAll(); }
+                    else showToast(res?.message||"Xoa that bai.", false);
+                },
+                error(xhr){ showToast(xhr?.responseJSON?.message||"Loi ket noi.", false); },
+                complete(){ hideLoading(); }
+            });
+        }
 
-            // ====== Elements ======
-            const $overlay = $("#__loadingOverlay");
-            const $toast = $("#__toastMessage");
-            const $tbody = $("#seasonTable tbody");
-            const $pager = $("#pagerWrap");
-            const modalEl = document.getElementById('seasonModal');
-            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        // ====== Episode Panel ======
+        function openEpisodePanel(seasonId, seriesId, title){
+            activeSeason = { id: seasonId, seriesId: seriesId, title: title };
+            renderTablePage(); // highlight row
+            $('#epPanelTitle').text(`Mua: ${title||'(khong ten)'} · ID ${seasonId}`);
+            $('#episodePanelCol').show();
+            // Reset assign form
+            $('#movieSearchInput').val('');
+            $('#selectedMovieId').val('');
+            $('#selectedMovieInfo').hide().text('');
+            $('#assignEpNo').val('');
+            loadEpisodeList(seasonId);
+        }
 
-            // ====== State ======
-            let cache = [];      // full list
-            let filtered = [];   // after filters
-            let page = 1;
+        function loadEpisodeList(seasonId){
+            $('#epEmptyState').hide();
+            $('#epListContainer').find('.ep-item').remove();
+            showLoading();
+            $.get(urls.getMovies, { seasonId: seasonId }, function(res){
+                const list = pickList(res);
+                $('#epCountBadge').text(list.length);
 
-            // ====== Helpers ======
-            function showLoading(){ $overlay.fadeIn(80); }
-            function hideLoading(){ $overlay.fadeOut(120); }
-            function showToast(msg, ok=true, ms=2600){
-                $toast.text(msg||"").removeClass("success error").addClass(ok?"success":"error").fadeIn(120);
-                setTimeout(()=> $toast.fadeOut(150), ms);
-            }
-            function pickList(res){
-                const data = res?.data ?? res?.Data ?? null;
-                if(!data) return [];
-                if(Array.isArray(data)) return data;
-                if(Array.isArray(data.table)) return data.table;
-                if(Array.isArray(data.Table)) return data.Table;
-                return [];
-            }
-            function toDateStr10(v){
-                if(!v) return "";
-                try{
-                    const s = String(v);
-                    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
-                    const d = new Date(s);
-                    if(isNaN(d)) return "";
-                    const mm = String(d.getMonth()+1).padStart(2,"0");
-                    const dd = String(d.getDate()).padStart(2,"0");
-                    return `${d.getFullYear()}-${mm}-${dd}`;
-                }catch{ return ""; }
-            }
-            function dateLocalStart(yyyyMMdd){ return yyyyMMdd ? (yyyyMMdd + "T00:00:00") : null; }
-            function toNumberOrNull(s){
-                if(s===null||s===undefined||s==="") return null;
-                const n = Number(s); return Number.isFinite(n)? n : null;
-            }
-            // paginate
-            function paginate(list, page, size){
-                const total = list.length;
-                const last = Math.max(1, Math.ceil(total/size));
-                const p = Math.min(Math.max(1,page), last);
-                const start = (p-1)*size, end = start+size;
-                return { page:p, size, total, last, items:list.slice(start,end) };
-            }
-            function renderPager($wrap, state, onGoPage){
-                const { page, last, total } = state;
-                const dis = c => c ? "disabled" : "";
-                const btn = (label, target, disabled) =>
-                    `<li class="page-item ${dis(disabled)}"><a class="page-link" href="#" data-page="${target}">${label}</a></li>`;
-                const html = `
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                  <div class="small text-secondary">Tổng: <b>${total}</b> bản ghi • Trang <b>${page}</b>/<b>${last}</b></div>
-                  <nav aria-label="pagination">
-                    <ul class="pagination m-0">
-                      ${btn("«", 1, page<=1)}
-                      ${btn("‹", page-1, page<=1)}
-                      ${btn(page, page, true)}
-                      ${btn("›", page+1, page>=last)}
-                      ${btn("»", last, page>=last)}
-                    </ul>
-                  </nav>
-                </div>`;
-                $wrap.html(html);
-                $wrap.find("a.page-link").on("click", function(e){
-                    e.preventDefault();
-                    const p = Number($(this).data("page"));
-                    if(Number.isFinite(p)){ page = p; renderTablePage(); }
+                let maxEp = 0;
+                list.forEach(item => {
+                    const no = Number(item.episodeNo ?? item.EpisodeNo ?? 0);
+                    if (no > maxEp) maxEp = no;
                 });
-            }
+                $('#assignEpNo').val(maxEp + 1);
 
-            // ====== Render ======
-            function applyFilter(){
-                const qTitle = ($('#txtSearch').val()||'').trim().toLowerCase();
-                const qSeries = ($('#txtSeriesIdFilter').val()||'').trim();
-                const qNo = ($('#txtSeasonNoFilter').val()||'').trim();
-
-                filtered = cache.filter(s=>{
-                    const seriesId = s.serieS_ID ?? s.SeriesId ?? s.seriesId;
-                    const seasonNo = s.seasoN_NO ?? s.SeasonNo ?? s.seasonNo;
-                    const title = (s.title ?? s.Title ?? '').toLowerCase();
-
-                    const okTitle = !qTitle || title.includes(qTitle);
-                    const okSeries = !qSeries || String(seriesId??'').includes(qSeries);
-                    const okNo = !qNo || String(seasonNo??'').includes(qNo);
-                    return okTitle && okSeries && okNo;
-                });
-            }
-            function renderTablePage(){
-                const size = Number($('#pageSize').val()||20);
-                const state = paginate(filtered, page, size);
-
-                const rows = state.items.map(s=>{
-                    const id = s.seasoN_ID ?? s.SeasonId ?? s.seasonId;
-                    const seriesId = s.serieS_ID ?? s.SeriesId ?? s.seriesId;
-                    const seasonNo = s.seasoN_NO ?? s.SeasonNo ?? s.seasonNo;
-                    const title = s.title ?? s.Title ?? '';
-                    const air = toDateStr10(s.airDate ?? s.AirDate ?? s.aiR_DATE);
-                    return `<tr>
-                        <td class="text-muted">${id??''}</td>
-                        <td>${seriesId??''}</td>
-                        <td>${seasonNo??''}</td>
-                        <td class="fw-semibold">${title}</td>
-                        <td>${air||''}</td>
-                        <td class="text-end">
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="${id}">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger btn-del" data-id="${id}">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>`;
+                if(!list.length){
+                    $('#epEmptyState').show();
+                    return;
+                }
+                const html = list.map(ep=>{
+                    const eid    = ep.episodeId??ep.EpisodeId??0;
+                    const epNo   = ep.episodeNo??ep.EpisodeNo??'?';
+                    const title  = ep.movieTitle??ep.MovieTitle??ep.title??ep.Title??'Khong ten';
+                    const orig   = ep.movieOriginalTitle??ep.MovieOriginalTitle??'';
+                    const dur    = ep.durationMin??ep.DurationMin??'';
+                    const poster = ep.posterUrl??ep.PosterUrl??'';
+                    return `<div class="ep-item" data-ep-id="${eid}">
+                        <div class="ep-no" title="Tập ${epNo}">${epNo}</div>
+                        ${poster?`<img class="ep-thumb" src="${poster}" alt="${title}" loading="lazy">`
+                                :`<div class="ep-thumb d-flex align-items-center justify-content-center text-secondary" style="border-radius:4px;background:#222"><i class="bi bi-image"></i></div>`}
+                        <div class="ep-info">
+                            <div class="ep-title" title="${title}">${title}</div>
+                            <div class="ep-meta">${orig||''}${dur?' · '+dur+' phút':''}</div>
+                        </div>
+                        <div class="ep-actions">
+                            <button class="btn btn-sm btn-outline-info btn-edit-ep-no" data-id="${eid}" data-epno="${epNo}" title="Sửa số thứ tự tập">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger btn-rm-ep" data-id="${eid}" title="Xóa khỏi mùa">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                    </div>`;
                 }).join('');
-                $tbody.html(rows || `<tr><td colspan="6" class="text-center text-secondary">Không có dữ liệu</td></tr>`);
-                renderPager($pager, state, (p)=>{ page=p; renderTablePage(); });
-            }
+                $('#epListContainer').prepend(html);
+            }).fail(xhr=>{
+                showToast(xhr?.responseJSON?.message||"Không thể tải danh sách tập.", false);
+                $('#epEmptyState').show();
+            }).always(hideLoading);
+        }
 
-            // ====== Data ======
-            function reloadAll(){
-                showLoading();
-                $.ajax({
-                    url: urls.getAll, type: "GET",
-                    success(res){
-                        cache = pickList(res);
-                        applyFilter();
-                        page = 1;
-                        renderTablePage();
-                        showToast("Đã tải danh sách season", true);
-                    },
-                    error(xhr){
-                        const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
-                        showToast(text, false);
-                    },
-                    complete(){ hideLoading(); }
-                });
-            }
-            function loadSeriesOptions(selectedId){
-                showLoading();
-                $.get(urls.seriesGetAll, function(res){
-                    const list = pickList(res);
-                    const $ddl = $('#SeriesId');
-                    $ddl.empty().append(`<option value="">-- Chọn Series --</option>`);
-                    list.forEach(s=>{
-                        const id = s.serieS_ID ?? s.SeriesId ?? s.seriesId;
-                        const title = s.title ?? s.Title ?? '';
-                        $ddl.append(`<option value="${id}">${title}</option>`);
+        // ====== Movie Autocomplete ======
+        let acTimer = null;
+        $('#movieSearchInput').on('input', function(){
+            clearTimeout(acTimer);
+            const q = $(this).val().trim();
+            $('#selectedMovieId').val('');
+            $('#selectedMovieInfo').hide().text('');
+            if(q.length < 2){ $('#movieAcDropdown').hide().empty(); return; }
+            acTimer = setTimeout(()=>{
+                $.get(urls.movieAc, { q: q, limit: 10 }, function(res){
+                    const list = res?.data??res?.Data??[];
+                    const $dd = $('#movieAcDropdown').empty();
+                    if(!list.length){ $dd.hide(); return; }
+                    list.forEach(m=>{
+                        const id  = m.movieId??m.MovieId??0;
+                        const tit = m.title??m.Title??'';
+                        const ori = m.originalTitle??m.OriginalTitle??'';
+                        const poster = m.posterUrl??m.PosterUrl??'';
+                        $dd.append(`<div class="ac-item" data-id="${id}" data-title="${tit}" data-orig="${ori}">
+                            ${poster?`<img src="${poster}" alt="${tit}" loading="lazy">`:`<div style="width:32px;height:44px;background:#222;border-radius:3px;flex-shrink:0"></div>`}
+                            <div class="ac-item-text">
+                                <div class="ac-name">${tit}</div>
+                                ${ori?`<div class="ac-orig">${ori}</div>`:''}
+                            </div>
+                        </div>`);
                     });
-                    if(selectedId) $ddl.val(selectedId);
-                }).always(hideLoading);
-            }
-
-            // ====== CRUD ======
-            function openAdd(){
-                $('#seasonModalTitle').text('Thêm season');
-                $('#seasonForm')[0].reset();
-                $('#SeasonId').val('');
-                loadSeriesOptions();
-                modal.show();
-            }
-            function openEdit(id){
-                const s = cache.find(x => (x.seasoN_ID ?? x.SeasonId ?? x.seasonId) == id);
-                if(!s){ showToast("Không tìm thấy bản ghi.", false); return; }
-
-                $('#seasonModalTitle').text('Chỉnh sửa season');
-                loadSeriesOptions(s.serieS_ID ?? s.SeriesId ?? s.seriesId);
-                $('#SeasonId').val(s.seasoN_ID ?? s.SeasonId ?? s.seasonId ?? '');
-                $('#SeriesId').val(s.serieS_ID ?? s.SeriesId ?? s.seriesId ?? '');
-                $('#SeasonNo').val(s.seasoN_NO ?? s.SeasonNo ?? s.seasonNo ?? '');
-                $('#Title').val(s.title ?? s.Title ?? '');
-                $('#Overview').val(s.overview ?? s.Overview ?? '');
-                $('#AirDate').val(toDateStr10(s.aiR_DATE ?? s.AirDate));
-                modal.show();
-            }
-            function save(){
-                const anti = $('input[name="__RequestVerificationToken"]').val();
-                const id = ($('#SeasonId').val()||'').trim();
-                const isEdit = !!id;
-                const url = isEdit ? urls.update : urls.add;
-
-                const seriesId = toNumberOrNull(($('#SeriesId').val()||'').trim());
-                const seasonNo = toNumberOrNull(($('#SeasonNo').val()||'').trim());
-                if(!seriesId){ showToast("Vui lòng nhập SeriesId (số).", false); return; }
-                if(!seasonNo){ showToast("Vui lòng nhập SeasonNo (số).", false); return; }
-
-                const payload = {
-                    SeasonId: isEdit ? Number(id) : undefined,
-                    SeriesId: seriesId,
-                    SeasonNo: seasonNo,
-                    Title: ($('#Title').val()||'').trim() || null,
-                    Overview: ($('#Overview').val()||'').trim() || null,
-                    AirDate: dateLocalStart($('#AirDate').val())
-                };
-
-                showLoading();
-                $.ajax({
-                    url, type:"POST",
-                    contentType:"application/json; charset=utf-8",
-                    headers: anti ? { "RequestVerificationToken": anti } : {},
-                    data: JSON.stringify(payload),
-                    success(res){
-                        const ok = res && (res.success === true || res.code === "200");
-                        if(ok){
-                            showToast(isEdit ? "Đã cập nhật" : "Đã thêm mới", true);
-                            modal.hide();
-                            reloadAll();
-                        }else{
-                            showToast(res?.message || "Thao tác thất bại.", false);
-                        }
-                    },
-                    error(xhr){
-                        const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
-                        showToast(text, false);
-                    },
-                    complete(){ hideLoading(); }
+                    $dd.show();
                 });
-            }
-            function removeItem(id){
-                if(!confirm(`Xóa season #${id}?`)) return;
-                showLoading();
-                $.ajax({
-                    url: urls.delete, type:"GET", data:{ id },
-                    success(res){
-                        const ok = res && (res.success === true || res.code === "200");
-                        if(ok){ showToast("Đã xóa", true); reloadAll(); }
-                        else   { showToast(res?.message || "Xóa thất bại.", false); }
-                    },
-                    error(xhr){
-                        const text = xhr?.responseJSON?.message || xhr?.responseText || "Lỗi kết nối máy chủ.";
-                        showToast(text, false);
-                    },
-                    complete(){ hideLoading(); }
-                });
-            }
+            }, 300);
+        });
 
-            // ====== Events ======
-            $('#btnRefresh').on('click', reloadAll);
-            $('#btnAdd').on('click', openAdd);
-            $('#btnSave').on('click', save);
+        $(document).on('click', '#movieAcDropdown .ac-item', function(){
+            const id  = $(this).data('id');
+            const tit = $(this).data('title');
+            const ori = $(this).data('orig');
+            $('#selectedMovieId').val(id);
+            $('#movieSearchInput').val(tit);
+            $('#selectedMovieInfo').text(`Da chon: ${tit}${ori?' ('+ori+')':''}  [ID: ${id}]`).show();
+            $('#movieAcDropdown').hide().empty();
+        });
 
-            $('#txtSearch, #txtSeriesIdFilter, #txtSeasonNoFilter').on('input', function(){
-                applyFilter(); page = 1; renderTablePage();
+        $(document).on('click', function(e){
+            if(!$(e.target).closest('.ac-wrap').length) $('#movieAcDropdown').hide();
+        });
+
+        // ====== Assign Movie ======
+        $('#btnAssignMovie').on('click', function(){
+            if(!activeSeason){ showToast("Chua chon Season.", false); return; }
+            const movieId = toNumberOrNull($('#selectedMovieId').val());
+            const epNo    = toNumberOrNull($('#assignEpNo').val());
+            if(!movieId){ showToast("Vui long tim va chon phim.", false); return; }
+            if(!epNo||epNo<1){ showToast("Vui long nhap so thu tu tap (>0).", false); return; }
+
+            const anti = $('input[name="__RequestVerificationToken"]').val();
+            showLoading();
+            $.ajax({
+                url: urls.assignMovie, type:"POST",
+                contentType:"application/json; charset=utf-8",
+                headers: anti?{"RequestVerificationToken":anti}:{},
+                data: JSON.stringify({
+                    SeriesId: activeSeason.seriesId,
+                    SeasonId: activeSeason.id,
+                    MovieId:  movieId,
+                    EpisodeNo: epNo
+                }),
+                success(res){
+                    if(res?.success===true||res?.code==="200"){
+                        showToast("Da gan phim vao mua thanh cong!", true);
+                        $('#movieSearchInput').val('');
+                        $('#selectedMovieId').val('');
+                        $('#selectedMovieInfo').hide().text('');
+                        $('#assignEpNo').val('');
+                        loadEpisodeList(activeSeason.id);
+                    } else {
+                        showToast(res?.message||"Gan phim that bai.", false);
+                    }
+                },
+                error(xhr){ showToast(xhr?.responseJSON?.message||"Loi ket noi.", false); },
+                complete(){ hideLoading(); }
             });
-            $('#pageSize').on('change', function(){
-                page = 1; renderTablePage();
-            });
-            $tbody.on('click', '.btn-edit', function(){ openEdit($(this).data('id')); });
-            $tbody.on('click', '.btn-del', function(){ removeItem($(this).data('id')); });
+        });
 
-            // ====== Init ======
-            reloadAll();
-        })();
+        // ====== Edit Episode Number ======
+        $('#epListContainer').on('click', '.btn-edit-ep-no', function(){
+            const eid = $(this).data('id');
+            const currentNo = $(this).data('epno');
+            const newNoStr = prompt(`Nhập số tập mới cho phim (hiện tại: Tập ${currentNo}):`, currentNo);
+            if(newNoStr === null) return;
+            const newNo = Number(newNoStr.trim());
+            if(!newNo || newNo <= 0){
+                showToast("Số tập không hợp lệ (phải là số nguyên > 0).", false);
+                return;
+            }
+            if(newNo === currentNo) return;
+
+            const anti = $('input[name="__RequestVerificationToken"]').val();
+            showLoading();
+            $.ajax({
+                url: urls.updateMovie, type:"POST",
+                contentType:"application/json; charset=utf-8",
+                headers: anti?{"RequestVerificationToken":anti}:{},
+                data: JSON.stringify({ EpisodeId: eid, EpisodeNo: newNo }),
+                success(res){
+                    if(res?.success===true||res?.code==="200"){
+                        showToast("Đã cập nhật số tập thành công!", true);
+                        if(activeSeason) loadEpisodeList(activeSeason.id);
+                    } else {
+                        showToast(res?.message||"Cập nhật thất bại.", false);
+                    }
+                },
+                error(xhr){ showToast(xhr?.responseJSON?.message||"Lỗi kết nối.", false); },
+                complete(){ hideLoading(); }
+            });
+        });
+
+        // ====== Remove Episode ======
+        $('#epListContainer').on('click', '.btn-rm-ep', function(){
+            const eid = $(this).data('id');
+            if(!confirm(`Xoá phim khỏi mùa này (Tập #${eid})?`)) return;
+            const anti = $('input[name="__RequestVerificationToken"]').val();
+            showLoading();
+            $.ajax({
+                url: urls.removeMovie, type:"POST",
+                contentType:"application/json; charset=utf-8",
+                headers: anti?{"RequestVerificationToken":anti}:{},
+                data: JSON.stringify(eid),
+                success(res){
+                    if(res?.success===true||res?.code==="200"){
+                        showToast("Da xoa tap khoi mua.", true);
+                        if(activeSeason) loadEpisodeList(activeSeason.id);
+                    } else {
+                        showToast(res?.message||"Xoa that bai.", false);
+                    }
+                },
+                error(xhr){ showToast(xhr?.responseJSON?.message||"Loi ket noi.", false); },
+                complete(){ hideLoading(); }
+            });
+        });
+
+        $('#btnCloseEpPanel').on('click', function(){
+            activeSeason = null;
+            $('#episodePanelCol').hide();
+            renderTablePage();
+        });
+
+        // ====== Event delegations ======
+        $('#btnRefresh').on('click', reloadAll);
+        $('#btnAdd').on('click', openAdd);
+        $('#btnSave').on('click', saveSeason);
+        $('#txtSearch, #txtSeriesIdFilter, #txtSeasonNoFilter').on('input', function(){
+            applyFilter(); page=1; renderTablePage();
+        });
+        $('#pageSize').on('change', function(){ page=1; renderTablePage(); });
+
+        $('#seasonTable tbody')
+            .on('click', '.btn-edit',     function(){ openEdit($(this).data('id')); })
+            .on('click', '.btn-del',      function(){ deleteSeason($(this).data('id')); })
+            .on('click', '.btn-episodes', function(){
+                openEpisodePanel(
+                    $(this).data('id'),
+                    $(this).data('seriesid'),
+                    $(this).data('title')
+                );
+            });
+
+        // ====== Init ======
+        reloadAll();
+    })();
     </script>
 }

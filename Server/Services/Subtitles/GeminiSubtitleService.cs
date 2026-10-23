@@ -53,7 +53,9 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
                     await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), cancellationToken);
                 }
             }
-            throw new InvalidOperationException("Gemini không trả về phụ đề hợp lệ cho audio chunk.");
+
+            _logger.LogWarning("Không trích xuất được phụ đề cho audio chunk tại offset {Offset:F1}s (duration {Duration:F1}s). Đánh dấu chunk rỗng để tiếp tục tiến trình.", timelineOffsetSeconds, chunkDurationSeconds);
+            return new List<GeminiSourceSubtitleCue>();
         }
         finally
         {
@@ -67,15 +69,25 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
         try
         {
             json = json.Replace("```json", "", StringComparison.OrdinalIgnoreCase).Replace("```", "").Trim();
+            
+            var startIdx = json.IndexOf('[');
+            var endIdx = json.LastIndexOf(']');
+            if (startIdx >= 0 && endIdx > startIdx)
+            {
+                json = json.Substring(startIdx, endIdx - startIdx + 1);
+            }
+
             var raw = JsonSerializer.Deserialize<List<GeminiSourceSubtitleCue>>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (raw == null) return (false, new());
+            if (raw == null) return (true, new());
 
             var result = new List<GeminiSourceSubtitleCue>();
             double previousEnd = offset;
             foreach (var cue in raw.OrderBy(item => item.StartSeconds))
             {
-                if (string.IsNullOrWhiteSpace(cue.Vi) || string.IsNullOrWhiteSpace(cue.En)) continue;
+                if (string.IsNullOrWhiteSpace(cue.Vi) && string.IsNullOrWhiteSpace(cue.En)) continue;
+                var viText = !string.IsNullOrWhiteSpace(cue.Vi) ? cue.Vi : cue.En;
+                var enText = !string.IsNullOrWhiteSpace(cue.En) ? cue.En : cue.Vi;
                 var start = Math.Clamp(cue.StartSeconds, 0, duration) + offset;
                 var end = Math.Clamp(cue.EndSeconds, 0, duration) + offset;
                 start = Math.Max(start, previousEnd);
@@ -84,8 +96,8 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
                 {
                     StartSeconds = start,
                     EndSeconds = end,
-                    Vi = NormalizeText(cue.Vi),
-                    En = NormalizeText(cue.En)
+                    Vi = NormalizeText(viText!),
+                    En = NormalizeText(enText!)
                 });
                 previousEnd = end;
             }

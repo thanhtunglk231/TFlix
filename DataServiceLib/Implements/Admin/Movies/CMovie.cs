@@ -399,6 +399,7 @@ namespace DataServiceLib.Implements.Admin.Movies
                     BEGIN
                         EXEC('
                         CREATE PROCEDURE dbo.sp_get_all_movie
+                            @p_user_id BIGINT = NULL,
                             @o_code    NVARCHAR(10) OUTPUT,
                             @o_message NVARCHAR(4000) OUTPUT
                         AS
@@ -425,10 +426,31 @@ namespace DataServiceLib.Implements.Admin.Movies
                                         WHERE mg.movie_id = m.movie_id
                                     ) AS genres,
                                     ISNULL((SELECT AVG(CAST(r.rating_val AS DECIMAL(3,1))) FROM dbo.ratings r WHERE r.movie_id = m.movie_id), 8.5) AS avG_RATING,
-                                    (SELECT COUNT(1) FROM dbo.video_sources vs WHERE vs.movie_id = m.movie_id) AS sourcE_COUNT
+                                    (SELECT COUNT(1) FROM dbo.video_sources vs WHERE vs.movie_id = m.movie_id) AS sourcE_COUNT,
+                                    ep.series_id     AS serieS_ID,
+                                    ep.series_title  AS serieS_TITLE,
+                                    ep.season_id     AS seasoN_ID,
+                                    ep.season_no     AS seasoN_NO,
+                                    ep.season_title  AS seasoN_TITLE,
+                                    ep.episode_no    AS episodE_NO,
+                                    ep.episode_id    AS episodE_ID
                                 FROM dbo.movies m
                                 LEFT JOIN dbo.movie_assets ma ON m.movie_id = ma.movie_id AND ma.asset_type = N''POSTER''
-                                WHERE (m.status IS NULL OR m.status = N''PUBLISHED'')
+                                OUTER APPLY (
+                                    SELECT TOP 1
+                                        e.episode_id,
+                                        e.series_id,
+                                        s.title AS series_title,
+                                        e.season_id,
+                                        se.season_no,
+                                        se.title AS season_title,
+                                        e.episode_no
+                                    FROM dbo.episodes e
+                                    LEFT JOIN dbo.series s ON e.series_id = s.series_id
+                                    LEFT JOIN dbo.seasons se ON e.season_id = se.season_id
+                                    WHERE e.movie_id = m.movie_id
+                                    ORDER BY e.episode_id DESC
+                                ) ep
                                 ORDER BY m.release_date DESC, m.movie_id DESC;
 
                                 SET @o_code = N''200'';

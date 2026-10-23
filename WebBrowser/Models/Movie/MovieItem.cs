@@ -1,4 +1,4 @@
-﻿using CommonLib.Helper;
+using CommonLib.Helper;
 using CommonLib.Hepler;
 using Newtonsoft.Json;
 using System.ComponentModel;
@@ -56,5 +56,31 @@ namespace WebBrowser.Models.Movie
         [JsonProperty("sourcE_COUNT")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int SourceCount { get; set; }
+
+        [JsonProperty("serieS_ID")]
+        [JsonConverter(typeof(FlexibleIntConverter))]
+        public int? SeriesId { get; set; }
+
+        [JsonProperty("serieS_TITLE")]
+        public string? SeriesTitle { get; set; }
+
+        [JsonProperty("seasoN_ID")]
+        [JsonConverter(typeof(FlexibleIntConverter))]
+        public int? SeasonId { get; set; }
+
+        [JsonProperty("seasoN_NO")]
+        [JsonConverter(typeof(FlexibleIntConverter))]
+        public int? SeasonNo { get; set; }
+
+        [JsonProperty("seasoN_TITLE")]
+        public string? SeasonTitle { get; set; }
+
+        [JsonProperty("episodE_NO")]
+        [JsonConverter(typeof(FlexibleIntConverter))]
+        public int? EpisodeNo { get; set; }
+
+        [JsonProperty("episodE_ID")]
+        [JsonConverter(typeof(FlexibleIntConverter))]
+        public int? EpisodeId { get; set; }
     }
 }
