@@ -12,18 +12,34 @@ namespace WebBrowser.Controllers
         private readonly IMovieService _movieService;
         private readonly IPaymentService _paymentService;
         private readonly ISeriesService _seriesService;
+        private readonly ILogger<HomeController> _logger;
 
-        public HomeController(IHomeService homeService, IMovieService movieService, IPaymentService paymentService, ISeriesService seriesService)
+        public HomeController(
+            IHomeService homeService,
+            IMovieService movieService,
+            IPaymentService paymentService,
+            ISeriesService seriesService,
+            ILogger<HomeController> logger)
         {
             _homeService = homeService;
             _movieService = movieService;
             _paymentService = paymentService;
             _seriesService = seriesService;
+            _logger = logger;
         }
 
         public async Task<IActionResult> Index()
         {
-            var response = await _movieService.get_all();
+            var movies = new List<WebBrowser.Models.Movie.MovieItem>();
+            try
+            {
+                var response = await _movieService.get_all();
+                movies = response?.Data?.Table ?? [];
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load movie data for Home/Index.");
+            }
             var plans = new List<SubscriptionPlanItemDto>();
             var subscriptionStatus = new SubscriptionStatusDto();
 
@@ -39,14 +55,15 @@ namespace WebBrowser.Controllers
                         ?? new SubscriptionStatusDto();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to load subscription data for Home/Index.");
                 // Trang chủ vẫn hoạt động khi module thanh toán tạm thời không khả dụng.
             }
 
             return View(new HomeViewModel
             {
-                Movies = response?.Data?.Table ?? new(),
+                Movies = movies,
                 SubscriptionPlans = plans,
                 SubscriptionStatus = subscriptionStatus
             });
@@ -68,8 +85,20 @@ namespace WebBrowser.Controllers
         [HttpGet]
         public async Task<IActionResult> MoviesLatest()
         {
+            try
+            {
             var result = await _homeService.get_Movie_Lastest_Item(); // ?? kh�ng tham s?
             return Json(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load latest movies for Home/Index.");
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    message = "Unable to load latest movies."
+                });
+            }
         }
 
         [HttpGet]
@@ -106,8 +135,9 @@ namespace WebBrowser.Controllers
                     data = GetFallbackSeries()
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to load latest series for Home/Index. Returning fallback data.");
                 return Json(new
                 {
                     code = "200",

@@ -843,7 +843,13 @@
                 const list = res?.data?.table ?? res?.data?.Table ?? res?.Data?.table ?? res?.Data?.Table
                     ?? res?.table ?? res?.Table ?? res?.items ?? res?.Items ?? [];
                 renderMoviesLatest(Array.isArray(list) ? list : []);
-            }).fail(() => {
+            }).fail((jqXHR, textStatus, errorThrown) => {
+                console.error('Home/Index: cannot load latest movies.', {
+                    status: jqXHR.status,
+                    statusText: jqXHR.statusText,
+                    textStatus,
+                    errorThrown
+                });
                 $('#moviesLatestWrap').html(`
                     <div class="col-12 p-4 text-center bg-dark rounded-3 border border-secondary text-muted">
                         <i class="bi bi-exclamation-triangle-fill text-warning fs-3 mb-2 d-block"></i>
@@ -926,7 +932,13 @@
             $.get(urlSeriesLatest, function (res) {
                 const list = res?.data ?? res?.Data ?? [];
                 renderSeriesLatest(Array.isArray(list) ? list : []);
-            }).fail(() => {
+            }).fail((jqXHR, textStatus, errorThrown) => {
+                console.error('Home/Index: cannot load latest series.', {
+                    status: jqXHR.status,
+                    statusText: jqXHR.statusText,
+                    textStatus,
+                    errorThrown
+                });
                 $('#seriesLatestWrap').attr('aria-busy', 'false').html(`
                     <div class="col-12 p-4 text-center bg-dark rounded-3 border border-secondary text-muted">
                         <i class="bi bi-exclamation-triangle-fill text-warning fs-3 mb-2 d-block"></i>

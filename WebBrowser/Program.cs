@@ -268,6 +268,21 @@ builder.Services.AddSession(o =>
 
 var app = builder.Build();
 var requestLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ControllerRequest");
+var applicationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Application");
+
+AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+{
+    applicationLogger.LogCritical(
+        eventArgs.ExceptionObject as Exception,
+        "Fatal unhandled exception. IsTerminating: {IsTerminating}",
+        eventArgs.IsTerminating);
+};
+
+TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
+{
+    applicationLogger.LogError(eventArgs.Exception, "Unobserved background task exception.");
+    eventArgs.SetObserved();
+};
 
 app.Use(async (context, next) =>
 {
@@ -278,7 +293,12 @@ app.Use(async (context, next) =>
     catch (Exception ex)
     {
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalException");
-        logger.LogError(ex, "Unhandled exception in WebBrowser");
+        logger.LogError(
+            ex,
+            "Unhandled exception in WebBrowser. {Method} {Path}; TraceId: {TraceId}",
+            context.Request.Method,
+            context.Request.Path,
+            context.TraceIdentifier);
         throw;
     }
 });

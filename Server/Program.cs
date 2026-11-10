@@ -281,6 +281,23 @@ var app = builder.Build();
 var requestLogger = app.Services
     .GetRequiredService<ILoggerFactory>()
     .CreateLogger("ControllerRequest");
+var applicationLogger = app.Services
+    .GetRequiredService<ILoggerFactory>()
+    .CreateLogger("Application");
+
+AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+{
+    applicationLogger.LogCritical(
+        eventArgs.ExceptionObject as Exception,
+        "Fatal unhandled exception. IsTerminating: {IsTerminating}",
+        eventArgs.IsTerminating);
+};
+
+TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
+{
+    applicationLogger.LogError(eventArgs.Exception, "Unobserved background task exception.");
+    eventArgs.SetObserved();
+};
 
 // =====================================================
 // GLOBAL EXCEPTION LOGGING
@@ -300,7 +317,10 @@ app.Use(async (context, next) =>
 
         logger.LogError(
             ex,
-            "Unhandled exception in Server");
+            "Unhandled exception in Server. {Method} {Path}; TraceId: {TraceId}",
+            context.Request.Method,
+            context.Request.Path,
+            context.TraceIdentifier);
 
         throw;
     }
