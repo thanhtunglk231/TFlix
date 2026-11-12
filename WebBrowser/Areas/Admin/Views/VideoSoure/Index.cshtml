@@ -1483,11 +1483,24 @@
             sourceModal.hide();
           }
           function pickList(res){
-            const d = res?.data ?? res?.Data ?? null;
+            if (!res) return [];
+            if (Array.isArray(res)) return res;
+            const d = res?.data ?? res?.Data ?? res?.result ?? res?.Result ?? res;
             if (!d) return [];
             if (Array.isArray(d)) return d;
             if (Array.isArray(d.table)) return d.table;
             if (Array.isArray(d.Table)) return d.Table;
+            if (Array.isArray(d.table0)) return d.table0;
+            if (Array.isArray(d.Table0)) return d.Table0;
+            if (Array.isArray(d.table1)) return d.table1;
+            if (Array.isArray(d.Table1)) return d.Table1;
+            if (Array.isArray(d.items)) return d.items;
+            if (Array.isArray(d.Items)) return d.Items;
+            if (typeof d === 'object') {
+              for (const k in d) {
+                if (Array.isArray(d[k])) return d[k];
+              }
+            }
             return [];
           }
           function gv(o, ...keys){
@@ -1732,13 +1745,12 @@
               allSeriesList = pickList(res);
               $ddl.find('option:not(:first)').remove();
               allSeriesList.forEach(s => {
-                const id = gv(s, 'seriesId', 'SeriesId', 'serieS_ID');
-                const title = gv(s, 'title', 'Title') || `Series #${id}`;
+                const id = gv(s, 'seriesId', 'SeriesId', 'serieS_ID', 'series_id');
+                const title = gv(s, 'title', 'Title', 'originalTitle', 'OriginalTitle') || `Series #${id}`;
                 $ddl.append(new Option(`[#${id}] ${title}`, id, false, false));
               });
-              if (selectedSeriesId != null) {
-                $ddl.val(String(selectedSeriesId)).trigger('change');
-              }
+              $ddl.prop('disabled', false);
+              $ddl.val(selectedSeriesId != null ? String(selectedSeriesId) : '').trigger('change');
               if (typeof onDone === 'function') onDone();
             });
           }
@@ -1755,57 +1767,139 @@
             $.get(urls.seasons, res => {
               allSeasonsList = pickList(res);
               const matchedSeasons = allSeasonsList.filter(sn => {
-                const sId = gv(sn, 'seriesId', 'SeriesId', 'serieS_ID');
+                const sId = gv(sn, 'seriesId', 'SeriesId', 'serieS_ID', 'series_id');
                 return String(sId) === String(seriesId);
               });
               $ddl.find('option:not(:first)').remove();
-              matchedSeasons.forEach(sn => {
-                const id = gv(sn, 'seasonId', 'SeasonId', 'seasoN_ID');
-                const no = gv(sn, 'seasonNo', 'SeasonNo', 'seasoN_NO') || 1;
-                const title = gv(sn, 'title', 'Title') || `Mùa ${no}`;
-                $ddl.append(new Option(`Mùa ${no}: ${title}`, id, false, false));
-              });
-              $ddl.prop('disabled', false);
-              if (selectedSeasonId != null) {
-                $ddl.val(String(selectedSeasonId)).trigger('change');
+              if (matchedSeasons.length === 0) {
+                $ddl.append(new Option('-- Chưa có mùa phim nào --', '', false, false));
+              } else {
+                matchedSeasons.forEach(sn => {
+                  const id = gv(sn, 'seasonId', 'SeasonId', 'seasoN_ID', 'season_id');
+                  const no = gv(sn, 'seasonNo', 'SeasonNo', 'seasoN_NO', 'season_no') || 1;
+                  const rawTitle = gv(sn, 'title', 'Title') || '';
+                  const title = rawTitle && rawTitle.toLowerCase().startsWith('mùa') ? rawTitle : (rawTitle ? `Mùa ${no}: ${rawTitle}` : `Mùa ${no}`);
+                  $ddl.append(new Option(title, id, false, false));
+                });
               }
+              $ddl.prop('disabled', false);
+              $ddl.val(selectedSeasonId != null ? String(selectedSeasonId) : '').trigger('change');
               if (typeof onDone === 'function') onDone();
             });
           }
 
           function fillMoviesBySeason(seasonId, selectedMovieId, onDone){
+            console.log('[VideoSoure] fillMoviesBySeason ENTER with seasonId =', seasonId, 'selectedMovieId =', selectedMovieId);
             const $ddl = $('#SeasonMovieId');
-            $ddl.empty().append(new Option('-- Chọn Tập phim --', '', false, false)).trigger('change');
+            $ddl.empty().append(new Option('-- Chọn Tập phim --', '', false, false));
+            if ($ddl.hasClass("select2-hidden-accessible")) {
+              $ddl.val('').trigger('change.select2');
+            }
+
             if (!seasonId) {
+              console.log('[VideoSoure] fillMoviesBySeason: seasonId is empty, disabling dropdown');
               $ddl.prop('disabled', true);
+              if ($ddl.hasClass("select2-hidden-accessible")) {
+                $ddl.select2('destroy');
+                $ddl.select2({ placeholder: '-- Chọn Tập phim --', allowClear: true, width: '100%', dropdownParent: $('#sourceModal') });
+              }
               return;
             }
 
+            console.log('[VideoSoure] Fetching movies by season from:', urls.moviesBySeason, 'with seasonId =', seasonId);
             $.get(urls.moviesBySeason, { seasonId }, res => {
+              console.log('[VideoSoure] Received response from moviesBySeason:', res);
               const list = pickList(res);
+              console.log('[VideoSoure] Parsed episodes list count =', list.length, list);
+
               $ddl.find('option:not(:first)').remove();
-              list.forEach(item => {
-                const mId = gv(item, 'movieId', 'MovieId');
-                const epId = gv(item, 'episodeId', 'EpisodeId');
-                const epNo = gv(item, 'episodeNo', 'EpisodeNo') || '';
-                const title = gv(item, 'movieTitle', 'MovieTitle', 'title', 'Title') || `Movie #${mId}`;
-                const scCount = Number(gv(item, 'sourceCount', 'SourceCount')) || 0;
-                const optText = `Tập ${epNo}: ${title} (Movie #${mId})` + (scCount > 0 ? ` [${scCount} nguồn]` : '');
-                const opt = new Option(optText, mId, false, false);
-                $(opt).data('episode-id', epId);
-                $ddl.append(opt);
-              });
-              $ddl.prop('disabled', false);
-              if (selectedMovieId != null) {
-                $ddl.val(String(selectedMovieId)).trigger('change');
+              if (list.length === 0) {
+                console.warn('[VideoSoure] No episodes found for seasonId =', seasonId);
+                $ddl.append(new Option('-- Mùa này chưa có tập phim nào --', '', false, false));
+              } else {
+                list.forEach((item, idx) => {
+                  const epId  = gv(item, 'episodeId', 'EpisodeId', 'episode_id', 'episodE_ID');
+                  const epNo  = gv(item, 'episodeNo', 'EpisodeNo', 'episode_no', 'episodE_NO');
+                  const mId   = gv(item, 'movieId',   'MovieId',   'movie_id',   'moviE_ID');
+                  const rawTitle = gv(item, 'movieTitle', 'MovieTitle', 'movie_title', 'moviE_TITLE',
+                                            'episodeTitle', 'EpisodeTitle', 'episode_title', 'episodE_TITLE',
+                                            'title', 'Title',
+                                            'name', 'Name',
+                                            'originalTitle', 'OriginalTitle', 'movieOriginalTitle', 'MovieOriginalTitle') || '';
+                  
+                  const title = String(rawTitle || '').trim();
+                  let displayText = '';
+
+                  if (epNo !== undefined && epNo !== null && String(epNo).trim() !== '') {
+                    const epPrefix = `Tập ${epNo}`;
+                    if (title && (title.toLowerCase().startsWith('tập') || title.toLowerCase().startsWith('tap'))) {
+                      displayText = title;
+                    } else if (title) {
+                      displayText = `${epPrefix}: ${title}`;
+                    } else {
+                      displayText = epPrefix;
+                    }
+                  } else {
+                    displayText = title || (epId ? `Tập #${epId}` : (mId ? `Phim #${mId}` : 'Tập phim'));
+                  }
+
+                  const scCount = Number(gv(item, 'sourceCount', 'SourceCount', 'source_count', 'sourcE_COUNT')) || 0;
+
+                  let idDesc = '';
+                  if (mId != null && epId != null) {
+                    idDesc = `Ep #${epId} • Movie #${mId}`;
+                  } else if (epId != null) {
+                    idDesc = `Ep #${epId}`;
+                  } else if (mId != null) {
+                    idDesc = `Movie #${mId}`;
+                  }
+
+                  const countBadge = scCount > 0 ? ` [${scCount} nguồn]` : '';
+                  const optText = `${displayText}${idDesc ? ` (${idDesc})` : ''}${countBadge}`;
+
+                  const optVal = epId != null ? String(epId) : (mId != null ? String(mId) : '');
+                  console.log(`[VideoSoure] Episode #${idx + 1}:`, { epId, epNo, mId, title, displayText, optVal, optText });
+
+                  const opt = new Option(optText, optVal, false, false);
+                  $(opt).data('episode-id', epId != null ? String(epId) : '');
+                  $(opt).data('movie-id',   mId  != null ? String(mId)  : '');
+                  $(opt).data('title',      displayText);
+                  $ddl.append(opt);
+                });
               }
+
+              $ddl.prop('disabled', false);
+              const targetVal = selectedMovieId != null ? String(selectedMovieId) : '';
+              $ddl.val(targetVal);
+
+              // Re-initialize Select2 để đảm bảo các option mới luôn hiển thị ngay lập tức
+              if ($ddl.hasClass("select2-hidden-accessible")) {
+                $ddl.select2('destroy');
+              }
+              $ddl.select2({
+                placeholder: '-- Chọn Tập phim --',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#sourceModal')
+              });
+
+              if (targetVal) {
+                $ddl.val(targetVal).trigger('change.select2');
+              }
+              console.log('[VideoSoure] fillMoviesBySeason COMPLETED. Options count =', $ddl.find('option').length);
+
               if (typeof onDone === 'function') onDone();
+            }).fail(xhr => {
+              console.error('[VideoSoure] Error fetching moviesBySeason:', xhr);
+              showToast('Lỗi tải danh sách tập phim: ' + (xhr.responseJSON?.message || xhr.statusText), false);
+              $ddl.prop('disabled', false);
             });
           }
 
           // Chuyển đổi giữa Phim lẻ và Tập thuộc Phim bộ
           $('input[name="SourceTargetType"]').on('change', function(){
             const val = $('input[name="SourceTargetType"]:checked').val();
+            console.log('[VideoSoure] SourceTargetType changed to:', val);
             if (val === 'movie'){
               $('#blockTargetMovie').removeClass('d-none');
               $('#blockTargetSeries').addClass('d-none');
@@ -1821,12 +1915,14 @@
           // Chọn Series -> nạp Seasons
           $('#SeriesId').on('change', function(){
             const seriesId = $(this).val();
+            console.log('[VideoSoure] SeriesId changed to:', seriesId);
             fillSeasons(seriesId);
           });
 
           // Chọn Season -> nạp Movies trong Season
           $('#SeasonId').on('change', function(){
             const seasonId = $(this).val();
+            console.log('[VideoSoure] SeasonId changed to:', seasonId);
             fillMoviesBySeason(seasonId);
           });
 
@@ -2973,12 +3069,14 @@
               } else {
                 const seriesId = ($('#SeriesId').val() || '').trim();
                 const seasonId = ($('#SeasonId').val() || '').trim();
-                const sMovieId = ($('#SeasonMovieId').val() || '').trim();
+                const $selectedOpt = $('#SeasonMovieId option:selected');
+                const selectedVal = ($('#SeasonMovieId').val() || '').trim();
                 if (!seriesId) { showToast("Vui lòng chọn Phim bộ.", false); return; }
                 if (!seasonId) { showToast("Vui lòng chọn Mùa.", false); return; }
-                if (!sMovieId) { showToast("Vui lòng chọn Tập phim trong mùa.", false); return; }
-                payload.MovieId = Number(sMovieId);
-                payload.EpisodeId = null;
+                if (!selectedVal) { showToast("Vui lòng chọn Tập phim trong mùa.", false); return; }
+                const optEpId = $selectedOpt.data('episode-id') || selectedVal;
+                payload.EpisodeId = Number(optEpId);
+                payload.MovieId = null;
               }
             }
 
@@ -3750,8 +3848,8 @@
 
           $('#btnOpenGeminiImageModal').on('click', function(){
             const isMovie = $('#targetMovie').is(':checked');
-            const movieId = isMovie ? $('#MovieId').val() : $('#SeasonMovieId').val();
-            const movieText = isMovie ? $('#MovieId option:selected').text() : $('#SeasonMovieId option:selected').text();
+            const movieId = isMovie ? $('#MovieId').val() : ($('#SeasonMovieId option:selected').data('movie-id') || $('#SeasonMovieId').val());
+            const movieText = isMovie ? $('#MovieId option:selected').text() : ($('#SeasonMovieId option:selected').data('title') || $('#SeasonMovieId option:selected').text());
             openGeminiImageModalFor(movieId, movieText);
           });
 
@@ -3987,8 +4085,8 @@
 
           $('#btnAutoBindFromModal').on('click', function(){
             const isMovie = $('#targetMovie').is(':checked');
-            const movieId = isMovie ? $('#MovieId').val() : $('#SeasonMovieId').val();
-            const movieText = isMovie ? $('#MovieId option:selected').text() : $('#SeasonMovieId option:selected').text();
+            const movieId = isMovie ? $('#MovieId').val() : ($('#SeasonMovieId option:selected').data('movie-id') || $('#SeasonMovieId').val());
+            const movieText = isMovie ? $('#MovieId option:selected').text() : ($('#SeasonMovieId option:selected').data('title') || $('#SeasonMovieId option:selected').text());
             openAutoBindModal(movieId, movieText);
           });
 

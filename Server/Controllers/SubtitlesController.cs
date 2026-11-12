@@ -62,15 +62,19 @@ namespace Server.Controllers
 
         [HttpPost("browser-jobs/{jobId:guid}/chunks/{chunkIndex:int}")]
         [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+        [Consumes("multipart/form-data")]
         [RequestSizeLimit(14 * 1024 * 1024)]
         public async Task<IActionResult> UploadBrowserChunk(Guid jobId, int chunkIndex,
-            [FromForm] double offsetSeconds, [FromForm] double durationSeconds, [FromForm] IFormFile audio,
+            [FromForm] UploadBrowserChunkRequest form,
             CancellationToken cancellationToken)
         {
             try
             {
-                return Ok(await _browserJobs.ProcessChunkAsync(jobId, chunkIndex, offsetSeconds,
-                    durationSeconds, audio, OwnerId, cancellationToken));
+                if (form == null || form.Audio == null)
+                    return BadRequest(new { message = "File âm thanh không hợp lệ." });
+
+                return Ok(await _browserJobs.ProcessChunkAsync(jobId, chunkIndex, form.OffsetSeconds,
+                    form.DurationSeconds, form.Audio, OwnerId, cancellationToken));
             }
             catch (UnauthorizedAccessException) { return Forbid(); }
             catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
@@ -188,5 +192,12 @@ namespace Server.Controllers
             var vtt = await _subtitleService.GetWebVttContentAsync(movieId, episodeId, lang ?? "vi", cancellationToken);
             return Content(vtt, "text/vtt; charset=utf-8");
         }
+    }
+
+    public class UploadBrowserChunkRequest
+    {
+        public double OffsetSeconds { get; set; }
+        public double DurationSeconds { get; set; }
+        public IFormFile Audio { get; set; } = default!;
     }
 }

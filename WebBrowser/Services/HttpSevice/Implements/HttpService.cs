@@ -293,7 +293,29 @@
                 using var response = await _longRunningClient.SendAsync(request);
                 var json = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
-                    throw new HttpRequestException($"Lỗi API: {response.StatusCode}");
+                {
+                    string errorMessage = $"Lỗi API: {response.StatusCode}";
+                    if (!string.IsNullOrWhiteSpace(json))
+                    {
+                        try
+                        {
+                            var respObj = JsonConvert.DeserializeObject<CResponseMessage>(json);
+                            if (respObj != null && !string.IsNullOrWhiteSpace(respObj.message))
+                                errorMessage = respObj.message;
+                            else
+                            {
+                                dynamic? d = JsonConvert.DeserializeObject(json);
+                                if (d?.message != null)
+                                    errorMessage = (string)d.message;
+                            }
+                        }
+                        catch
+                        {
+                            errorMessage = json;
+                        }
+                    }
+                    throw new HttpRequestException(errorMessage);
+                }
                 return JsonConvert.DeserializeObject<T>(json)!;
             }
 

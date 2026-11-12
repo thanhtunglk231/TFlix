@@ -91,8 +91,9 @@ namespace WebBrowser.Areas.Admin.Controllers
             Console.WriteLine("[Admin/SeasonController] -> GetMoviesBySeason() ENTER seasonId=" + seasonId);
             if (seasonId <= 0) return BadRequest(new { message = "SeasonId khong hop le." });
             var result = await _seasonService.GetMoviesBySeason(seasonId);
-            Console.WriteLine("[Admin/SeasonController] <- GetMoviesBySeason() EXIT: " + JsonConvert.SerializeObject(result));
-            return Ok(result);
+            var json = JsonConvert.SerializeObject(result);
+            Console.WriteLine("[Admin/SeasonController] <- GetMoviesBySeason() EXIT JSON: " + json);
+            return Content(json, "application/json");
         }
     }
 }

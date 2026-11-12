@@ -184,16 +184,18 @@ namespace WebBrowser.Areas.Admin.Controllers
                 {
                     using var scope = _scopeFactory.CreateScope();
                     var service = scope.ServiceProvider.GetRequiredService<IVideoSoureService>();
+                    string? lastError = null;
                     try
                     {
                         job.Result = await service.CompleteBrowserHlsUploadAsync(uploadId, request, adminToken);
                     }
                     catch (Exception exception)
                     {
+                        lastError = exception.Message;
                         _logger.LogWarning(exception, "HLS completion response was interrupted for {UploadId}; switching to status polling", uploadId);
                     }
                     if (job.Result == null)
-                        job.Result = await ResolveEmptyCompletionResponseAsync(service, uploadId, adminToken);
+                        job.Result = await ResolveEmptyCompletionResponseAsync(service, uploadId, adminToken, lastError);
                     job.Status = job.Result.Success ? "COMPLETED" : "FAILED";
                 }
                 catch (Exception exception)
@@ -212,7 +214,7 @@ namespace WebBrowser.Areas.Admin.Controllers
             });
         }
 
-        private static async Task<CResponseMessage> ResolveEmptyCompletionResponseAsync(IVideoSoureService service, Guid uploadId, string bearerToken)
+        private static async Task<CResponseMessage> ResolveEmptyCompletionResponseAsync(IVideoSoureService service, Guid uploadId, string bearerToken, string? lastError = null)
         {
             for (var attempt = 0; attempt < 360; attempt++)
             {
@@ -240,7 +242,9 @@ namespace WebBrowser.Areas.Admin.Controllers
                     {
                         Success = false,
                         code = "500",
-                        message = "Server dừng hoàn tất HLS nhưng không trả về kết quả. Dữ liệu tạm được giữ lại để thử lại."
+                        message = !string.IsNullOrWhiteSpace(lastError)
+                            ? $"Server không thể hoàn tất HLS: {lastError}"
+                            : "Server dừng hoàn tất HLS nhưng không trả về kết quả. Dữ liệu tạm được giữ lại để thử lại."
                     };
             }
 

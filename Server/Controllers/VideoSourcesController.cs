@@ -71,21 +71,23 @@ namespace Server.Controllers
             Guid uploadId,
             Guid fileId,
             int chunkIndex,
-            [FromForm(Name = "Chunk")] IFormFile? chunk,
-            [FromForm] string fileName,
-            [FromForm] long fileSize,
-            [FromForm] int totalChunks,
-            [FromForm] string checksum,
+            [FromForm] UploadBrowserHlsChunkForm form,
             CancellationToken cancellationToken)
         {
             CleanupExpiredBrowserHlsUploads();
 
-            if (chunk == null || chunk.Length == 0 || chunk.Length > MaxVideoChunkBytes)
+            if (form == null || form.Chunk == null || form.Chunk.Length == 0 || form.Chunk.Length > MaxVideoChunkBytes)
                 return BadRequest(new { success = false, message = "HLS chunk rỗng hoặc vượt quá 8 MiB." });
-            if (fileSize <= 0 || totalChunks < 1 || totalChunks > MaxVideoChunkCount || chunkIndex < 0 || chunkIndex >= totalChunks)
+            if (form.FileSize <= 0 || form.TotalChunks < 1 || form.TotalChunks > MaxVideoChunkCount || chunkIndex < 0 || chunkIndex >= form.TotalChunks)
                 return BadRequest(new { success = false, message = "Metadata HLS chunk không hợp lệ." });
-            if (checksum.Length != 64 || checksum.Any(character => !Uri.IsHexDigit(character)))
+            if (string.IsNullOrWhiteSpace(form.Checksum) || form.Checksum.Length != 64 || form.Checksum.Any(character => !Uri.IsHexDigit(character)))
                 return BadRequest(new { success = false, message = "SHA-256 checksum không hợp lệ." });
+
+            var chunk = form.Chunk;
+            var fileName = form.FileName;
+            var fileSize = form.FileSize;
+            var totalChunks = form.TotalChunks;
+            var checksum = form.Checksum;
 
             var safeFileName = Path.GetFileName(fileName);
             var extension = Path.GetExtension(safeFileName);
@@ -485,18 +487,20 @@ namespace Server.Controllers
         public async Task<IActionResult> UploadMp4Chunk(
             Guid uploadId,
             int chunkIndex,
-            [FromForm(Name = "Chunk")] IFormFile? chunk,
-            [FromForm] int totalChunks,
-            [FromForm] string fileFingerprint,
+            [FromForm] UploadMp4ChunkForm form,
             CancellationToken cancellationToken)
         {
-            if (totalChunks < 1 || totalChunks > MaxVideoChunkCount || chunkIndex < 0 || chunkIndex >= totalChunks)
+            if (form == null || form.TotalChunks < 1 || form.TotalChunks > MaxVideoChunkCount || chunkIndex < 0 || chunkIndex >= form.TotalChunks)
                 return BadRequest(new { success = false, message = "Thông tin chunk không hợp lệ." });
 
-            if (chunk == null || chunk.Length == 0 || chunk.Length > MaxVideoChunkBytes)
+            if (form.Chunk == null || form.Chunk.Length == 0 || form.Chunk.Length > MaxVideoChunkBytes)
                 return BadRequest(new { success = false, message = "Chunk rỗng hoặc vượt quá 8 MiB." });
-            if (string.IsNullOrWhiteSpace(fileFingerprint) || fileFingerprint.Length > 512)
+            if (string.IsNullOrWhiteSpace(form.FileFingerprint) || form.FileFingerprint.Length > 512)
                 return BadRequest(new { success = false, message = "Fingerprint file không hợp lệ." });
+
+            var chunk = form.Chunk;
+            var totalChunks = form.TotalChunks;
+            var fileFingerprint = form.FileFingerprint;
 
             var uploadDirectory = GetUploadDirectory(uploadId);
             if (!Directory.Exists(uploadDirectory))
@@ -1640,5 +1644,23 @@ namespace Server.Controllers
         public string? Status { get; set; }
 
         public string? OldStreamUrl { get; set; }
+    }
+
+    public class UploadBrowserHlsChunkForm
+    {
+        [FromForm(Name = "Chunk")]
+        public IFormFile? Chunk { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public int TotalChunks { get; set; }
+        public string Checksum { get; set; } = string.Empty;
+    }
+
+    public class UploadMp4ChunkForm
+    {
+        [FromForm(Name = "Chunk")]
+        public IFormFile? Chunk { get; set; }
+        public int TotalChunks { get; set; }
+        public string FileFingerprint { get; set; } = string.Empty;
     }
 }
