@@ -51,11 +51,11 @@
                         </p>
 
                         <div class="d-flex align-items-center gap-2 mt-4 flex-wrap">
-                            <a id="modalWatchBtn" href="#" class="btn-tflix-primary" onclick="if(typeof window.isLoggedIn !== 'undefined' && !window.isLoggedIn){event.preventDefault(); event.stopPropagation(); if (typeof window.showLoginModal === 'function') { window.showLoginModal(); } else if (typeof window.triggerLoginModalIfAvailable === 'function') { window.triggerLoginModalIfAvailable(); } return false;}">
+                            <a id="modalWatchBtn" href="#" class="btn-tflix-primary" onclick="if(!window.isLoggedIn){event.preventDefault(); event.stopPropagation(); window.showLoginModal(this.getAttribute('href')); return false;}">
                                 <i class="bi bi-play-fill fs-5"></i>
                                 <span>Xem phim ngay</span>
                             </a>
-                            <a id="modalDetailBtn" href="#" class="btn-tflix-glass">
+                            <a id="modalDetailBtn" href="#" class="btn-tflix-glass" onclick="if(!window.isLoggedIn){event.preventDefault(); event.stopPropagation(); window.showLoginModal(this.getAttribute('href')); return false;}">
                                 <i class="bi bi-info-circle"></i>
                                 <span>Trang chi tiết</span>
                             </a>

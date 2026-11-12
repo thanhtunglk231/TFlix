@@ -566,6 +566,8 @@
         function showLoginModal(targetUrl) {
             if (typeof window.showLoginModal === 'function') {
                 window.showLoginModal(targetUrl);
+            } else if (typeof window.showTFlixToast === 'function') {
+                window.showTFlixToast('Vui lòng đăng nhập tài khoản để xem phim!', 'bi-shield-lock-fill text-warning');
             }
         }
 
@@ -586,15 +588,22 @@
             if (evt && evt.target && evt.target.closest('.card-rating-tag, .card-quick-rating, .card-stars-widget, .tflix-rating-popover, .btn-card-star, .popover-star-btn, .btn-card-fav, .btn-quick-info')) {
                 return;
             }
+            if (evt) {
+                evt.preventDefault();
+                evt.stopPropagation();
+            }
             const id = el.dataset.id;
             const kind = el.dataset.kind || 'MOVIE';
             const title = el.dataset.title || 'noi-dung';
             if (!id) return;
-            const prefix = String(kind).toUpperCase() === 'SERIES' ? '/phim-bo/' : '/phim/';
+            const isPlayClick = evt && evt.target && evt.target.closest('.btn-play-circle');
+            const prefix = isPlayClick 
+                ? (String(kind).toUpperCase() === 'SERIES' ? '/xem-phim-bo/' : '/xem-phim/')
+                : (String(kind).toUpperCase() === 'SERIES' ? '/phim-bo/' : '/phim/');
             const targetUrl = `${prefix}${toSeoSlug(title)}-${encodeURIComponent(id)}`;
             if (!window.isLoggedIn) {
                 window.showLoginModal(targetUrl);
-                return;
+                return false;
             }
             window.location.href = targetUrl;
         }

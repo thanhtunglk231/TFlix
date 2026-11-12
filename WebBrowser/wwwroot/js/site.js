@@ -930,15 +930,44 @@ document.addEventListener('show.bs.modal', function (event) {
     }
 });
 
-window.showLoginModal = function (targetUrl) {
+window.showLoginModal = function (targetUrl, message) {
+    const notifyMsg = message || 'Vui lòng đăng nhập tài khoản TFlix để xem phim và sử dụng đầy đủ tính năng!';
+    
+    // 1. Hiển thị thông báo Toast nổi bật
+    if (typeof window.showTFlixToast === 'function') {
+        window.showTFlixToast(notifyMsg, 'bi-shield-lock-fill text-warning');
+    } else {
+        let toastBox = document.getElementById('toastContainer');
+        if (!toastBox) {
+            toastBox = document.createElement('div');
+            toastBox.id = 'toastContainer';
+            toastBox.className = 'tflix-toast-container';
+            toastBox.style.cssText = 'position:fixed;top:80px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:10px;pointer-events:none;';
+            document.body.appendChild(toastBox);
+        }
+        const toast = document.createElement('div');
+        toast.className = 'tflix-toast show';
+        toast.style.cssText = 'background:#1c1f26;color:#fff;border:1px solid rgba(255,193,7,0.4);border-radius:10px;padding:12px 18px;display:inline-flex;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,0.5);pointer-events:auto;';
+        toast.innerHTML = `<i class="bi bi-shield-lock-fill text-warning fs-5"></i><span>${notifyMsg}</span>`;
+        toastBox.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.35s ease';
+            setTimeout(() => toast.remove(), 350);
+        }, 3500);
+    }
+
+    // 2. Ẩn Quick View nếu đang mở
     const qvModal = document.getElementById('quickViewModal');
-    if (qvModal && typeof bootstrap !== 'undefined') {
+    if (qvModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         const qvInst = bootstrap.Modal.getInstance(qvModal);
         if (qvInst) qvInst.hide();
     }
     if (typeof window.closeRatingPopover === 'function') {
         window.closeRatingPopover();
     }
+
+    // 3. Hiển thị popup modal yêu cầu đăng nhập
     let modalEl = document.getElementById('loginRequiredModal');
     if (!modalEl && typeof createGlobalLoginModal === 'function') {
         modalEl = createGlobalLoginModal();
@@ -954,9 +983,16 @@ window.showLoginModal = function (targetUrl) {
         }
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else {
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.removeAttribute('aria-hidden');
+            modalEl.setAttribute('aria-modal', 'true');
         }
     }
 };
+
+window.showLoginNotification = window.showLoginModal;
 
 // =========================================================================
 // UNIVERSAL MOVIE CARD & STREAMING ACTIONS AUTHENTICATION INTERCEPTOR
@@ -975,7 +1011,30 @@ document.addEventListener('click', function (e) {
         return;
     }
 
-    // 1. Kiểm tra nếu nhấn vào Thẻ phim (Movie Card trên Home, Preview, Xem phim, Kho phim, Tìm kiếm...)
+    // 1. Kiểm tra nếu nhấn vào nút Play Hover trên Card
+    const playCircle = e.target.closest('.btn-play-circle');
+    if (playCircle) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        const card = playCircle.closest('.movie-card-item, .movie-card, .series-card') || {};
+        const id = card.dataset ? card.dataset.id : '';
+        const kind = card.dataset ? String(card.dataset.kind || 'MOVIE').toUpperCase() : 'MOVIE';
+        const title = card.dataset ? (card.dataset.title || 'phim') : 'phim';
+        const slug = (title || 'phim')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'd')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'phim';
+        const targetUrl = id ? (kind === 'SERIES' ? `/xem-phim-bo/${slug}-${encodeURIComponent(id)}` : `/xem-phim/${slug}-${encodeURIComponent(id)}`) : (window.location.pathname + window.location.search);
+        window.showLoginModal(targetUrl);
+        return false;
+    }
+
+    // 2. Kiểm tra nếu nhấn vào Thẻ phim (Movie Card trên Home, Preview, Xem phim, Kho phim, Tìm kiếm...)
     const movieCard = e.target.closest('.movie-card-item, .movie-card, .series-card, .preview-catalog-card, .ai-movie-card, .film-card, [data-movie-card="true"]');
     if (movieCard) {
         // Cho phép nút Xem nhanh (Quick View) mở popup xem sơ lược nếu có
@@ -1012,19 +1071,23 @@ document.addEventListener('click', function (e) {
         return false;
     }
 
-    // 2. Kiểm tra nếu nhấn vào các nút / link Xem phim, Chi tiết phim, Tập phim
+    // 3. Kiểm tra nếu nhấn vào các nút / link Xem phim, Chi tiết phim, Tập phim
     const watchOrDetailLink = e.target.closest(
-        '.btnWatch, .btnEp, .btn-watch, .btn-play, .preview-play-icon, #modalWatchBtn, #modalDetailBtn, .ep-item, a[href*="/xem-phim"], a[href*="/xem-phim-bo"], a[href*="/phim/"], a[href*="/phim-bo/"]'
+        '.btnWatch, .btnEp, .btn-watch, .btn-play, .preview-play-icon, #modalWatchBtn, #modalDetailBtn, .ep-item, .hero-action-buttons a, a[href*="/xem-phim"], a[href*="/xem-phim-bo"], a[href*="/phim/"], a[href*="/phim-bo/"], a[href*="/Film/Watch"], a[href*="/film/watch"], a[href*="/Preview/Details"], a[href*="/preview/details"]'
     );
     if (watchOrDetailLink) {
         const href = watchOrDetailLink.getAttribute('href') || watchOrDetailLink.dataset.url || '';
-        // Phân biệt link danh mục chung (/phim, /phim-bo) với link phim cụ thể
         const isSpecificMovieRoute = href.includes('/xem-phim') ||
                                      href.includes('/xem-phim-bo') ||
+                                     href.includes('/Film/Watch') ||
+                                     href.includes('/film/watch') ||
+                                     href.includes('/Preview/Details') ||
+                                     href.includes('/preview/details') ||
                                      /\/(phim|phim-bo)\/[^?#]+-\d+/.test(href) ||
                                      watchOrDetailLink.classList.contains('ep-item') ||
                                      watchOrDetailLink.classList.contains('btnWatch') ||
-                                     watchOrDetailLink.classList.contains('btnEp');
+                                     watchOrDetailLink.classList.contains('btnEp') ||
+                                     watchOrDetailLink.closest('.hero-action-buttons') !== null;
 
         if (isSpecificMovieRoute || watchOrDetailLink.id === 'modalWatchBtn' || watchOrDetailLink.id === 'modalDetailBtn') {
             e.preventDefault();

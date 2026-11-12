@@ -77,7 +77,7 @@
                             <button type="button"
                                     class="btn-tflix-primary"
                                     id="remindBtn-@up.MovieId"
-                                    onclick="toggleUpcomingReminder(this, @up.MovieId, '@Html.Raw(up.Title.Replace("'", "\\'"))')">
+                                    onclick="if(!window.isLoggedIn){event.preventDefault(); event.stopPropagation(); window.showLoginModal(window.location.pathname); return false;} toggleUpcomingReminder(this, @up.MovieId, '@Html.Raw(up.Title.Replace("'", "\\'"))')">
                                 <i class="bi bi-bell-fill"></i>
                                 <span>Nhắc tôi khi chiếu</span>
                             </button>
@@ -86,7 +86,8 @@
                                asp-controller="Preview"
                                asp-action="Details"
                                asp-route-id="@up.MovieId"
-                               asp-route-kind="MOVIE">
+                               asp-route-kind="MOVIE"
+                               onclick="if(!window.isLoggedIn){event.preventDefault(); event.stopPropagation(); window.showLoginModal(this.getAttribute('href') || '/Preview/Details/@up.MovieId?kind=MOVIE'); return false;}">
                                 <i class="bi bi-info-circle"></i>
                                 <span>Xem thông tin</span>
                             </a>

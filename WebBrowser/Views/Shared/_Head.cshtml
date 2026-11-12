@@ -22,3 +22,11 @@
 <!-- CSS của dự án -->
 <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 
+<script>
+    @{
+        var headToken = Context.Session.GetString("JWToken");
+        var headIsLoggedIn = !string.IsNullOrEmpty(headToken) || (User?.Identity?.IsAuthenticated ?? false);
+    }
+    window.isLoggedIn = @headIsLoggedIn.ToString().ToLower();
+</script>
+
