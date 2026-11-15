@@ -1010,6 +1010,18 @@ window.showLoginModal = function (targetUrl, message) {
 
 window.showLoginNotification = window.showLoginModal;
 
+// Điểm kiểm tra dùng chung cho component yêu cầu đăng nhập, kể cả nội dung
+// được tải động bằng AJAX như card trang chủ và chatbot.
+window.requireLogin = function (targetUrl, message) {
+    if (window.isLoggedIn === true) {
+        return true;
+    }
+
+    const returnUrl = targetUrl || (window.location.pathname + window.location.search);
+    window.showLoginModal(returnUrl, message || 'Vui lòng đăng nhập để sử dụng tính năng này.');
+    return false;
+};
+
 // =========================================================================
 // UNIVERSAL MOVIE CARD & STREAMING ACTIONS AUTHENTICATION INTERCEPTOR
 // =========================================================================
@@ -1020,6 +1032,18 @@ document.addEventListener('click', function (e) {
     // Không can thiệp nếu nhấn vào modal hoặc các nút bên trong popup đăng nhập
     if (e.target.closest('#loginRequiredModal, .modal-footer, .btn-close, [data-bs-dismiss="modal"]')) {
         return;
+    }
+
+    const loginRequiredElement = e.target.closest('[data-login-required="true"]');
+    if (loginRequiredElement) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        window.requireLogin(
+            loginRequiredElement.getAttribute('href') || loginRequiredElement.dataset.url,
+            loginRequiredElement.dataset.loginMessage || 'Vui lòng đăng nhập để tiếp tục.'
+        );
+        return false;
     }
 
     // Không can thiệp vào các nút đánh giá sao và yêu thích (đã có handler riêng)

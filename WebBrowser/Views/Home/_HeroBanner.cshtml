@@ -58,6 +58,8 @@
                                asp-action="Watch"
                                asp-route-id="@m.MovieId"
                                asp-route-kind="MOVIE"
+                               data-login-required="true"
+                               data-login-message="Vui lòng đăng nhập để xem phim."
                                onclick="if(!window.isLoggedIn){event.preventDefault(); event.stopPropagation(); window.showLoginModal(this.getAttribute('href') || '/Film/Watch/@m.MovieId?kind=MOVIE'); return false;}">
                                 <i class="bi bi-play-fill fs-5"></i>
                                 <span>Xem ngay</span>
@@ -68,6 +70,8 @@
                                asp-action="Details"
                                asp-route-id="@m.MovieId"
                                asp-route-kind="MOVIE"
+                               data-login-required="true"
+                               data-login-message="Vui lòng đăng nhập để xem thông tin phim."
                                onclick="if(!window.isLoggedIn){event.preventDefault(); event.stopPropagation(); window.showLoginModal(this.getAttribute('href') || '/Preview/Details/@m.MovieId?kind=MOVIE'); return false;}">
                                 <i class="bi bi-info-circle fs-6"></i>
                                 <span>Chi tiết phim</span>
@@ -78,6 +82,8 @@
                                     style="width: 44px; height: 44px; font-size: 1.1rem;"
                                     data-movie-id="@m.MovieId"
                                     data-movie-title="@m.Title"
+                                    data-login-required="true"
+                                    data-login-message="Vui lòng đăng nhập để lưu phim yêu thích."
                                     aria-label="Thêm vào danh sách yêu thích"
                                     title="Lưu vào danh sách xem sau"
                                     onclick="toggleHeroFavorite(this, @m.MovieId, '@Html.Raw(m.Title.Replace("'", "\\'"))')">

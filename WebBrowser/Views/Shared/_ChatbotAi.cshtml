@@ -462,7 +462,7 @@
                 const meta = year ? `${year} • ${genres}` : genres;
 
                 cardsHtml += `
-                    <a href="${m.detailUrl || '#'}" class="ai-movie-card">
+                    <a href="${m.detailUrl || '#'}" class="ai-movie-card" data-login-required="true" data-login-message="Vui lòng đăng nhập để xem thông tin phim.">
                         <img src="${poster}" alt="${escapeHtml(m.title)}" loading="lazy" />
                         <div class="ai-card-content">
                             <div class="d-flex align-items-center justify-content-between mb-1">
@@ -555,12 +555,13 @@
 
             // Khôi phục trạng thái mở của chatbox
             if (localStorage.getItem(KEY_IS_OPEN) === 'true') {
-                toggleBox(true, false);
+                toggleBox(true, false, false);
             }
         }
 
         // Đồng bộ ngầm với Backend qua AJAX (Background Sync)
         async function syncHistoryBackground() {
+            if (window.isLoggedIn !== true) return;
             if (!conversationId) return;
             try {
                 const res = await fetch(`/Chat/GetHistory?conversationId=${encodeURIComponent(conversationId)}`);
@@ -579,9 +580,26 @@
             }
         }
 
-        function toggleBox(show, smooth = true) {
+        function ensureChatAuthenticated(showNotification = true) {
+            if (window.isLoggedIn === true) return true;
+
+            if (showNotification) {
+                const returnUrl = window.location.pathname + window.location.search;
+                const message = 'Vui lòng đăng nhập để trò chuyện cùng TFlix AI.';
+                if (typeof window.requireLogin === 'function') {
+                    window.requireLogin(returnUrl, message);
+                } else if (typeof window.showLoginModal === 'function') {
+                    window.showLoginModal(returnUrl, message);
+                }
+            }
+
+            return false;
+        }
+
+        function toggleBox(show, smooth = true, showLoginNotification = true) {
             if (!box) return;
             const willOpen = show !== undefined ? show : !box.classList.contains('open');
+            if (willOpen && !ensureChatAuthenticated(showLoginNotification)) return;
             if (willOpen) {
                 box.classList.add('open');
                 localStorage.setItem(KEY_IS_OPEN, 'true');
@@ -620,6 +638,8 @@
 
         // Xử lý gửi tin nhắn
         async function sendMessage(text) {
+            if (!ensureChatAuthenticated()) return;
+
             const cleanText = (text || '').trim();
             if (!cleanText) return;
 
