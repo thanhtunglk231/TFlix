@@ -2,7 +2,7 @@ using CoreLib.Dtos.Subtitle;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
-using Server.Services.Gemini;
+using Server.Services.OpenAI;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
@@ -16,16 +16,16 @@ public sealed class SubtitleGenerator : ISubtitleGenerator
     private const double ChunkSeconds = 600;
     private readonly ICVideoSoure _sources;
     private readonly ICSubtitle _subtitles;
-    private readonly IGeminiClient _gemini;
+    private readonly IOpenAiClient _openAi;
     private readonly ICloudflareR2Service _r2;
     private readonly ILogger<SubtitleGenerator> _logger;
     private readonly string _ffmpeg;
     private readonly string _ffprobe;
 
-    public SubtitleGenerator(ICVideoSoure sources, ICSubtitle subtitles, IGeminiClient gemini,
+    public SubtitleGenerator(ICVideoSoure sources, ICSubtitle subtitles, IOpenAiClient openAi,
         ICloudflareR2Service r2, IConfiguration configuration, ILogger<SubtitleGenerator> logger)
     {
-        _sources = sources; _subtitles = subtitles; _gemini = gemini; _r2 = r2; _logger = logger;
+        _sources = sources; _subtitles = subtitles; _openAi = openAi; _r2 = r2; _logger = logger;
         _ffmpeg = configuration["FFmpeg:Path"] ?? "ffmpeg";
         var directory = Path.GetDirectoryName(_ffmpeg);
         _ffprobe = string.IsNullOrWhiteSpace(directory) ? "ffprobe" : Path.Combine(directory, "ffprobe.exe");
@@ -33,7 +33,7 @@ public sealed class SubtitleGenerator : ISubtitleGenerator
 
     public async Task<CResponseMessage> GenerateAsync(long sourceId, CancellationToken token = default)
     {
-        if (!_gemini.IsConfigured) return Fail("400", "Gemini API chưa được cấu hình.");
+        if (!_openAi.IsConfigured) return Fail("400", "OpenAI API chưa được cấu hình.");
         var response = _sources.GetBySourceId(sourceId);
         if (!response.Success || response.Data is not DataSet ds || ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
             return Fail("404", "Không tìm thấy nguồn video.");
@@ -53,17 +53,11 @@ public sealed class SubtitleGenerator : ISubtitleGenerator
             {
                 var audioPath = Path.Combine(temp, $"audio-{offset:0}.mp3");
                 await ExtractAudioAsync(url, offset, Math.Min(ChunkSeconds, duration - offset), audioPath, token);
-                var prompt = $"""
-                    Hãy nghe đoạn âm thanh phim bắt đầu tại giây {offset.ToString("F3", CultureInfo.InvariantCulture)}.
-                    Tạo phụ đề chính xác theo lời thoại, bỏ tiếng động và nhạc không có lời. Trả về JSON array duy nhất,
-                    không markdown, mỗi phần tử gồm startSeconds, endSeconds, vi, en. Mốc thời gian phải là thời gian
-                    tuyệt đối của toàn bộ phim (đã cộng {offset.ToString("F3", CultureInfo.InvariantCulture)} giây).
-                    vi là tiếng Việt tự nhiên; en là tiếng Anh tự nhiên. Mỗi câu ngắn, dễ đọc, không chồng thời gian.
-                    """;
-                var json = await _gemini.GenerateWithAudioAsync(prompt, await File.ReadAllBytesAsync(audioPath, token), "audio/mpeg", token);
+                var prompt = "Transcribe only spoken dialogue. Preserve proper names and punctuation. Return timestamped segments.";
+                var json = await _openAi.TranscribeAudioAsync(await File.ReadAllBytesAsync(audioPath, token), "audio/mpeg", prompt, token);
                 cues.AddRange(ParseCues(json, offset, duration));
             }
-            if (cues.Count == 0) return Fail("502", "Gemini không nhận dạng được lời thoại trong video.");
+            if (cues.Count == 0) return Fail("502", "OpenAI không nhận dạng được lời thoại trong video.");
 
             foreach (var language in new[] { "vi", "en" })
             {
@@ -80,7 +74,7 @@ public sealed class SubtitleGenerator : ISubtitleGenerator
                     { SourceId = sourceId, LanguageCode = language, Url = publicUrl, Format = "VTT", IsDefault = language == "vi" });
                 if (!saved.Success) throw new InvalidOperationException(saved.message);
             }
-            return new CResponseMessage { Success = true, code = "200", message = "Đã tạo phụ đề tiếng Việt và tiếng Anh bằng Gemini." };
+            return new CResponseMessage { Success = true, code = "200", message = "Đã tạo phụ đề từ audio bằng OpenAI." };
         }
         catch (Exception ex)
         {
@@ -105,9 +99,19 @@ public sealed class SubtitleGenerator : ISubtitleGenerator
         try
         {
             json = json.Replace("```json", "", StringComparison.OrdinalIgnoreCase).Replace("```", "").Trim();
-            return (JsonSerializer.Deserialize<List<GeminiSourceSubtitleCue>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new())
+            var direct = JsonSerializer.Deserialize<List<GeminiSourceSubtitleCue>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (direct != null) return direct
                 .Where(x => x.StartSeconds >= Math.Max(0, offset - 1) && x.EndSeconds > x.StartSeconds && x.EndSeconds <= duration + 1
                     && (!string.IsNullOrWhiteSpace(x.Vi) || !string.IsNullOrWhiteSpace(x.En))).ToList();
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("segments", out var segments) || segments.ValueKind != JsonValueKind.Array) return new();
+            return segments.EnumerateArray().Select((segment, index) => new GeminiSourceSubtitleCue
+            {
+                StartSeconds = offset + (segment.TryGetProperty("start", out var start) ? start.GetDouble() : index * 3),
+                EndSeconds = offset + (segment.TryGetProperty("end", out var end) ? end.GetDouble() : (index + 1) * 3),
+                Vi = segment.TryGetProperty("text", out var text) ? text.GetString() : null,
+                En = segment.TryGetProperty("text", out var english) ? english.GetString() : null
+            }).Where(x => x.EndSeconds > x.StartSeconds && x.EndSeconds <= duration + 1 && !string.IsNullOrWhiteSpace(x.Vi)).ToList();
         }
         catch { return new(); }
     }

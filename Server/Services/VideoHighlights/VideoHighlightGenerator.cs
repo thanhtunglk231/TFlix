@@ -2,7 +2,7 @@ using CoreLib.Dtos.VideoHighlight;
 using CoreLib.Models;
 using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Http;
-using Server.Services.Gemini;
+using Server.Services.OpenAI;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
@@ -14,16 +14,16 @@ public sealed class VideoHighlightGenerator : IVideoHighlightGenerator
 {
     private readonly ICVideoSoure _sources;
     private readonly ICVideoHighlight _highlights;
-    private readonly IGeminiClient _gemini;
+    private readonly IOpenAiClient _openAi;
     private readonly ICloudflareR2Service _r2;
     private readonly ILogger<VideoHighlightGenerator> _logger;
     private readonly string _ffmpeg;
     private readonly string _ffprobe;
 
-    public VideoHighlightGenerator(ICVideoSoure sources, ICVideoHighlight highlights, IGeminiClient gemini,
+    public VideoHighlightGenerator(ICVideoSoure sources, ICVideoHighlight highlights, IOpenAiClient openAi,
         ICloudflareR2Service r2, IConfiguration configuration, ILogger<VideoHighlightGenerator> logger)
     {
-        _sources = sources; _highlights = highlights; _gemini = gemini; _r2 = r2; _logger = logger;
+        _sources = sources; _highlights = highlights; _openAi = openAi; _r2 = r2; _logger = logger;
         _ffmpeg = configuration["FFmpeg:Path"] ?? "ffmpeg";
         var directory = Path.GetDirectoryName(_ffmpeg);
         _ffprobe = string.IsNullOrWhiteSpace(directory) ? "ffprobe" : Path.Combine(directory, "ffprobe.exe");
@@ -31,8 +31,8 @@ public sealed class VideoHighlightGenerator : IVideoHighlightGenerator
 
     public async Task<CResponseMessage> GenerateAsync(long sourceId, CancellationToken cancellationToken = default)
     {
-        if (!_gemini.IsConfigured)
-            return Fail("400", "Gemini API chưa được cấu hình.");
+        if (!_openAi.IsConfigured)
+            return Fail("400", "OpenAI API chưa được cấu hình.");
         var sourceResponse = _sources.GetBySourceId(sourceId);
         if (!sourceResponse.Success || sourceResponse.Data is not DataSet ds || ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
             return Fail("404", "Không tìm thấy nguồn video.");
@@ -54,9 +54,9 @@ public sealed class VideoHighlightGenerator : IVideoHighlightGenerator
                 Không chọn đoạn mở đầu/credit, không vượt quá thời lượng. Trả JSON array duy nhất gồm:
                 title, description, startSeconds, endSeconds. Không markdown.
                 """;
-            var json = await _gemini.GenerateWithImagesAsync(prompt, frames, cancellationToken);
+            var json = await _openAi.GenerateWithImagesAsync(prompt, frames, cancellationToken);
             var suggestions = ParseSuggestions(json, duration);
-            if (suggestions.Count == 0) return Fail("502", "Gemini không xác định được đoạn highlight phù hợp.");
+            if (suggestions.Count == 0) return Fail("502", "OpenAI không xác định được đoạn highlight phù hợp.");
 
             var order = 0;
             foreach (var suggestion in suggestions.Take(3))
@@ -80,7 +80,7 @@ public sealed class VideoHighlightGenerator : IVideoHighlightGenerator
                 });
                 if (!add.Success) throw new InvalidOperationException(add.message);
             }
-            return new CResponseMessage { Success = true, code = "200", message = $"Đã tạo {order} video highlight bằng Gemini." };
+            return new CResponseMessage { Success = true, code = "200", message = $"Đã tạo {order} video highlight bằng OpenAI và FFmpeg." };
         }
         catch (Exception ex)
         {

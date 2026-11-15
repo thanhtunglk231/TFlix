@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CoreLib.Config;
 using CoreLib.Dtos.Chat;
+using CoreLib.Dtos.GeminiImage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -93,6 +94,72 @@ namespace Server.Services.OpenAI
                 return null;
             }
         }
+
+        public async Task<string?> GenerateWithImagesAsync(string prompt, IReadOnlyList<byte[]> jpegImages,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured || jpegImages.Count == 0) return null;
+            var content = new List<object> { new { type = "input_text", text = prompt } };
+            foreach (var image in jpegImages.Take(8))
+                content.Add(new { type = "input_image", image_url = "data:image/jpeg;base64," + Convert.ToBase64String(image) });
+            var payload = new { model = _options.VisionModel, input = new[] { new { role = "user", content } }, max_output_tokens = 700 };
+            return await SendForTextAsync(payload, "OpenAI vision request", cancellationToken);
+        }
+
+        public async Task<string?> TranscribeAudioAsync(byte[] audio, string mimeType, string prompt,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured || audio.Length == 0) return null;
+            using var content = new MultipartFormDataContent();
+            var audioContent = new ByteArrayContent(audio);
+            audioContent.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
+            content.Add(audioContent, "file", "audio" + GetAudioExtension(mimeType));
+            content.Add(new StringContent(_options.TranscriptionModel), "model");
+            content.Add(new StringContent("verbose_json"), "response_format");
+            content.Add(new StringContent(prompt), "prompt");
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions") { Content = content };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            try
+            {
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                if (!response.IsSuccessStatusCode) { _logger.LogWarning("OpenAI transcription request failed with status {StatusCode}.", (int)response.StatusCode); return null; }
+                return await response.Content.ReadAsStringAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException) { _logger.LogWarning(ex, "OpenAI transcription request failed."); return null; }
+        }
+
+        public async Task<GeminiGenerateImageResponseDto> GenerateImageAsync(string prompt, string? aspectRatio = "16:9",
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsConfigured) return new GeminiGenerateImageResponseDto { Success = false, ErrorMessage = "OpenAI API chưa được cấu hình." };
+            var payload = new { model = _options.ImageModel, prompt, size = ToImageSize(aspectRatio), quality = _options.ImageQuality, response_format = "b64_json" };
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/images/generations") { Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json") };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            try
+            {
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                if (!response.IsSuccessStatusCode) return new GeminiGenerateImageResponseDto { Success = false, ErrorMessage = "OpenAI không thể tạo ảnh." };
+                using var document = JsonDocument.Parse(body);
+                var item = document.RootElement.GetProperty("data")[0];
+                return new GeminiGenerateImageResponseDto { Success = item.TryGetProperty("b64_json", out var b64), Base64Data = b64.GetString(), MimeType = "image/png", ModelUsed = _options.ImageModel };
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException) { _logger.LogWarning(ex, "OpenAI image request failed."); return new GeminiGenerateImageResponseDto { Success = false, ErrorMessage = "Không thể tạo ảnh bằng OpenAI." }; }
+        }
+
+        private async Task<string?> SendForTextAsync(object payload, string operation, CancellationToken cancellationToken)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, ResponsesEndpoint) { Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json") };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            try { using var response = await _httpClient.SendAsync(request, cancellationToken); if (!response.IsSuccessStatusCode) { _logger.LogWarning("{Operation} failed with status {StatusCode}.", operation, (int)response.StatusCode); return null; } using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken)); return document.RootElement.TryGetProperty("output_text", out var text) ? text.GetString() : ExtractOutputText(document.RootElement); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException) { _logger.LogWarning(ex, "{Operation} failed.", operation); return null; }
+        }
+
+        private static string ToImageSize(string? aspectRatio) => aspectRatio switch { "3:4" or "2:3" or "9:16" => "1024x1536", "1:1" => "1024x1024", _ => "1536x1024" };
+        private static string GetAudioExtension(string mimeType) => mimeType.Contains("wav", StringComparison.OrdinalIgnoreCase) ? ".wav" : mimeType.Contains("webm", StringComparison.OrdinalIgnoreCase) ? ".webm" : mimeType.Contains("mp4", StringComparison.OrdinalIgnoreCase) ? ".m4a" : ".mp3";
 
         private static string? ExtractOutputText(JsonElement root)
         {

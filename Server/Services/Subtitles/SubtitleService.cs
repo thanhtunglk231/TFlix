@@ -11,21 +11,21 @@ using System.Threading.Tasks;
 using CoreLib.Dtos.Chat;
 using CoreLib.Dtos.Subtitle;
 using Microsoft.Extensions.Logging;
-using Server.Services.Gemini;
+using Server.Services.OpenAI;
 
 namespace Server.Services.Subtitles
 {
     public class SubtitleService : ISubtitleService
     {
-        private readonly IGeminiClient _geminiClient;
+        private readonly IOpenAiClient _openAiClient;
         private readonly ILogger<SubtitleService> _logger;
         private static readonly ConcurrentDictionary<string, List<SubtitleTrackDto>> _cache = new();
 
         public SubtitleService(
-            IGeminiClient geminiClient,
+            IOpenAiClient openAiClient,
             ILogger<SubtitleService> logger)
         {
-            _geminiClient = geminiClient;
+            _openAiClient = openAiClient;
             _logger = logger;
         }
 
@@ -55,22 +55,22 @@ namespace Server.Services.Subtitles
             }
 
             List<SubtitleTrackDto>? tracks = null;
-            var isGeminiUsed = false;
+            var isOpenAiUsed = false;
 
-            if (_geminiClient.IsConfigured)
+            if (_openAiClient.IsConfigured)
             {
                 try
                 {
-                    tracks = await GenerateWithGeminiAsync(request, cancellationToken);
+                    tracks = await GenerateWithOpenAiAsync(request, cancellationToken);
                     if (tracks != null && tracks.Count > 0)
                     {
-                        isGeminiUsed = true;
-                        _logger.LogInformation("Đã tạo phụ đề thành công bằng Gemini AI cho {CacheKey}", cacheKey);
+                        isOpenAiUsed = true;
+                        _logger.LogInformation("Đã tạo phụ đề thành công bằng OpenAI cho {CacheKey}", cacheKey);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Lỗi khi gọi Gemini AI sinh phụ đề cho {CacheKey}. Chuyển sang fallback.", cacheKey);
+                    _logger.LogWarning(ex, "Lỗi khi gọi OpenAI sinh phụ đề cho {CacheKey}. Chuyển sang fallback.", cacheKey);
                 }
             }
 
@@ -91,8 +91,8 @@ namespace Server.Services.Subtitles
             return new GenerateSubtitleResponseDto
             {
                 Success = true,
-                Message = isGeminiUsed
-                    ? "Đã tạo phụ đề song ngữ Tiếng Việt & English thành công bằng Gemini AI."
+                Message = isOpenAiUsed
+                    ? "Đã tạo phụ đề song ngữ Tiếng Việt & English thành công bằng OpenAI."
                     : "Đã tạo phụ đề song ngữ Tiếng Việt & English tự động theo phim.",
                 Tracks = tracks
             };
@@ -130,7 +130,7 @@ namespace Server.Services.Subtitles
             return SubtitleHelper.ConvertToWebVtt(matchedTrack);
         }
 
-        private async Task<List<SubtitleTrackDto>?> GenerateWithGeminiAsync(
+        private async Task<List<SubtitleTrackDto>?> GenerateWithOpenAiAsync(
             GenerateSubtitleRequestDto req,
             CancellationToken cancellationToken)
         {
@@ -179,7 +179,7 @@ QUY TẮC BẮT BUỘC:
 4. Câu thoại tự nhiên, giàu cảm xúc, phù hợp đúng thể loại phim.";
 
             var history = new List<ChatMessageDto>();
-            var responseText = await _geminiClient.GenerateContentAsync(systemInstruction, history, prompt, cancellationToken);
+            var responseText = await _openAiClient.GenerateContentAsync(systemInstruction, history, prompt, cancellationToken);
 
             if (string.IsNullOrWhiteSpace(responseText))
                 return null;

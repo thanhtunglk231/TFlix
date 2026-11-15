@@ -1,6 +1,6 @@
 using System.Text.Json;
 using CoreLib.Dtos.Subtitle;
-using Server.Services.Gemini;
+using Server.Services.OpenAI;
 
 namespace Server.Services.Subtitles;
 
@@ -8,12 +8,12 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
 {
     private const int MaxAudioBytes = 12 * 1024 * 1024;
     private static readonly SemaphoreSlim ConcurrencyGate = new(2, 2);
-    private readonly IGeminiClient _gemini;
+    private readonly IOpenAiClient _openAi;
     private readonly ILogger<GeminiSubtitleService> _logger;
 
-    public GeminiSubtitleService(IGeminiClient gemini, ILogger<GeminiSubtitleService> logger)
+    public GeminiSubtitleService(IOpenAiClient openAi, ILogger<GeminiSubtitleService> logger)
     {
-        _gemini = gemini;
+        _openAi = openAi;
         _logger = logger;
     }
 
@@ -21,8 +21,8 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
         byte[] audio, string mimeType, double timelineOffsetSeconds, double chunkDurationSeconds,
         CancellationToken cancellationToken = default)
     {
-        if (!_gemini.IsConfigured)
-            throw new InvalidOperationException("Gemini API chưa được cấu hình.");
+        if (!_openAi.IsConfigured)
+            throw new InvalidOperationException("OpenAI API chưa được cấu hình.");
         if (audio.Length == 0 || audio.Length > MaxAudioBytes)
             throw new InvalidOperationException("Audio chunk rỗng hoặc vượt quá 12 MiB.");
         if (mimeType is not ("audio/mpeg" or "audio/mp3" or "audio/mp4" or "audio/wav" or "audio/webm"))
@@ -31,20 +31,12 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
         await ConcurrencyGate.WaitAsync(cancellationToken);
         try
         {
-            var prompt = $$"""
-                Nghe đoạn âm thanh phim dài tối đa {{chunkDurationSeconds:F3}} giây.
-                Âm thanh có thể là tiếng Anh, tiếng Hàn hoặc tiếng Nhật. Chỉ ghi lời thoại thực sự nghe được,
-                tạo hai bản dịch tự nhiên: Tiếng Việt trong trường "vi" và Tiếng Anh trong trường "en".
-                Giữ nguyên tên riêng và ý nghĩa. Không suy đoán hoặc tạo lời thoại.
-                Bỏ qua nhạc và tiếng động không có lời. Trả về JSON array duy nhất, không markdown:
-                [{"startSeconds":0.0,"endSeconds":2.5,"vi":"Nội dung tiếng Việt","en":"English subtitle"}].
-                Thời gian phải tương đối trong chunk, từ 0 đến {{chunkDurationSeconds:F3}}; mỗi câu ngắn, dễ đọc.
-                """;
+            var prompt = "Transcribe only spoken dialogue. Preserve names and punctuation. Return timestamped segments.";
 
             for (var attempt = 1; attempt <= 3; attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var json = await _gemini.GenerateWithAudioAsync(prompt, audio, mimeType, cancellationToken);
+                var json = await _openAi.TranscribeAudioAsync(audio, mimeType, prompt, cancellationToken);
                 var (success, cues) = ParseAndValidate(json, timelineOffsetSeconds, chunkDurationSeconds);
                 if (success) return cues;
                 if (attempt < 3)
@@ -55,7 +47,7 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
             }
 
             _logger.LogWarning("Không trích xuất được phụ đề cho audio chunk tại offset {Offset:F1}s (duration {Duration:F1}s).", timelineOffsetSeconds, chunkDurationSeconds);
-            throw new InvalidOperationException("Gemini không trả về phụ đề hợp lệ. Vui lòng thử lại đoạn âm thanh này.");
+            throw new InvalidOperationException("OpenAI không trả về phụ đề hợp lệ. Vui lòng thử lại đoạn âm thanh này.");
         }
         finally
         {
@@ -70,15 +62,20 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
         {
             json = json.Replace("```json", "", StringComparison.OrdinalIgnoreCase).Replace("```", "").Trim();
             
-            var startIdx = json.IndexOf('[');
-            var endIdx = json.LastIndexOf(']');
-            if (startIdx >= 0 && endIdx > startIdx)
-            {
-                json = json.Substring(startIdx, endIdx - startIdx + 1);
-            }
-
             var raw = JsonSerializer.Deserialize<List<GeminiSourceSubtitleCue>>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (raw == null)
+            {
+                using var document = JsonDocument.Parse(json);
+                if (document.RootElement.TryGetProperty("segments", out var segments) && segments.ValueKind == JsonValueKind.Array)
+                    raw = segments.EnumerateArray().Select((segment, index) => new GeminiSourceSubtitleCue
+                    {
+                        StartSeconds = segment.TryGetProperty("start", out var start) ? start.GetDouble() : index * 3,
+                        EndSeconds = segment.TryGetProperty("end", out var end) ? end.GetDouble() : (index + 1) * 3,
+                        Vi = segment.TryGetProperty("text", out var text) ? text.GetString() : null,
+                        En = segment.TryGetProperty("text", out var english) ? english.GetString() : null
+                    }).ToList();
+            }
             if (raw == null) return (true, new());
 
             var result = new List<GeminiSourceSubtitleCue>();

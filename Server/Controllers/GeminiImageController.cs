@@ -14,7 +14,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Server.Services;
-using Server.Services.Gemini;
+using Server.Services.OpenAI;
 
 namespace Server.Controllers
 {
@@ -23,7 +23,7 @@ namespace Server.Controllers
     [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
     public class GeminiImageController : ControllerBase
     {
-        private readonly IGeminiClient _geminiClient;
+        private readonly IOpenAiClient _openAiClient;
         private readonly ICMovieAsset _cMovieAsset;
         private readonly ICloudflareR2Service _cloudflareR2;
         private readonly ISupabaseService _supabase;
@@ -33,7 +33,7 @@ namespace Server.Controllers
         private readonly ILogger<GeminiImageController> _logger;
 
         public GeminiImageController(
-            IGeminiClient geminiClient,
+            IOpenAiClient openAiClient,
             ICMovieAsset cMovieAsset,
             ICloudflareR2Service cloudflareR2,
             ISupabaseService supabase,
@@ -42,7 +42,7 @@ namespace Server.Controllers
             IConfiguration config,
             ILogger<GeminiImageController> logger)
         {
-            _geminiClient = geminiClient;
+            _openAiClient = openAiClient;
             _cMovieAsset = cMovieAsset;
             _cloudflareR2 = cloudflareR2;
             _supabase = supabase;
@@ -53,7 +53,7 @@ namespace Server.Controllers
         }
 
         /// <summary>
-        /// Tạo hình ảnh bằng Gemini Imagen 3 API
+        /// Tạo hình ảnh bằng OpenAI Images API.
         /// </summary>
         [HttpPost("generate")]
         public async Task<IActionResult> Generate([FromBody] GeminiGenerateImageRequestDto dto, CancellationToken cancellationToken)
@@ -69,12 +69,7 @@ namespace Server.Controllers
 
             try
             {
-                var result = await _geminiClient.GenerateImageAsync(
-                    dto.Prompt,
-                    dto.AspectRatio,
-                    dto.Model,
-                    dto.ApiKey,
-                    cancellationToken);
+                var result = await _openAiClient.GenerateImageAsync(dto.Prompt, dto.AspectRatio, cancellationToken);
 
                 return Ok(result);
             }
@@ -114,12 +109,10 @@ namespace Server.Controllers
 
             try
             {
-                var prompt = await _geminiClient.EnhancePromptAsync(
-                    dto.Description,
-                    dto.Style,
-                    dto.Title,
-                    dto.ApiKey,
-                    cancellationToken);
+                var prompt = await _openAiClient.GenerateContentAsync(
+                    "Bạn là chuyên gia viết prompt tạo ảnh điện ảnh. Chỉ trả về prompt tiếng Anh, không markdown.",
+                    Array.Empty<CoreLib.Dtos.Chat.ChatMessageDto>(),
+                    $"Hãy viết prompt poster phim phong cách {dto.Style ?? "cinematic"}. Tiêu đề: {dto.Title ?? ""}. Mô tả: {dto.Description}", cancellationToken);
 
                 if (string.IsNullOrWhiteSpace(prompt))
                 {
@@ -289,12 +282,7 @@ namespace Server.Controllers
                     _logger.LogInformation("Đang tự tạo Poster cho phim #{MovieId} ({Title})", dto.MovieId, movieTitle);
                     var posterPrompt = $"Official theatrical movie poster for \"{movieTitle}\" {(string.IsNullOrEmpty(releaseYear) ? "" : $"({releaseYear})")}. Genre: {(string.IsNullOrEmpty(genres) ? "Cinema" : genres)}. Visual theme: {(string.IsNullOrEmpty(overview) ? movieTitle : overview.Length > 200 ? overview.Substring(0, 200) : overview)}. {styleContext}, portrait vertical framing, hyper-detailed, award-winning movie poster.";
 
-                    var posterResult = await _geminiClient.GenerateImageAsync(
-                        posterPrompt,
-                        "3:4",
-                        "imagen-3.0-generate-002",
-                        dto.ApiKey,
-                        cancellationToken);
+                    var posterResult = await _openAiClient.GenerateImageAsync(posterPrompt, "3:4", cancellationToken);
 
                     if (posterResult.Success && !string.IsNullOrWhiteSpace(posterResult.Base64Data))
                     {
@@ -320,12 +308,7 @@ namespace Server.Controllers
                     _logger.LogInformation("Đang tự tạo Theme/Backdrop cho phim #{MovieId} ({Title})", dto.MovieId, movieTitle);
                     var backdropPrompt = $"Cinematic wide theme backdrop and key landscape banner for movie \"{movieTitle}\" {(string.IsNullOrEmpty(releaseYear) ? "" : $"({releaseYear})")}. Genre: {(string.IsNullOrEmpty(genres) ? "Cinema" : genres)}. Story setting: {(string.IsNullOrEmpty(overview) ? movieTitle : overview.Length > 200 ? overview.Substring(0, 200) : overview)}. {styleContext}, panoramic 16:9 widescreen composition, epic atmospheric depth, film still aesthetic, IMAX scale.";
 
-                    var backdropResult = await _geminiClient.GenerateImageAsync(
-                        backdropPrompt,
-                        "16:9",
-                        "imagen-3.0-generate-002",
-                        dto.ApiKey,
-                        cancellationToken);
+                    var backdropResult = await _openAiClient.GenerateImageAsync(backdropPrompt, "16:9", cancellationToken);
 
                     if (backdropResult.Success && !string.IsNullOrWhiteSpace(backdropResult.Base64Data))
                     {
@@ -351,12 +334,7 @@ namespace Server.Controllers
                     _logger.LogInformation("Đang tự tạo Thumbnail cho phim #{MovieId} ({Title})", dto.MovieId, movieTitle);
                     var thumbPrompt = $"High impact video scene preview thumbnail for movie \"{movieTitle}\". Dramatic cinematic scene, 16:9 widescreen, crisp film frame, high clarity.";
 
-                    var thumbResult = await _geminiClient.GenerateImageAsync(
-                        thumbPrompt,
-                        "16:9",
-                        "imagen-3.0-generate-002",
-                        dto.ApiKey,
-                        cancellationToken);
+                    var thumbResult = await _openAiClient.GenerateImageAsync(thumbPrompt, "16:9", cancellationToken);
 
                     if (thumbResult.Success && !string.IsNullOrWhiteSpace(thumbResult.Base64Data))
                     {
@@ -417,7 +395,7 @@ namespace Server.Controllers
                 _ => "episodes"
             };
             var assetFolder = assetType.ToLowerInvariant();
-            var objectPath = $"{ownerFolder}/{ownerId}/assets/{assetFolder}/gemini_{assetFolder}_{Guid.NewGuid():N}{extension}";
+            var objectPath = $"{ownerFolder}/{ownerId}/assets/{assetFolder}/openai_{assetFolder}_{Guid.NewGuid():N}{extension}";
 
             // 1. Upload Cloudflare R2
             var publicUrl = await _cloudflareR2.UploadBytesAsync(imageBytes, objectPath, cleanMimeType);
@@ -425,12 +403,12 @@ namespace Server.Controllers
             // 2. Fallback nếu R2 chưa có hoặc lỗi: lưu local static wwwroot
             if (string.IsNullOrWhiteSpace(publicUrl))
             {
-                var localFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "gemini-assets", ownerFolder, ownerId.ToString());
+                var localFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "openai-assets", ownerFolder, ownerId.ToString());
                 Directory.CreateDirectory(localFolder);
-                var fileName = $"gemini_{assetFolder}_{Guid.NewGuid():N}{extension}";
+                var fileName = $"openai_{assetFolder}_{Guid.NewGuid():N}{extension}";
                 var localFilePath = Path.Combine(localFolder, fileName);
                 await System.IO.File.WriteAllBytesAsync(localFilePath, imageBytes);
-                publicUrl = $"/uploads/gemini-assets/{ownerFolder}/{ownerId}/{fileName}";
+                publicUrl = $"/uploads/openai-assets/{ownerFolder}/{ownerId}/{fileName}";
             }
 
             // 3. Ghi vào CSDL qua CMovieAsset
