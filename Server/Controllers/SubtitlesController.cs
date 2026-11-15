@@ -6,6 +6,7 @@ using DataServiceLib.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Server.Services.Subtitles;
+using Server.Services.Gemini;
 
 namespace Server.Controllers
 {
@@ -50,6 +51,15 @@ namespace Server.Controllers
                 return File(file.Content, file.ContentType);
             }
             catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(StatusCodes.Status504GatewayTimeout,
+                    new { message = "Tải file HLS từ storage hết thời gian chờ. Vui lòng thử lại." });
+            }
         }
 
         [HttpGet("browser-jobs/{jobId:guid}")]
@@ -77,6 +87,7 @@ namespace Server.Controllers
                     form.DurationSeconds, form.Audio, OwnerId, cancellationToken));
             }
             catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (GeminiQuotaException ex) { return StatusCode(StatusCodes.Status429TooManyRequests, new { message = ex.Message }); }
             catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
             catch (System.OperationCanceledException)
             {

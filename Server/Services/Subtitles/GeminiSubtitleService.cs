@@ -54,8 +54,8 @@ public sealed class GeminiSubtitleService : IGeminiSubtitleService
                 }
             }
 
-            _logger.LogWarning("Không trích xuất được phụ đề cho audio chunk tại offset {Offset:F1}s (duration {Duration:F1}s). Đánh dấu chunk rỗng để tiếp tục tiến trình.", timelineOffsetSeconds, chunkDurationSeconds);
-            return new List<GeminiSourceSubtitleCue>();
+            _logger.LogWarning("Không trích xuất được phụ đề cho audio chunk tại offset {Offset:F1}s (duration {Duration:F1}s).", timelineOffsetSeconds, chunkDurationSeconds);
+            throw new InvalidOperationException("Gemini không trả về phụ đề hợp lệ. Vui lòng thử lại đoạn âm thanh này.");
         }
         finally
         {

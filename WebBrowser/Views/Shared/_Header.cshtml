@@ -13,7 +13,8 @@
 
     var q = Context?.Request?.Query["q"].ToString() ?? "";
     var token = Context.Session.GetString("JWToken");
-    var isLoggedIn = !string.IsNullOrEmpty(token);
+    var currentUserSession = Context.Session.GetString("CurrentUser");
+    var isLoggedIn = !string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(currentUserSession);
     var userName = Context.Session.GetString("Username") ?? "Tài khoản";
 }
 

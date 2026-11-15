@@ -8,6 +8,7 @@ public sealed class PaymentViewModel
     public long? SelectedPlanId { get; set; }
     public string ReturnUrl { get; set; } = "/";
     public string? ErrorMessage { get; set; }
+    public HashSet<string> ActivePlanCodes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public PayOsCheckoutResultDto? PayOsPayment { get; set; }
 }
 

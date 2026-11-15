@@ -24,12 +24,30 @@ public sealed class PaymentController : Controller
             return RedirectToAction("Index", "Auth", new { returnUrl = Request.Path + Request.QueryString });
 
         var response = await _paymentService.GetPlansAsync();
+        var activePlanCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var subscriptionResponse = await _paymentService.GetSubscriptionStatusAsync();
+            if (subscriptionResponse.Success)
+            {
+                activePlanCodes = ReadTable<SubscriptionStatusDto>(subscriptionResponse.Data)
+                    .Where(item => item.IsActive && !string.IsNullOrWhiteSpace(item.PlanCode))
+                    .Select(item => item.PlanCode!)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Could not load active subscriptions for payment page");
+        }
+
         return View(new PaymentViewModel
         {
             Plans = ReadTable<SubscriptionPlanItemDto>(response.Data),
             SelectedPlanId = planId,
             ReturnUrl = LocalReturnUrl(returnUrl),
-            ErrorMessage = response.Success ? null : response.message
+            ErrorMessage = response.Success ? null : response.message,
+            ActivePlanCodes = activePlanCodes
         });
     }
 
@@ -40,10 +58,19 @@ public sealed class PaymentController : Controller
         if (!ModelState.IsValid)
             return RedirectToAction(nameof(Index), new { planId = dto.PlanId, returnUrl });
 
-        var payment = await _paymentService.CheckoutAsync(dto);
+        var checkout = await _paymentService.CheckoutAsync(dto);
+        if (!checkout.Success)
+        {
+            TempData["PaymentError"] = string.IsNullOrWhiteSpace(checkout.message)
+                ? "Không thể tạo mã QR PayOS. Vui lòng thử lại."
+                : checkout.message;
+            return RedirectToAction(nameof(Index), new { planId = dto.PlanId, returnUrl });
+        }
+
+        var payment = JsonConvert.DeserializeObject<PayOsCheckoutResultDto>(JsonConvert.SerializeObject(checkout.Data));
         if (payment == null)
         {
-            TempData["PaymentError"] = "Không thể tạo mã QR PayOS. Vui lòng thử lại.";
+            TempData["PaymentError"] = "Không đọc được thông tin thanh toán PayOS.";
             return RedirectToAction(nameof(Index), new { planId = dto.PlanId, returnUrl });
         }
 

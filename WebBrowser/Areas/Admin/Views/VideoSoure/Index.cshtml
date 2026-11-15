@@ -2923,7 +2923,7 @@
               const exitCode = await ffmpeg.exec(['-i', inputName, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '32k', '-f', 'mp3', outputName]);
               if(exitCode !== 0) throw new Error(`FFmpeg không thể trích âm thanh (mã ${exitCode}).`);
               const audio = await ffmpeg.readFile(outputName);
-              return new File([audio.buffer], outputName, { type: 'audio/mpeg' });
+              return new File([audio], outputName, { type: 'audio/mpeg' });
             } finally {
               try { await ffmpeg.deleteFile(inputName); } catch {}
               try { await ffmpeg.deleteFile(outputName); } catch {}
@@ -2965,16 +2965,20 @@
                     form.append('offsetSeconds', String(chunks[index].offset));
                     form.append('durationSeconds', String(chunks[index].duration));
                     anti = await getFreshSubtitleRequestToken();
-                    await $.ajax({
+                    const chunkResult = await $.ajax({
                       url: `${urls.uploadSubtitleChunk}?jobId=${encodeURIComponent(jobId)}&chunkIndex=${index}`,
                       type: 'POST', data: form, processData: false, contentType: false,
-                      timeout: 180000,
+                      timeout: 600000,
                       headers: anti ? { 'RequestVerificationToken': anti } : {}
                     });
+                    if (!(chunkResult?.success ?? chunkResult?.Success)) {
+                      throw new Error(chunkResult?.message || chunkResult?.Message || 'Không nhận được kết quả xử lý audio.');
+                    }
                     chunkUploaded = true;
                     break;
                   } catch(e) {
                     chunkError = e;
+                    if (e?.status === 429) break;
                     console.warn(`[Subtitle] Chunk ${index} thất bại lần ${attempt}/3:`, e);
                     if (attempt < 3) {
                       updateSubtitleProgress(`Đoạn ${index + 1}/${chunks.length}: đang thử lại (lần ${attempt + 1})...`, percent);

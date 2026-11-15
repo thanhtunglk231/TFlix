@@ -237,6 +237,11 @@ function triggerLoginModalIfAvailable() {
         modalEl = createGlobalLoginModal();
     }
     if (modalEl && typeof bootstrap !== 'undefined') {
+        // Modal phải là con trực tiếp của body. Nếu nằm trong main có transform,
+        // stacking context sẽ khiến hộp modal bị che dưới backdrop.
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 }
@@ -681,6 +686,17 @@ window.closeRatingPopover = function () {
 
 // Chặn chuyển trang khi tương tác với các widget đánh giá sao, nhưng không chặn các nút sao hoạt động
 document.addEventListener('click', function (e) {
+    // Mọi vùng tương tác bên trong card phim đều phải yêu cầu đăng nhập trước.
+    // Dùng delegated capture handler để áp dụng cả với card được tải bằng AJAX.
+    const protectedMovieCard = e.target.closest('.movie-card-item[data-id]');
+    if (protectedMovieCard && window.isLoggedIn === false) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        triggerLoginModalIfAvailable();
+        return;
+    }
+
     // 1. Nếu click bên trong floating popover đánh giá, để popover và các nút sao của nó xử lý bình thường!
     if (e.target.closest('#tflix-rating-popover, .tflix-rating-popover')) {
         return;

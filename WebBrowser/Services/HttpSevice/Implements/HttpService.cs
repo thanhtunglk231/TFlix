@@ -530,21 +530,22 @@
                     };
                 }
             }
-            public async Task<T> PostMultipartAsync<T>(string url, MultipartFormDataContent content)
+            public async Task<T> PostMultipartAsync<T>(string url, MultipartFormDataContent content, bool longRunning = false)
             {
                 Log($"PostMultipartAsync<{typeof(T).Name}> -> {url}");
-                AddBearerToken();
+                var client = longRunning ? _longRunningClient : _client;
+                AddBearerToken(client);
 
                 try
                 {
-                    Log($"POST multipart to: {new Uri(_client.BaseAddress!, url)}");
-                    var response = await _client.PostAsync(url, content);
+                    Log($"POST multipart to: {new Uri(client.BaseAddress!, url)}");
+                    using var response = await client.PostAsync(url, content, _httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None);
 
                     Log($"POST(multipart) Status: {(int)response.StatusCode} {response.StatusCode}");
                     var json = await response.Content.ReadAsStringAsync();
 
                     if (!response.IsSuccessStatusCode)
-                        throw new HttpRequestException($"Lỗi API: {response.StatusCode}");
+                        throw new HttpRequestException($"Lỗi API: {response.StatusCode}. {json}", null, response.StatusCode);
 
                     var result = JsonConvert.DeserializeObject<T>(json);
                     return result!;
@@ -552,6 +553,7 @@
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "HTTP multipart POST {Url} failed", url);
+                    if (longRunning) throw;
                     if (typeof(T) == typeof(CResponseMessage))
                     {
                         return (T)(object)new CResponseMessage

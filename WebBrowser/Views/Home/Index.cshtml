@@ -7,7 +7,9 @@
 @{
     ViewData["Title"] = "TFlix - Xem Phim Trực Tuyến Đỉnh Cao";
     var token = Context.Session.GetString("JWToken");
-    var isLoggedIn = !string.IsNullOrEmpty(token) || (User?.Identity?.IsAuthenticated ?? false);
+    var currentUserSession = Context.Session.GetString("CurrentUser");
+    var hasUserSession = !string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(currentUserSession);
+    var isLoggedIn = hasUserSession || (User?.Identity?.IsAuthenticated ?? false);
     
     var allMovies = Model?.Movies ?? new List<WebBrowser.Models.Movie.MovieItem>();
     
@@ -39,7 +41,7 @@
     @await Html.PartialAsync("_HeroBanner", allMovies)
 
     <!-- 2. KHÁM PHÁ THEO THỂ LOẠI (Chip Buttons) -->
-    @await Html.PartialAsync("_GenreChips")
+    @await Html.PartialAsync("_GenreChips", Model)
 
     @await Html.PartialAsync("_PremiumUpgrade", Model)
 
@@ -583,7 +585,7 @@
         }
 
         // Movie Card Click -> Navigate to Watch / Details
-        function handleMovieCardClick(el, event) {
+        window.handleMovieCardClick = function(el, event) {
             const evt = event || window.event;
             if (evt && evt.target && evt.target.closest('.card-rating-tag, .card-quick-rating, .card-stars-widget, .tflix-rating-popover, .btn-card-star, .popover-star-btn, .btn-card-fav, .btn-quick-info')) {
                 return;
@@ -609,8 +611,12 @@
         }
 
         // Quick View Modal
-        function openQuickViewFromCard(card) {
+        window.openQuickViewFromCard = function(card) {
             if (!card) return;
+            if (window.isLoggedIn === false) {
+                window.showLoginModal();
+                return;
+            }
             const id = card.dataset.id;
             const title = card.dataset.title || 'Phim TFlix';
             const originalTitle = card.dataset.originalTitle || '';
@@ -721,7 +727,7 @@
 
             const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickViewModal'));
             modal.show();
-        }
+        };
 
         window.toggleFavoriteMovie = async function(id, title, btn) {
             if (btn?.disabled) return;

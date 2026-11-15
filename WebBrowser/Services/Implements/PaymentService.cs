@@ -13,18 +13,10 @@ public sealed class PaymentService : IPaymentService
     public PaymentService(IHttpService httpService) => _httpService = httpService;
     public Task<CResponseMessage> GetPlansAsync() => _httpService.GetAsync<CResponseMessage>($"{BaseUrl}/plans");
     public Task<CResponseMessage> GetSubscriptionStatusAsync() => _httpService.GetAsync<CResponseMessage>($"{BaseUrl}/subscription-status");
-    public async Task<PayOsCheckoutResultDto?> CheckoutAsync(CheckoutPaymentDto dto)
-    {
-        var response = await _httpService.PostAsync<PayOsResponse>($"{BaseUrl}/checkout", dto);
-        return response?.Success == true ? response.Data : null;
-    }
+    public Task<CResponseMessage> CheckoutAsync(CheckoutPaymentDto dto) =>
+        _httpService.PostAsync<CResponseMessage>($"{BaseUrl}/checkout", dto);
     public Task<CResponseMessage> ConfirmPayOsAsync(long orderCode) =>
         _httpService.PostAsync<CResponseMessage>($"{BaseUrl}/payos/confirm/{orderCode}", new { });
 
-    private sealed class PayOsResponse
-    {
-        public bool Success { get; set; }
-        public PayOsCheckoutResultDto? Data { get; set; }
-    }
 }
 

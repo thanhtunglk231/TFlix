@@ -101,8 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = (searchInput?.value || '').trim().toLowerCase();
         const filtered = allRequests.filter(item => {
             if (!query) return true;
-            const name = (item.fullName || '').toLowerCase();
-            const email = (item.email || '').toLowerCase();
+            const name = (item.userName || '').toLowerCase();
+            const email = (item.userEmail || '').toLowerCase();
             const reason = (item.reason || '').toLowerCase();
             return name.includes(query) || email.includes(query) || reason.includes(query);
         });
@@ -155,8 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr>
                     <td class="ps-3 fw-bold text-secondary">#${item.requestId}</td>
                     <td>
-                        <div class="fw-medium text-light">${item.fullName || 'Người dùng #' + item.userId}</div>
-                        <div class="small text-secondary">${item.email || ''}</div>
+                        <div class="fw-medium text-light">${item.userName || 'Người dùng #' + item.userId}</div>
+                        <div class="small text-secondary">${item.userEmail || ''}</div>
                     </td>
                     <td>${planDisplay}</td>
                     <td>
@@ -184,8 +184,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!item) return;
 
                 reviewRequestId.value = item.requestId;
-                reviewUserName.textContent = item.fullName || 'Người dùng #' + item.userId;
-                reviewUserEmail.textContent = item.email || '--';
+                reviewUserName.textContent = item.userName || 'Người dùng #' + item.userId;
+                reviewUserEmail.textContent = item.userEmail || '--';
                 reviewPlanName.textContent = item.planName || 'Chưa có gói';
                 reviewUserReason.textContent = item.reason || 'Không có lý do';
                 reviewAdminNotes.value = item.adminNotes || '';

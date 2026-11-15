@@ -5,7 +5,7 @@ namespace WebBrowser.Services.HttpSevice.Interfaces
 {
     public interface IHttpService
     {
-        Task<T> PostMultipartAsync<T>(string url, MultipartFormDataContent content);
+        Task<T> PostMultipartAsync<T>(string url, MultipartFormDataContent content, bool longRunning = false);
         Task<T> PutMultipartAsync<T>(string url, MultipartFormDataContent content);
         Task<CResponseMessage> DeleteResponseAsync(string url);
         Task<CResponseMessage> DeleteWithBodyResponseAsync(string url, object data);

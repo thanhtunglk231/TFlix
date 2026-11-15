@@ -44,7 +44,7 @@ namespace WebBrowser.Controllers
             // Fetch genres for filter dropdown
             try
             {
-                var genresResp = await _genresService.get_all();
+                var genresResp = await _genresService.get_all(page: 1, pageSize: 100);
                 if (genresResp != null && genresResp.Data != null && genresResp.Data.Table != null)
                 {
                     ViewBag.Genres = genresResp.Data.Table;

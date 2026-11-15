@@ -1,69 +1,57 @@
-@* Views/Home/_GenreChips.cshtml *@
-<section class="tflix-section" id="exploreSection">
+@model WebBrowser.Models.Home.HomeViewModel
+
+<section class="tflix-section" id="exploreSection" aria-labelledby="exploreTitle">
     <div class="section-header">
         <div class="section-title-wrap">
             <div class="section-icon-badge">
-                <i class="bi bi-compass-fill"></i>
+                <i class="bi bi-compass-fill" aria-hidden="true"></i>
             </div>
-            <h2 class="section-title">Khám phá theo thể loại</h2>
+            <h2 class="section-title" id="exploreTitle">Khám phá theo thể loại</h2>
         </div>
         <div class="section-divider-line d-none d-md-block"></div>
         <a class="btn-view-all" asp-controller="Movies" asp-action="Index">
             <span>Tất cả thể loại</span>
-            <i class="bi bi-arrow-right"></i>
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
         </a>
     </div>
 
-    <div class="genre-chips-scroll" role="toolbar" aria-label="Danh sách thể loại phim">
-        <button type="button" class="genre-chip active" data-genre="all" onclick="filterCatalogByGenre('all', this)">
-            <i class="bi bi-grid-fill"></i>
-            <span>Tất cả</span>
-        </button>
-        <button type="button" class="genre-chip" data-genre="cinema" onclick="filterCatalogByGenre('cinema', this)">
-            <i class="bi bi-camera-reels-fill"></i>
-            <span>Phim chiếu rạp</span>
-        </button>
-        <button type="button" class="genre-chip" data-genre="action" onclick="filterCatalogByGenre('action', this)">
-            <i class="bi bi-lightning-charge-fill"></i>
-            <span>Phim hành động</span>
-        </button>
-        <button type="button" class="genre-chip" data-genre="scifi" onclick="filterCatalogByGenre('scifi', this)">
-            <i class="bi bi-rocket-takeoff-fill"></i>
-            <span>Khoa học viễn tưởng</span>
-        </button>
-        <button type="button" class="genre-chip" data-genre="anime" onclick="filterCatalogByGenre('anime', this)">
-            <i class="bi bi-stars"></i>
-            <span>Anime Nhật Bản</span>
-        </button>
-        <button type="button" class="genre-chip" data-genre="historical" onclick="filterCatalogByGenre('historical', this)">
-            <i class="bi bi-feather"></i>
-            <span>Phim cổ trang</span>
-        </button>
-        <button type="button" class="genre-chip" data-genre="horror" onclick="filterCatalogByGenre('horror', this)">
-            <i class="bi bi-ghost"></i>
-            <span>Kinh dị rùng rợn</span>
-        </button>
-        <button type="button" class="genre-chip" data-genre="romance" onclick="filterCatalogByGenre('romance', this)">
-            <i class="bi bi-heart-fill"></i>
-            <span>Tình cảm lãng mạn</span>
-        </button>
-        <button type="button" class="genre-chip" data-genre="comedy" onclick="filterCatalogByGenre('comedy', this)">
-            <i class="bi bi-emoji-laughing-fill"></i>
-            <span>Hài hước đặc sắc</span>
-        </button>
-    </div>
-</section>
+    @if (Model.Genres.Count > 0)
+    {
+        <nav class="genre-chips-scroll" aria-label="Danh sách thể loại phim">
+            <a class="genre-chip active"
+               asp-controller="Movies"
+               asp-action="Index"
+               aria-label="Xem tất cả phim">
+                <i class="bi bi-grid-fill" aria-hidden="true"></i>
+                <span>#TấtCả</span>
+            </a>
 
-<script>
-    function filterCatalogByGenre(genreKey, el) {
-        document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
-        if (el) el.classList.add('active');
-
-        if (window.handleGenreChipFilter) {
-            window.handleGenreChipFilter(genreKey);
-        } else {
-            // If on desktop or navigating
-            window.location.href = `/Movies?genre=${encodeURIComponent(genreKey)}`;
-        }
+            @foreach (var genre in Model.Genres)
+            {
+                var genreName = genre.GenreName!.Trim();
+                var hashtag = string.Concat(genreName.Where(character => !char.IsWhiteSpace(character)));
+                <a class="genre-chip"
+                   asp-controller="Movies"
+                   asp-action="Index"
+                   asp-route-genreId="@genre.GenreId"
+                   title="Xem phim thể loại @genreName"
+                   aria-label="Xem phim thể loại @genreName">
+                    <i class="bi bi-hash" aria-hidden="true"></i>
+                    <span>#@hashtag</span>
+                </a>
+            }
+        </nav>
     }
-</script>
+    else
+    {
+        <div class="genre-chips-empty py-4 text-center text-secondary" role="status">
+            <i class="bi bi-tags fs-3" aria-hidden="true"></i>
+            <p class="mb-2 mt-2">@(Model.GenresErrorMessage ?? "Chưa có thể loại phim để hiển thị.")</p>
+            <a class="btn btn-outline-light btn-sm rounded-pill"
+               asp-controller="Home"
+               asp-action="Index">
+                <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Thử lại
+            </a>
+        </div>
+    }
+</section>

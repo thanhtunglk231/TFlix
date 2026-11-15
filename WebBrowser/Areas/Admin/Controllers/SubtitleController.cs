@@ -118,6 +118,8 @@ public sealed class SubtitleController : AdminBaseController
         }
         catch (HttpRequestException ex)
         {
+            if (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Các model Gemini khả dụng đang bị giới hạn quota hoặc không thể truy cập. Vui lòng kiểm tra quota và thử lại sau." });
             return BadRequest(new { message = ex.Message });
         }
     }

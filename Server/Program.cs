@@ -218,10 +218,15 @@ builder.Services.AddHttpClient<
 // =====================================================
 
 builder.Services.AddHttpClient("GeminiClient");
+builder.Services.AddHttpClient("OpenAIClient");
 
 builder.Services.Configure<CoreLib.Config.GeminiOptions>(
     builder.Configuration.GetSection(
         CoreLib.Config.GeminiOptions.SectionName));
+
+builder.Services.Configure<CoreLib.Config.OpenAiOptions>(
+    builder.Configuration.GetSection(
+        CoreLib.Config.OpenAiOptions.SectionName));
 
 builder.Services.Configure<CoreLib.Config.ChatbotOptions>(
     builder.Configuration.GetSection(
@@ -230,6 +235,10 @@ builder.Services.Configure<CoreLib.Config.ChatbotOptions>(
 builder.Services.AddSingleton<
     Server.Services.Gemini.IGeminiClient,
     Server.Services.Gemini.GeminiClient>();
+
+builder.Services.AddSingleton<
+    Server.Services.OpenAI.IOpenAiClient,
+    Server.Services.OpenAI.OpenAiClient>();
 
 builder.Services.AddScoped<
     Server.Services.Chat.IChatbotService,

@@ -11,7 +11,16 @@
     const token = page.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
     let subscriptions = [], users = [], plans = [], deleteId = 0;
 
-    const value = (obj, ...keys) => { for (const key of keys) if (obj?.[key] !== undefined && obj[key] !== null) return obj[key]; return null; };
+    const normalizeKey = key => String(key || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const value = (obj, ...keys) => {
+        if (!obj) return null;
+        for (const key of keys) {
+            if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+        }
+        const normalizedKeys = new Set(keys.map(normalizeKey));
+        const matchedKey = Object.keys(obj).find(key => normalizedKeys.has(normalizeKey(key)));
+        return matchedKey !== undefined && obj[matchedKey] !== null ? obj[matchedKey] : null;
+    };
     const escapeHtml = text => String(text ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
     const responseMessage = json => json?.message || json?.Message || 'Không thể xử lý yêu cầu.';
     const parseDate = date => date ? new Date(date) : null;

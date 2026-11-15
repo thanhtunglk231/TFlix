@@ -29,7 +29,10 @@
     <script>
         @{
             var layoutToken = Context.Session.GetString("JWToken");
-            var layoutIsLoggedIn = !string.IsNullOrEmpty(layoutToken) || (User?.Identity?.IsAuthenticated ?? false);
+            var layoutCurrentUser = Context.Session.GetString("CurrentUser");
+            var layoutHasUserSession = !string.IsNullOrWhiteSpace(layoutToken)
+                                       && !string.IsNullOrWhiteSpace(layoutCurrentUser);
+            var layoutIsLoggedIn = layoutHasUserSession || (User?.Identity?.IsAuthenticated ?? false);
         }
         window.isLoggedIn = @layoutIsLoggedIn.ToString().ToLower();
     </script>

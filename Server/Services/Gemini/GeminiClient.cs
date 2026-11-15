@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -15,13 +17,18 @@ using Microsoft.Extensions.Options;
 
 namespace Server.Services.Gemini
 {
+    public sealed class GeminiQuotaException : Exception
+    {
+        public GeminiQuotaException() : base("Các model Gemini khả dụng đang bị giới hạn quota hoặc không thể truy cập. Vui lòng kiểm tra quota và thử lại sau.") { }
+    }
+
     public class GeminiClient : IGeminiClient
     {
         private readonly HttpClient _httpClient;
         private readonly GeminiOptions _options;
         private readonly ILogger<GeminiClient> _logger;
         private readonly List<string> _apiKeys;
-        private int _currentKeyIndex = 0;
+        private readonly ConcurrentDictionary<(string Model, int KeyIndex), DateTimeOffset> _quotaRetryAfter = new();
 
         public GeminiClient(
             IHttpClientFactory httpClientFactory,
@@ -55,17 +62,7 @@ namespace Server.Services.Gemini
         }
 
         public bool IsConfigured => _apiKeys.Count > 0;
-
-        private string CurrentApiKey => _apiKeys.Count > 0 ? _apiKeys[_currentKeyIndex % _apiKeys.Count] : string.Empty;
-
-        private void RotateApiKey()
-        {
-            if (_apiKeys.Count > 1)
-            {
-                _currentKeyIndex = (_currentKeyIndex + 1) % _apiKeys.Count;
-                _logger.LogInformation("Rotated to next Gemini API key (index {Index}/{Total}).", _currentKeyIndex + 1, _apiKeys.Count);
-            }
-        }
+        private string CurrentApiKey => _apiKeys.FirstOrDefault() ?? string.Empty;
 
         public async Task<string?> GenerateWithAudioAsync(string prompt, byte[] audio, string mimeType,
             CancellationToken cancellationToken = default)
@@ -75,7 +72,6 @@ namespace Server.Services.Gemini
             {
                 var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
                     ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
-                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.7-flash" : _options.Model;
                 var payload = JsonSerializer.Serialize(new
                 {
                     contents = new[] { new { role = "user", parts = new object[] {
@@ -83,8 +79,9 @@ namespace Server.Services.Gemini
                     } } },
                     generationConfig = new { temperature = 0.1, maxOutputTokens = 8192, responseMimeType = "application/json" }
                 });
-                return await ExecuteWithFallbackAsync(baseUrl, model, payload, "AudioTranscription", cancellationToken);
+                return await ExecuteWithFallbackAsync(baseUrl, payload, "AudioTranscription", cancellationToken);
             }
+            catch (GeminiQuotaException) { throw; }
             catch (OperationCanceledException)
             {
                 _logger.LogWarning("Gemini audio transcription was cancelled or timed out after {Timeout} seconds.", _options.TimeoutSeconds);
@@ -105,7 +102,6 @@ namespace Server.Services.Gemini
             {
                 var baseUrl = string.IsNullOrWhiteSpace(_options.BaseUrl)
                     ? "https://generativelanguage.googleapis.com/v1beta" : _options.BaseUrl.TrimEnd('/');
-                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.7-flash" : _options.Model;
                 var parts = new List<object> { new { text = prompt } };
                 parts.AddRange(jpegImages.Select(image => (object)new
                 {
@@ -116,7 +112,7 @@ namespace Server.Services.Gemini
                     contents = new[] { new { role = "user", parts } },
                     generationConfig = new { temperature = 0.2, maxOutputTokens = 2048, responseMimeType = "application/json" }
                 });
-                return await ExecuteWithFallbackAsync(baseUrl, model, payload, "HighlightAnalysis", cancellationToken);
+                return await ExecuteWithFallbackAsync(baseUrl, payload, "HighlightAnalysis", cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -148,7 +144,6 @@ namespace Server.Services.Gemini
                     ? "https://generativelanguage.googleapis.com/v1beta"
                     : _options.BaseUrl.TrimEnd('/');
 
-                var model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.7-flash" : _options.Model;
 
                 var contents = new List<object>();
 
@@ -195,7 +190,7 @@ namespace Server.Services.Gemini
                     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                 });
 
-                return await ExecuteWithFallbackAsync(baseUrl, model, jsonPayload, "ChatbotGeneration", cancellationToken);
+                return await ExecuteWithFallbackAsync(baseUrl, jsonPayload, "ChatbotGeneration", cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -209,51 +204,81 @@ namespace Server.Services.Gemini
             }
         }
 
-        private IEnumerable<string> GetCandidateModels(string? preferredModel)
+        private IEnumerable<string> GetCandidateModels()
         {
-            var candidates = new List<string>();
+            var configured = (_options.Models ?? new List<string>())
+                .Where(model => !string.IsNullOrWhiteSpace(model))
+                .Select(model => model.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            return configured.Length > 0 ? configured : new[] { _options.Model };
+        }
+
+        private IEnumerable<string> GetCandidateModels(string preferredModel)
+        {
+            var models = GetCandidateModels().ToList();
             if (!string.IsNullOrWhiteSpace(preferredModel))
             {
-                candidates.Add(preferredModel.Trim());
+                models.RemoveAll(model => string.Equals(model, preferredModel, StringComparison.OrdinalIgnoreCase));
+                models.Insert(0, preferredModel.Trim());
             }
 
-            // Các model Gemini đang hoạt động tốt nhất và có quota sẵn sàng
-            candidates.Add("gemini-3.7-flash");
-            candidates.Add("gemini-flash-latest");
-            candidates.Add("gemini-3.8-flash");
-            candidates.Add("gemini-3.5-flash-lite");
-            candidates.Add("gemini-3.5-flash");
-
-            return candidates.Distinct(StringComparer.OrdinalIgnoreCase);
+            return models;
         }
 
         private async Task<string?> ExecuteWithFallbackAsync(
             string baseUrl,
-            string? preferredModel,
             string jsonPayload,
             string operationName,
             CancellationToken cancellationToken)
         {
-            var models = GetCandidateModels(preferredModel);
+            var models = GetCandidateModels();
             string lastError = string.Empty;
+            var quotaLimited = false;
+
+            _logger.LogDebug(
+                "Gemini {Op}: starting failover check with {ModelCount} model(s) and {KeyCount} API key(s).",
+                operationName,
+                models.Count(),
+                _apiKeys.Count);
 
             // Timeout linh hoạt cho từng tác vụ: Audio transcription cần nhiều thời gian hơn
             var perModelTimeoutSeconds = operationName switch
             {
-                "AudioTranscription" => Math.Clamp(_options.TimeoutSeconds, 45, 180),
+                "AudioTranscription" => Math.Clamp(_options.TimeoutSeconds, 30, 60),
                 "HighlightAnalysis" => Math.Clamp(_options.TimeoutSeconds, 30, 90),
                 _ => Math.Clamp(_options.TimeoutSeconds, 30, 60)
             };
 
             foreach (var model in models)
             {
+                for (var keyIndex = 0; keyIndex < _apiKeys.Count; keyIndex++)
+                {
                 cancellationToken.ThrowIfCancellationRequested();
+                var quotaKey = (model.ToLowerInvariant(), keyIndex);
+                if (_quotaRetryAfter.TryGetValue(quotaKey, out var retryAt))
+                {
+                    if (retryAt > DateTimeOffset.UtcNow)
+                    {
+                        quotaLimited = true;
+                        _logger.LogDebug("Skipping Gemini model {Model}, key {KeyIndex}: quota retry time is {RetryAt}.", model, keyIndex + 1, retryAt);
+                        continue;
+                    }
+                    _quotaRetryAfter.TryRemove(quotaKey, out _);
+                }
                 using var perModelCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 perModelCts.CancelAfter(TimeSpan.FromSeconds(perModelTimeoutSeconds));
 
                 try
                 {
-                    using var response = await SendRequestAsync(baseUrl, model, jsonPayload, perModelCts.Token);
+                    _logger.LogDebug(
+                        "Gemini {Op}: sending request to model {Model} with API key {KeyIndex}/{KeyCount}.",
+                        operationName,
+                        model,
+                        keyIndex + 1,
+                        _apiKeys.Count);
+
+                    using var response = await SendRequestAsync(baseUrl, model, jsonPayload, _apiKeys[keyIndex], perModelCts.Token);
                     if (response.IsSuccessStatusCode)
                     {
                         var responseBody = await response.Content.ReadAsStringAsync(perModelCts.Token);
@@ -266,11 +291,17 @@ namespace Server.Services.Gemini
                                 contentElem.TryGetProperty("parts", out var parts) &&
                                 parts.GetArrayLength() > 0)
                             {
+                                _logger.LogInformation(
+                                    "Gemini {Op}: request succeeded with model {Model} using API key {KeyIndex}/{KeyCount}.",
+                                    operationName,
+                                    model,
+                                    keyIndex + 1,
+                                    _apiKeys.Count);
                                 return parts[0].GetProperty("text").GetString();
                             }
                         }
                         _logger.LogWarning("Gemini model {Model} response for {Op} did not contain text candidates.", model, operationName);
-                        continue;
+                        break;
                     }
 
                     var statusCode = (int)response.StatusCode;
@@ -282,14 +313,49 @@ namespace Server.Services.Gemini
 
                     if (statusCode == 429)
                     {
-                        RotateApiKey();
+                        quotaLimited = true;
+                        var delay = GetRetryDelay(response, lastError);
+                        var quotaRetryAt = DateTimeOffset.UtcNow.Add(delay);
+                        _quotaRetryAfter.AddOrUpdate(quotaKey, quotaRetryAt,
+                            (_, existing) => existing > quotaRetryAt ? existing : quotaRetryAt);
+
+                        if (keyIndex + 1 < _apiKeys.Count)
+                        {
+                            _logger.LogWarning(
+                                "Gemini {Op}: quota exhausted for model {Model}, API key {KeyIndex}/{KeyCount}. " +
+                                "Key is paused until {RetryAt}; switching to API key {NextKeyIndex}.",
+                                operationName,
+                                model,
+                                keyIndex + 1,
+                                _apiKeys.Count,
+                                quotaRetryAt,
+                                keyIndex + 2);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "Gemini {Op}: quota exhausted for model {Model}, API key {KeyIndex}/{KeyCount}. " +
+                                "Key is paused until {RetryAt}; no remaining API key for this model, moving to the next model.",
+                                operationName,
+                                model,
+                                keyIndex + 1,
+                                _apiKeys.Count,
+                                quotaRetryAt);
+                        }
+                        continue;
+                    }
+
+                    if (statusCode is 401 or 403 or 404)
+                    {
+                        _logger.LogInformation("Gemini model {Model} is unavailable to key {KeyIndex}/{KeyCount}; trying the next key if available.", model, keyIndex + 1, _apiKeys.Count);
                         continue;
                     }
 
                     if (statusCode == 400 && !lastError.Contains("model", StringComparison.OrdinalIgnoreCase) && !lastError.Contains("JSON mode", StringComparison.OrdinalIgnoreCase))
                     {
-                        break;
+                        return null;
                     }
+                    break;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -298,21 +364,62 @@ namespace Server.Services.Gemini
                 catch (OperationCanceledException)
                 {
                     _logger.LogWarning("Gemini model {Model} timed out after {Timeout}s for {Op}. Trying next candidate model...", model, perModelTimeoutSeconds, operationName);
+                    break;
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Exception calling Gemini {Op} on model {Model}. Trying next candidate.", operationName, model);
+                    break;
+                }
                 }
             }
 
+            if (quotaLimited && operationName == "AudioTranscription")
+                throw new GeminiQuotaException();
             _logger.LogError("All Gemini candidate models failed for {Op}. Last error: {LastError}", operationName, lastError);
             return null;
+        }
+
+        private static TimeSpan GetRetryDelay(HttpResponseMessage response, string body)
+        {
+            var header = response.Headers.RetryAfter;
+            if (header?.Delta is TimeSpan delta && delta > TimeSpan.Zero)
+                return delta;
+            if (header?.Date is DateTimeOffset date && date > DateTimeOffset.UtcNow)
+                return date - DateTimeOffset.UtcNow;
+
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                if (document.RootElement.TryGetProperty("error", out var error)
+                    && error.TryGetProperty("details", out var details)
+                    && details.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var detail in details.EnumerateArray())
+                    {
+                        if (detail.TryGetProperty("@type", out var type)
+                            && type.GetString()?.EndsWith("google.rpc.RetryInfo", StringComparison.Ordinal) == true
+                            && detail.TryGetProperty("retryDelay", out var value))
+                        {
+                            var text = value.GetString();
+                            if (!string.IsNullOrWhiteSpace(text) && text.EndsWith("s", StringComparison.Ordinal)
+                                && double.TryParse(text[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds)
+                                && double.IsFinite(seconds) && seconds > 0)
+                                return TimeSpan.FromSeconds(Math.Min(seconds, TimeSpan.FromDays(1).TotalSeconds));
+                        }
+                    }
+                }
+            }
+            catch (JsonException) { }
+
+            return TimeSpan.FromMinutes(1);
         }
 
         private async Task<HttpResponseMessage> SendRequestAsync(
             string baseUrl,
             string model,
             string jsonPayload,
+            string apiKey,
             CancellationToken cancellationToken)
         {
             var endpoint = $"{baseUrl}/models/{model}:generateContent";
@@ -320,7 +427,7 @@ namespace Server.Services.Gemini
             {
                 Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
             };
-            request.Headers.TryAddWithoutValidation("x-goog-api-key", CurrentApiKey);
+            request.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
 
             return await _httpClient.SendAsync(request, cancellationToken);
         }

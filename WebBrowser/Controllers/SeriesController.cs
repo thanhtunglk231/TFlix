@@ -38,7 +38,7 @@ namespace WebBrowser.Controllers
             List<GenreItem> genres = new();
             try
             {
-                var genresResp = await _genresService.get_all();
+                var genresResp = await _genresService.get_all(page: 1, pageSize: 100);
                 if (genresResp != null && genresResp.Data != null && genresResp.Data.Table != null)
                 {
                     genres = genresResp.Data.Table;

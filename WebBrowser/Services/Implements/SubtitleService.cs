@@ -43,7 +43,7 @@ namespace WebBrowser.Services.Implements
             form.Add(new StringContent(offsetSeconds.ToString(CultureInfo.InvariantCulture)), "offsetSeconds");
             form.Add(new StringContent(durationSeconds.ToString(CultureInfo.InvariantCulture)), "durationSeconds");
             return await _http.PostMultipartAsync<BrowserSubtitleChunkResultDto>(
-                $"/api/Subtitles/browser-jobs/{jobId}/chunks/{chunkIndex}", form);
+                $"/api/Subtitles/browser-jobs/{jobId}/chunks/{chunkIndex}", form, longRunning: true);
         }
 
         public Task<BrowserSubtitleJobDto> CompleteBrowserJobAsync(Guid jobId) =>

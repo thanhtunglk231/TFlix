@@ -3,6 +3,8 @@ using WebBrowser.Models.Home;
 using WebBrowser.Services.Interfaces;
 using CoreLib.Dtos.Payment;
 using Newtonsoft.Json;
+using WebBrowser.Models.Genres;
+using WebBrowser.Models.Movie;
 
 namespace WebBrowser.Controllers
 {
@@ -12,6 +14,7 @@ namespace WebBrowser.Controllers
         private readonly IMovieService _movieService;
         private readonly IPaymentService _paymentService;
         private readonly ISeriesService _seriesService;
+        private readonly IGenresService _genresService;
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(
@@ -19,29 +22,58 @@ namespace WebBrowser.Controllers
             IMovieService movieService,
             IPaymentService paymentService,
             ISeriesService seriesService,
+            IGenresService genresService,
             ILogger<HomeController> logger)
         {
             _homeService = homeService;
             _movieService = movieService;
             _paymentService = paymentService;
             _seriesService = seriesService;
+            _genresService = genresService;
             _logger = logger;
         }
 
         public async Task<IActionResult> Index()
         {
-            var movies = new List<WebBrowser.Models.Movie.MovieItem>();
+            var movies = new List<MovieItem>();
             try
             {
-                var response = await _movieService.get_all();
-                movies = response?.Data?.Table ?? [];
+                var movieResponse = await _movieService.get_all();
+                movies = movieResponse?.Data?.Table ?? [];
             }
-            catch (Exception ex)
+            catch (Exception movieException)
             {
-                _logger.LogError(ex, "Failed to load movie data for Home/Index.");
+                _logger.LogError(movieException, "Failed to load movie data for Home/Index.");
+                // Các section có empty state riêng; lỗi phim không được làm hỏng phần khám phá thể loại.
             }
             var plans = new List<SubscriptionPlanItemDto>();
             var subscriptionStatus = new SubscriptionStatusDto();
+            var genres = new List<GenreItem>();
+            string? genresErrorMessage = null;
+
+            try
+            {
+                var genresResponse = await _genresService.get_all(page: 1, pageSize: 100);
+                if (genresResponse.success)
+                {
+                    genres = genresResponse.Data?.Table
+                        .Where(genre => genre.GenreId.HasValue && genre.GenreId.Value > 0
+                            && !string.IsNullOrWhiteSpace(genre.GenreName))
+                        .GroupBy(genre => genre.GenreId!.Value)
+                        .Select(group => group.First())
+                        .OrderBy(genre => genre.GenreName)
+                        .ToList() ?? [];
+                }
+                else
+                {
+                    genresErrorMessage = genresResponse.message;
+                }
+            }
+            catch (Exception genresException)
+            {
+                _logger.LogError(genresException, "Failed to load genres for Home/Index.");
+                genresErrorMessage = "Không thể tải danh sách thể loại.";
+            }
 
             try
             {
@@ -64,6 +96,8 @@ namespace WebBrowser.Controllers
             return View(new HomeViewModel
             {
                 Movies = movies,
+                Genres = genres,
+                GenresErrorMessage = genresErrorMessage,
                 SubscriptionPlans = plans,
                 SubscriptionStatus = subscriptionStatus
             });

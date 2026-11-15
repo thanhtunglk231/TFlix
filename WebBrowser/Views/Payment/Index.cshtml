@@ -33,6 +33,10 @@
         }
         else
         {
+            var firstAvailablePlan = Model.Plans.FirstOrDefault(plan => !Model.ActivePlanCodes.Contains(plan.PlanCode));
+            var selectedPlanIsUnavailable = Model.SelectedPlanId.HasValue
+                && Model.Plans.Any(plan => plan.PlanId == Model.SelectedPlanId.Value
+                    && Model.ActivePlanCodes.Contains(plan.PlanCode));
             <form asp-action="Checkout" method="post" class="payment-form" id="paymentForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
@@ -42,11 +46,17 @@
                     <div class="plan-grid">
                         @foreach (var plan in Model.Plans)
                         {
-                            var selected = Model.SelectedPlanId == plan.PlanId || (!Model.SelectedPlanId.HasValue && plan == Model.Plans.First());
-                            <label class="plan-card">
-                                <input type="radio" name="PlanId" value="@plan.PlanId" checked="@selected" required />
+                            var isCurrentPlan = Model.ActivePlanCodes.Contains(plan.PlanCode);
+                            var selected = !isCurrentPlan && (Model.SelectedPlanId == plan.PlanId
+                                || ((!Model.SelectedPlanId.HasValue || selectedPlanIsUnavailable) && plan == firstAvailablePlan));
+                            <label class="plan-card @(isCurrentPlan ? "plan-card--current" : null)">
+                                <input type="radio" name="PlanId" value="@plan.PlanId" checked="@selected" disabled="@isCurrentPlan" required />
                                 <span class="plan-card-body">
                                     <span class="plan-name">@plan.Name</span>
+                                    @if (isCurrentPlan)
+                                    {
+                                        <span class="badge text-bg-success align-self-start">Gói đang sử dụng</span>
+                                    }
                                     <span class="plan-price">@plan.Price.ToString("N0") ₫</span>
                                     <span class="plan-duration">@plan.DurationDays ngày · @plan.MaxDevices thiết bị</span>
                                     <span class="plan-feature">Chất lượng tối đa: @(plan.QualityCap ?? "Auto")</span>
@@ -71,7 +81,7 @@
                         <strong>Kích hoạt ngay</strong>
                         <p>Giao dịch được lưu an toàn và gói sẽ áp dụng cho tài khoản đang đăng nhập.</p>
                     </div>
-                    <button type="submit" class="btn-payment">Tạo mã QR PayOS</button>
+                    <button type="submit" class="btn-payment" disabled="@(firstAvailablePlan == null)">Tạo mã QR PayOS</button>
                 </div>
             </form>
         }
